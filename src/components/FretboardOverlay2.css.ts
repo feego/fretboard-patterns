@@ -3,10 +3,18 @@ import { colors, borderRadius } from "../styles/theme";
 
 export const overlay = style({
   position: "fixed",
-  pointerEvents: "none",
-  zIndex: 1000,
+  pointerEvents: "none", 
+  zIndex: 1001,
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",
+});
+
+export const visible = style({
+  opacity: 1,
+});
+
+export const hidden = style({
+  opacity: 0,
 });
 
 export const grid = style({
@@ -39,21 +47,13 @@ export const gridCell = style({
 
 export const centerCell = style({
   backgroundColor: colors.dark.surface, // Same as regular cells
-  color: colors.dark.text, // Same text color
+  color: colors.dark.text, // Same text color  
   border: `1px solid ${colors.dark.border}`, // Same border as regular cells
 });
 
 export const sharpNote = style({
   opacity: 0.5, // Dim sharp notes
   color: colors.dark.textMuted, // Use muted text color
-});
-
-export const hidden = style({
-  opacity: 0,
-});
-
-export const visible = style({
-  opacity: 1,
 });
 
 export const emptyCell = style({

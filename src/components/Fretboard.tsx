@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import * as styles from "./Fretboard.css";
 import FretboardOverlay from "./FretboardOverlay";
+import FretboardOverlay2 from "./FretboardOverlay2";
 
 export default function Fretboard() {
   const strings = ["E", "B", "G", "D", "A", "E"]; // Inverted order: high E to low E
@@ -126,6 +127,13 @@ export default function Fretboard() {
       </div>
       
       <FretboardOverlay
+        isVisible={isOverlayVisible}
+        mousePosition={mousePosition}
+        snappedPosition={snappedPosition}
+        hoveredFret={hoveredFret}
+      />
+      
+      <FretboardOverlay2
         isVisible={isOverlayVisible}
         mousePosition={mousePosition}
         snappedPosition={snappedPosition}
