@@ -1,0 +1,136 @@
+"use client";
+
+import { useState, useRef } from "react";
+import * as styles from "./Fretboard.css";
+import FretboardOverlay from "./FretboardOverlay";
+
+export default function Fretboard() {
+  const strings = ["E", "B", "G", "D", "A", "E"]; // Inverted order: high E to low E
+  const frets = 24;
+  const markerFrets = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24]; // Extended marker frets
+  
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isOverlayVisible, setIsOverlayVisible] = useState(false);
+  const [snappedPosition, setSnappedPosition] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredFret, setHoveredFret] = useState<{ string: number; fret: number } | null>(null);
+  const fretboardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setMousePosition({ x: e.clientX, y: e.clientY });
+    
+    // Check if we're over a fret and snap to it
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-fret]')) {
+      const fretElement = target.closest('[data-fret]') as HTMLElement;
+      const rect = fretElement.getBoundingClientRect();
+      setSnappedPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+      
+      // Extract string and fret information
+      const stringIndex = parseInt(fretElement.getAttribute('data-string') || '0');
+      const fretNumber = parseInt(fretElement.getAttribute('data-fret-number') || '0');
+      setHoveredFret({ string: stringIndex, fret: fretNumber });
+    } else {
+      setSnappedPosition(null);
+      setHoveredFret(null);
+    }
+  };
+
+  const handleMouseEnter = () => {
+    setIsOverlayVisible(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsOverlayVisible(false);
+    setSnappedPosition(null);
+    setHoveredFret(null);
+  };
+
+  return (
+    <div className={styles.container}>
+      <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
+      <div className={styles.fretboardWrapper}>
+        {/* Fret numbers above the fretboard */}
+        <div style={{ marginLeft: "2rem", marginBottom: "0.5rem" }}>
+          <div className={styles.stringRow}>
+            {[...Array(frets)].map((_, fretIndex) => {
+              const fretNumber = fretIndex + 1;
+              return (
+                <div
+                  key={`fret-number-${fretIndex}`}
+                  className={styles.fret}
+                  style={{ 
+                    height: "auto",
+                    padding: "0.25rem 0",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    fontSize: "0.7rem",
+                    color: "#a3a3a3",
+                    fontWeight: "600"
+                  }}
+                >
+                  {fretNumber}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
+        <div 
+          className={styles.fretboard}
+          ref={fretboardRef}
+          onMouseMove={handleMouseMove}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          {strings.map((string, stringIndex) => (
+            <div key={stringIndex} className={styles.stringRow}>
+              <div className={styles.stringLabel}>{string}</div>
+              {[...Array(frets)].map((_, fretIndex) => {
+                const fretNumber = fretIndex + 1;
+                const isMarkerFret = markerFrets.includes(fretNumber);
+                const isDoubleMarker = fretNumber === 12 || fretNumber === 24;
+                const isOctave = fretNumber === 12;
+                const isFirstFret = fretIndex === 0;
+                const isMiddleString = stringIndex === 2; // G string is now at index 2 (3rd from top)
+                
+                let fretClasses = styles.fret;
+                if (isFirstFret) fretClasses += ` ${styles.firstFret}`;
+                if (isOctave) fretClasses += ` ${styles.octaveFret}`;
+                
+                // Show markers only on the D string but position them to appear centered between D and G
+                if (isMarkerFret && !isDoubleMarker && isMiddleString) {
+                  fretClasses += ` ${styles.markerFret}`;
+                }
+                if (isDoubleMarker && isMiddleString) {
+                  fretClasses += ` ${styles.doubleMarkerFret}`;
+                }
+                
+                return (
+                  <div
+                    key={fretIndex}
+                    className={fretClasses}
+                    data-fret={`${stringIndex}-${fretIndex}`}
+                    data-string={stringIndex}
+                    data-fret-number={fretNumber}
+                  >
+                    {/* Note markers can be added here later */}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <FretboardOverlay
+        isVisible={isOverlayVisible}
+        mousePosition={mousePosition}
+        snappedPosition={snappedPosition}
+        hoveredFret={hoveredFret}
+      />
+    </div>
+  );
+}
