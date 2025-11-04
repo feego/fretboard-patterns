@@ -201,7 +201,7 @@ export default function SecondOverlay({
   const position = snappedPosition || mousePosition;
   
   const rootFontSize = 16;
-  const cellWidth = 2.5 * rootFontSize;
+  const cellWidth = 4 * rootFontSize; // Updated from 2.5 to 4
   const cellHeight = 3 * rootFontSize;
   
   return (

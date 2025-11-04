@@ -48,7 +48,7 @@ export const stringLabel = style({
 });
 
 export const fret = style({
-  width: "2.5rem", // Reduced from 4rem to fit more frets
+  width: "4rem", // Wider frets
   height: "3rem",
   borderRight: `1px solid ${colors.dark.border}`,
   cursor: "none",

@@ -47,7 +47,7 @@ export const fourthGrid = style([baseGrid, {
 }]);
 
 export const gridCell = style({
-  width: "2.5rem",
+  width: "4rem",
   height: "3rem",
   backgroundColor: colors.dark.surface, // Restore dark background
   borderRadius: "0px",

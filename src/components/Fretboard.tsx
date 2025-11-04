@@ -15,21 +15,26 @@ export default function Fretboard() {
   const [hoveredFret, setHoveredFret] = useState<{ string: number; fret: number }>({ string: 4, fret: 12 }); // 2 strings down (string 4 = A)
   const [continuousFret, setContinuousFret] = useState(12); // Track continuous position for infinite scroll
   const fretboardRef = useRef<HTMLDivElement>(null);
-  const cellWidth = 40; // 2.5rem * 16px
+  const cellWidth = 64; // 4rem * 16px
 
   // Initialize position on mount
   useEffect(() => {
-    if (fretboardRef.current) {
-      const fretElement = fretboardRef.current.querySelector('[data-string="4"][data-fret-number="12"]') as HTMLElement;
-      if (fretElement) {
-        const fretRect = fretElement.getBoundingClientRect();
-        const fretboardRect = fretboardRef.current.getBoundingClientRect();
-        setBasePosition({
-          x: fretRect.left - fretboardRect.left + fretRect.width / 2,
-          y: fretRect.top - fretboardRect.top + fretRect.height / 2 - 3,
-        });
+    // Add a small delay to ensure CSS is fully loaded
+    const timer = setTimeout(() => {
+      if (fretboardRef.current) {
+        const fretElement = fretboardRef.current.querySelector('[data-string="4"][data-fret-number="12"]') as HTMLElement;
+        if (fretElement) {
+          const fretRect = fretElement.getBoundingClientRect();
+          const fretboardRect = fretboardRef.current.getBoundingClientRect();
+          setBasePosition({
+            x: fretRect.left - fretboardRect.left + fretRect.width / 2,
+            y: fretRect.top - fretboardRect.top + fretRect.height / 2 - 3,
+          });
+        }
       }
-    }
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Handle arrow key navigation with infinite scroll
@@ -102,9 +107,6 @@ export default function Fretboard() {
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
-      <div style={{ color: 'white', marginBottom: '1rem', textAlign: 'center', fontSize: '0.875rem' }}>
-        Continuous Fret: {continuousFret} | Wrapped Fret: {hoveredFret.fret} | String: {hoveredFret.string}
-      </div>
       <div className={styles.fretboardWrapper}>
         {/* Fret numbers above the fretboard */}
         <div style={{ marginLeft: "2rem", marginBottom: "0.5rem" }}>
