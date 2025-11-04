@@ -4,7 +4,7 @@ import { colors, borderRadius } from "../styles/theme";
 export const overlay = style({
   position: "fixed",
   pointerEvents: "none", 
-  zIndex: 1001,
+  zIndex: 1002, // Higher z-index to render on top of both other overlays
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",
 });
@@ -20,10 +20,10 @@ export const hidden = style({
 export const grid = style({
   display: "grid",
   gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(2, 1fr)", // 5x2 grid
+  gridTemplateRows: "repeat(1, 1fr)", // Single row for 5x1 grid
   gap: "0px", // Remove gap to fit exactly
   padding: "0px", // Remove padding
-  backgroundColor: "rgba(0, 255, 0, 0.8)", // Green background for debugging
+  backgroundColor: "rgba(0, 0, 255, 0.8)", // Blue background for debugging
   borderRadius: borderRadius.md,
   // border: `2px solid ${colors.dark.accent}`, // Remove blue border
   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",

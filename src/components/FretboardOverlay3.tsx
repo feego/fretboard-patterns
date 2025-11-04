@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import * as styles from "./FretboardOverlay2.css";
+import * as styles from "./FretboardOverlay3.css";
 
-interface FretboardOverlay2Props {
+interface FretboardOverlay3Props {
   isVisible: boolean;
   mousePosition: { x: number; y: number };
   snappedPosition: { x: number; y: number } | null;
@@ -30,40 +30,48 @@ function getNoteAtPosition(stringIndex: number, fretNumber: number): string {
   return notes[noteIndex];
 }
 
-// Generate a 5x2 grid of notes, positioned so that the bottom-left note
-// of this grid matches the top-center note of the first overlay
-function generateSecondGrid(centerString: number, centerFret: number): { note: string; visible: boolean; isCenter: boolean }[][] {
+// Generate a 5x1 grid showing the string 2 positions down from the hovered fret
+function generateThirdGrid(centerString: number, centerFret: number): { note: string; visible: boolean; isCenter: boolean }[][] {
   const grid: { note: string; visible: boolean; isCenter: boolean }[][] = [];
   
-  // First overlay grid logic (for reference):
-  // - 3 rows: centerString + (-1, 0, 1) = strings centerString-1, centerString, centerString+1
-  // - 5 cols: centerFret + (-2, -1, 0, 1, 2) = frets centerFret-2 to centerFret+2
-  // - Top-center (row 0, col 2): (centerString-1, centerFret+0) = (centerString-1, centerFret)
+  // The visual positioning is: offsetX = 5 * cellWidth, offsetY = -4 * cellHeight
+  // Each cell is 40px wide × 48px tall
+  // offsetX = 5 * 40px = 200px right from hover center
+  // offsetY = -4 * 48px = -192px up from hover center
+  // 
+  // The overlay has transform: translate(-50%, -50%) so its center is at the offset position
+  // The overlay is 5×1 = 200px wide × 48px tall, so its center is at 100px from left edge
+  // 
+  // If the overlay center is 200px right and 192px up from hover center:
+  // - The overlay's left edge is at (hover center + 200px - 100px) = hover center + 100px
+  // - This means the overlay starts 100px (2.5 cells) to the right of hover center
+  // - The overlay center is 192px up (4 strings up) from hover center
   
-  // Second overlay: bottom-left should match first overlay's top-center
-  // Bottom-left of second grid = row 1, col 0 (in a 2-row grid)
-  // If (row 1, col 0) should be at (centerString-1, centerFret), then:
-  // Grid start = (centerString-1-1, centerFret-0) = (centerString-2, centerFret)
+  let gridStartString = centerString; // Move UP 4 strings to match visual positioning
+  let gridStartFret = centerFret - 2; // Start 2 frets before center (since overlay is 5 frets wide and its center is 2.5 frets right)
   
-  const gridStartString = centerString - 2;
-  const gridStartFret = centerFret;
+  // Clamp string to valid range
+  if (gridStartString < 0) {
+    gridStartString = 0; // High E string (first string)
+  }
   
-  // Create 2 rows (strings), 5 columns (frets)
-  for (let row = 0; row < 2; row++) {
+  // Always create 1 row (string), 5 columns (frets)
+  for (let row = 0; row < 1; row++) {
     const noteRow: { note: string; visible: boolean; isCenter: boolean }[] = [];
     for (let col = 0; col < 5; col++) {
       // Calculate absolute position on fretboard
       const targetString = gridStartString + row;
       const targetFret = gridStartFret + col;
       
-      // Highlight the connecting note (bottom-left of this grid)
-      const isConnectingNote = (row === 1 && col === 0);
+      // No center highlighting since this is offset
+      const isConnectingNote = false;
       
-      // Check bounds
+      // Check bounds - if out of bounds, show empty but still create the cell
       if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter: isConnectingNote });
       } else {
+        // Show empty cell for out-of-bounds positions
         noteRow.push({ note: "", visible: false, isCenter: false });
       }
     }
@@ -73,39 +81,43 @@ function generateSecondGrid(centerString: number, centerFret: number): { note: s
   return grid;
 }
 
-export default function FretboardOverlay2({ 
+export default function FretboardOverlay3({ 
   isVisible, 
   mousePosition, 
   snappedPosition,
   hoveredFret
-}: FretboardOverlay2Props) {
+}: FretboardOverlay3Props) {
   const [noteGrid, setNoteGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
   
   // Update note grid based on hovered fret position
   useEffect(() => {
     if (hoveredFret) {
-      const grid = generateSecondGrid(hoveredFret.string, hoveredFret.fret);
+      const grid = generateThirdGrid(hoveredFret.string, hoveredFret.fret);
       setNoteGrid(grid);
     } else {
-      // Default grid when not hovering over a specific fret
+      // Show a default grid when not hovering
       setNoteGrid([]);
     }
   }, [hoveredFret]);
   
   const position = snappedPosition || mousePosition;
   
-  // Position the 2nd overlay (5x2 green grid) to connect with the 1st overlay
-  // First overlay is 5x3 centered at mouse position
-  // Position this 5x2 overlay so its bottom edge aligns with first overlay's top edge
+  // Use standard 16px font size for rem calculations (most browsers default)
+  // This provides better alignment than hardcoded pixel values
   const rootFontSize = 16;
   const cellWidth = 2.5 * rootFontSize; // 2.5rem = 40px
-  const cellHeight = 3 * rootFontSize; // 3rem = 48px
-  const offsetX = 2 * cellWidth; // Move right by 2 cells
-  const offsetY = -1.5 * cellHeight; // Move up by 2.5 cells (1.5 for first overlay + 1 for this overlay's height)
+  const cellHeight = 3 * rootFontSize; // 3rem = 48px  
+  
+  // Position overlay 2 frets to the right and 2 strings down from the hovered fret
+  const offsetX = 5 * cellWidth; // Move right by 2 cells (2 frets)
+  const offsetY = -4 * cellHeight; // Move down by 2 strings
+  
+  // Force visibility for debugging
+  const isOverlayVisible = isVisible && hoveredFret !== null;
   
   return (
     <div
-      className={`${styles.overlay} ${isVisible && noteGrid.length > 0 ? styles.visible : styles.hidden}`}
+      className={`${styles.overlay} ${isOverlayVisible ? styles.visible : styles.hidden}`}
       style={{
         left: position.x + offsetX,
         top: position.y + offsetY,
