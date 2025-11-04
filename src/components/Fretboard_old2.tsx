@@ -10,12 +10,11 @@ export default function Fretboard() {
   const frets = 24;
   const markerFrets = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24]; // Extended marker frets
   
-  const [basePosition, setBasePosition] = useState({ x: 0, y: 0 });
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isOverlayVisible, setIsOverlayVisible] = useState(true); // Always visible
+  const [snappedPosition, setSnappedPosition] = useState<{ x: number; y: number } | null>(null);
   const [hoveredFret, setHoveredFret] = useState<{ string: number; fret: number }>({ string: 4, fret: 12 }); // 2 strings down (string 4 = A)
-  const [continuousFret, setContinuousFret] = useState(12); // Track continuous position for infinite scroll
   const fretboardRef = useRef<HTMLDivElement>(null);
-  const cellWidth = 40; // 2.5rem * 16px
 
   // Initialize position on mount
   useEffect(() => {
@@ -23,7 +22,11 @@ export default function Fretboard() {
       const fretElement = fretboardRef.current.querySelector('[data-string="4"][data-fret-number="12"]') as HTMLElement;
       if (fretElement) {
         const rect = fretElement.getBoundingClientRect();
-        setBasePosition({
+        setMousePosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        });
+        setSnappedPosition({
           x: rect.left + rect.width / 2,
           y: rect.top + rect.height / 2,
         });
@@ -37,7 +40,7 @@ export default function Fretboard() {
       if (!hoveredFret) return;
       
       let newString = hoveredFret.string;
-      let newContinuousFret = continuousFret;
+      let newFret = hoveredFret.fret;
       
       switch(e.key) {
         case 'ArrowUp':
@@ -49,38 +52,37 @@ export default function Fretboard() {
           e.preventDefault();
           break;
         case 'ArrowLeft':
-          // Decrease continuous fret (can go negative for infinite scroll)
-          newContinuousFret = continuousFret - 1;
+          // Allow infinite scroll left
+          newFret = hoveredFret.fret - 1;
+          if (newFret < 1) newFret = 24; // Wrap around
           e.preventDefault();
           break;
         case 'ArrowRight':
-          // Increase continuous fret (can go beyond 24 for infinite scroll)
-          newContinuousFret = continuousFret + 1;
+          // Allow infinite scroll right
+          newFret = hoveredFret.fret + 1;
+          if (newFret > 24) newFret = 1; // Wrap around
           e.preventDefault();
           break;
         default:
           return;
       }
       
-      // Calculate wrapped fret (1-24) from continuous fret
-      let wrappedFret = ((newContinuousFret - 1) % 24) + 1;
-      if (wrappedFret <= 0) wrappedFret += 24;
-      
-      if (newString !== hoveredFret.string || newContinuousFret !== continuousFret) {
-        setContinuousFret(newContinuousFret);
-        setHoveredFret({ string: newString, fret: wrappedFret });
+      if (newString !== hoveredFret.string || newFret !== hoveredFret.fret) {
+        setHoveredFret({ string: newString, fret: newFret });
         
-        // Update base position for string changes only
-        if (newString !== hoveredFret.string && fretboardRef.current) {
+        // Update position based on new fret
+        if (fretboardRef.current) {
           const fretElement = fretboardRef.current.querySelector(
-            `[data-string="${newString}"][data-fret-number="${wrappedFret}"]`
+            `[data-string="${newString}"][data-fret-number="${newFret}"]`
           ) as HTMLElement;
           if (fretElement) {
             const rect = fretElement.getBoundingClientRect();
-            setBasePosition({
-              x: basePosition.x, // Keep x the same
+            const newPos = {
+              x: rect.left + rect.width / 2,
               y: rect.top + rect.height / 2,
-            });
+            };
+            setMousePosition(newPos);
+            setSnappedPosition(newPos);
           }
         }
       }
@@ -88,13 +90,7 @@ export default function Fretboard() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hoveredFret, continuousFret, basePosition.x]);
-
-  // Calculate current position based on continuous fret
-  const currentPosition = {
-    x: basePosition.x + (continuousFret - 12) * cellWidth,
-    y: basePosition.y
-  };
+  }, [hoveredFret]);
 
   return (
     <div className={styles.container}>
@@ -168,7 +164,8 @@ export default function Fretboard() {
             </div>
           ))}
           
-          {/* Render multiple overlays in alternating pattern based on continuous fret position */}
+          {/* Render multiple overlays in alternating pattern */}
+          {/* Each "cycle" is 12 frets and contains both FirstOverlay and SecondOverlay at the same position */}
           {Array.from({ length: 9 }, (_, i) => {
             const cycleOffset = Math.floor(i / 2) - 2; // -2, -2, -1, -1, 0, 0, 1, 1, 2
             const isFirst = i % 2 === 0;
@@ -179,13 +176,13 @@ export default function Fretboard() {
                 key={`overlay-${i}`}
                 isVisible={isOverlayVisible}
                 mousePosition={{
-                  x: currentPosition.x + cycleOffset * 12 * cellWidth,
-                  y: currentPosition.y
+                  x: mousePosition.x + cycleOffset * 12 * 40,
+                  y: mousePosition.y
                 }}
-                snappedPosition={{
-                  x: currentPosition.x + cycleOffset * 12 * cellWidth,
-                  y: currentPosition.y
-                }}
+                snappedPosition={snappedPosition ? {
+                  x: snappedPosition.x + cycleOffset * 12 * 40,
+                  y: snappedPosition.y
+                } : null}
                 hoveredFret={hoveredFret}
               />
             );

@@ -26,7 +26,9 @@ const stringTuning = [
 function getNoteAtPosition(stringIndex: number, fretNumber: number): string {
   const openString = stringTuning[stringIndex];
   const openNoteIndex = notes.indexOf(openString.note);
-  const noteIndex = (openNoteIndex + fretNumber) % 12;
+  // Wrap fret number to keep it within valid range for note calculation
+  const wrappedFret = ((fretNumber - 1) % 24) + 1;
+  const noteIndex = (openNoteIndex + wrappedFret) % 12;
   return notes[noteIndex];
 }
 
@@ -47,8 +49,8 @@ function generateMainGrid(centerString: number, centerFret: number): { note: str
       const targetString = centerString + stringOffset;
       const targetFret = centerFret + fretOffset;
       
-      // Check bounds
-      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
+      // Check bounds (only check string bounds, allow fret wrapping)
+      if (targetString >= 0 && targetString < 6) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter });
       } else {
@@ -77,7 +79,7 @@ function generateSecondGrid(centerString: number, centerFret: number): { note: s
       
       const isConnectingNote = (row === 1 && col === 0);
       
-      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
+      if (targetString >= 0 && targetString < 6) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter: isConnectingNote });
       } else {
@@ -112,7 +114,7 @@ function generateThirdGrid(centerString: number, centerFret: number): { note: st
       
       const isConnectingNote = false;
       
-      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
+      if (targetString >= 0 && targetString < 6) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter: isConnectingNote });
       } else {
@@ -140,7 +142,7 @@ function generateFourthGrid(centerString: number, centerFret: number): { note: s
       
       const isConnectingNote = (col === 3);
       
-      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
+      if (targetString >= 0 && targetString < 6) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter: isConnectingNote });
       } else {
@@ -168,7 +170,7 @@ function generateFifthGrid(centerString: number, centerFret: number): { note: st
       
       const isConnectingNote = (col === 3);
       
-      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
+      if (targetString >= 0 && targetString < 6) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter: isConnectingNote });
       } else {

@@ -21,7 +21,6 @@ export const fretboard = style({
   minWidth: "fit-content", // Ensure fretboard doesn't compress
   boxShadow: `0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)`,
   position: "relative", // For absolute positioning of markers
-  overflow: "hidden",
 });
 
 export const fretboardWrapper = style({
@@ -51,7 +50,7 @@ export const fret = style({
   width: "2.5rem", // Reduced from 4rem to fit more frets
   height: "3rem",
   borderRight: `1px solid ${colors.dark.border}`,
-  cursor: "none",
+  cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",

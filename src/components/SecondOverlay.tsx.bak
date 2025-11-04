@@ -26,9 +26,7 @@ const stringTuning = [
 function getNoteAtPosition(stringIndex: number, fretNumber: number): string {
   const openString = stringTuning[stringIndex];
   const openNoteIndex = notes.indexOf(openString.note);
-  // Wrap fret number to keep it within valid range for note calculation
-  const wrappedFret = ((fretNumber - 1) % 24) + 1;
-  const noteIndex = (openNoteIndex + wrappedFret) % 12;
+  const noteIndex = (openNoteIndex + fretNumber) % 12;
   return notes[noteIndex];
 }
 
@@ -55,7 +53,7 @@ function generateMainGrid(centerString: number, centerFret: number): { note: str
       const targetFret = visualCenterFret + fretOffset;
       
       // Check bounds
-      if (targetString >= 0 && targetString < 6) {
+      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter });
       } else {
@@ -88,7 +86,7 @@ function generateTopGrid(centerString: number, centerFret: number): { note: stri
     const targetFret = visualCenterFret + fretOffset;
     
     // Check bounds
-    if (targetString >= 0 && targetString < 6) {
+    if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
       const note = getNoteAtPosition(targetString, targetFret);
       noteRow.push({ note, visible: true, isCenter });
     } else {
@@ -122,7 +120,7 @@ function generateTopGridBottom(centerString: number, centerFret: number): { note
       const targetFret = visualCenterFret + fretOffset;
       
       // Check bounds
-      if (targetString >= 0 && targetString < 6) {
+      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter });
       } else {
@@ -139,26 +137,20 @@ function generateTopGridBottom(centerString: number, centerFret: number): { note
 function generateBottomGrid(centerString: number, centerFret: number): { note: string; visible: boolean; isCenter: boolean }[][] {
   const grid: { note: string; visible: boolean; isCenter: boolean }[][] = [];
   
-  // This grid is visually positioned 5 frets right and 1 string down
-  // Adjust the center accordingly
-  const visualCenterString = centerString; // 1 string down (toward lower strings)
-  const visualCenterFret = centerFret + 5; // 5 frets right
+  const gridStartString = centerString + 1;
+  const gridStartFret = centerFret + 3;
   
-  // Create 2 rows (strings), 5 columns (frets) around the visual center
+  // Create 2 rows (strings), 5 columns (frets)
   for (let row = 0; row < 2; row++) {
     const noteRow: { note: string; visible: boolean; isCenter: boolean }[] = [];
     for (let col = 0; col < 5; col++) {
-      const isCenter = (row === 0 && col === 2); // Center of 2x5 grid
+      const isCenter = (row === 0 && col === 2);
       
-      // Calculate string and fret offset from visual center
-      const stringOffset = row - 0.5; // -0.5, 0.5 for 2 rows centered around visual center
-      const fretOffset = col - 2; // -2, -1, 0, 1, 2 for 5 columns centered around visual center
-      
-      const targetString = Math.round(visualCenterString + stringOffset);
-      const targetFret = visualCenterFret + fretOffset;
+      const targetString = gridStartString + row;
+      const targetFret = gridStartFret + col;
       
       // Check bounds
-      if (targetString >= 0 && targetString < 6) {
+      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter });
       } else {
@@ -284,7 +276,7 @@ export default function SecondOverlay({
         className={`${styles.overlay} ${isVisible && bottomGrid.length > 0 ? styles.visible : styles.hidden}`}
         style={{
           left: position.x + 5 * cellWidth, // 5 frets to the right
-          top: position.y + 0.5 * cellHeight, // 1 string down - 0.5 for grid center
+          top: position.y + 0.5 * cellHeight, // 1 string down
         }}
       >
         <div className={styles.bottomGrid}>
