@@ -5,6 +5,7 @@ import * as styles from "./Fretboard.css";
 import FirstOverlay from "./FirstOverlay";
 import SecondOverlay from "./SecondOverlay";
 import StringLabels from "./StringLabels";
+import FretboardControls from "./FretboardControls";
 
 export default function Fretboard() {
   const strings = ["E", "B", "G", "D", "A", "E"]; // Inverted order: high E to low E
@@ -15,6 +16,8 @@ export default function Fretboard() {
   const [isOverlayVisible, setIsOverlayVisible] = useState(true); // Always visible
   const [hoveredFret, setHoveredFret] = useState<{ string: number; fret: number }>({ string: 4, fret: 12 }); // 2 strings down (string 4 = A)
   const [continuousFret, setContinuousFret] = useState(12); // Track continuous position for infinite scroll
+  const [showDimmedNotes, setShowDimmedNotes] = useState(false);
+  const [tuning, setTuning] = useState("standard");
   const fretboardRef = useRef<HTMLDivElement>(null);
   const cellWidth = 64; // 4rem * 16px
 
@@ -186,7 +189,7 @@ export default function Fretboard() {
             const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
             
             // Calculate the continuous fret for this overlay instance
-            const overlayFret = continuousFret + cycleOffset * 12;
+            const overlayFret = continuousFret + cycleOffset * 12 - 7;
             // Wrap it to 1-24 range for display
             let wrappedOverlayFret = ((overlayFret - 1) % 24) + 1;
             if (wrappedOverlayFret <= 0) wrappedOverlayFret += 24;
@@ -196,20 +199,28 @@ export default function Fretboard() {
                 key={`overlay-${i}`}
                 isVisible={isOverlayVisible}
                 mousePosition={{
-                  x: currentPosition.x + cycleOffset * 12 * cellWidth,
+                  x: currentPosition.x + cycleOffset * 12 * cellWidth - 7 * cellWidth,
                   y: currentPosition.y
                 }}
                 snappedPosition={{
-                  x: currentPosition.x + cycleOffset * 12 * cellWidth,
+                  x: currentPosition.x + cycleOffset * 12 * cellWidth - 7 * cellWidth,
                   y: currentPosition.y
                 }}
                 hoveredFret={{ string: hoveredFret.string, fret: wrappedOverlayFret }}
+                showDimmedNotes={showDimmedNotes}
               />
             );
           })}
           </div>
         </div>
       </div>
+      
+      <FretboardControls
+        showDimmedNotes={showDimmedNotes}
+        onToggleDimmedNotes={() => setShowDimmedNotes(!showDimmedNotes)}
+        tuning={tuning}
+        onTuningChange={setTuning}
+      />
     </div>
   );
 }

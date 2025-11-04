@@ -8,6 +8,7 @@ interface SecondOverlayProps {
   mousePosition: { x: number; y: number };
   snappedPosition: { x: number; y: number } | null;
   hoveredFret: { string: number; fret: number } | null;
+  showDimmedNotes: boolean;
 }
 
 const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -177,7 +178,8 @@ export default function SecondOverlay({
   isVisible, 
   mousePosition, 
   snappedPosition,
-  hoveredFret
+  hoveredFret,
+  showDimmedNotes
 }: SecondOverlayProps) {
   const [mainGrid, setMainGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
   const [topGrid, setTopGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
@@ -218,12 +220,13 @@ export default function SecondOverlay({
         <div className={styles.topGrid}>
           {topGrid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
+              const shouldShow = cell.isCenter || showDimmedNotes;
               return (
                 <div
                   key={`top-${rowIndex}-${colIndex}`}
-                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (cell.isCenter ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible && shouldShow ? (cell.isCenter ? styles.highlightedNote : styles.dimmedNote) : styles.emptyCell}`}
                 >
-                  {cell.visible ? cell.note : ""}
+                  {cell.visible && shouldShow ? cell.note : ""}
                 </div>
               );
             })
@@ -243,12 +246,13 @@ export default function SecondOverlay({
           {topGridBottom.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
               const isHighlighted = colIndex === 0 || colIndex === 2 || colIndex === 4; // Left, center, right columns
+              const shouldShow = isHighlighted || showDimmedNotes;
               return (
                 <div
                   key={`top-bottom-${rowIndex}-${colIndex}`}
-                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible && shouldShow ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : styles.emptyCell}`}
                 >
-                  {cell.visible ? cell.note : ""}
+                  {cell.visible && shouldShow ? cell.note : ""}
                 </div>
               );
             })
@@ -268,12 +272,13 @@ export default function SecondOverlay({
           {mainGrid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
               const isHighlighted = colIndex === 0 || colIndex === 2 || colIndex === 4; // Left, center, right columns
+              const shouldShow = isHighlighted || showDimmedNotes;
               return (
                 <div
                   key={`main-${rowIndex}-${colIndex}`}
-                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible && shouldShow ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : styles.emptyCell}`}
                 >
-                  {cell.visible ? cell.note : ""}
+                  {cell.visible && shouldShow ? cell.note : ""}
                 </div>
               );
             })
@@ -293,12 +298,13 @@ export default function SecondOverlay({
           {bottomGrid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
               const isHighlighted = colIndex === 0 || colIndex === 2 || colIndex === 4; // Left, center, right columns
+              const shouldShow = isHighlighted || showDimmedNotes;
               return (
                 <div
                   key={`bottom-${rowIndex}-${colIndex}`}
-                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible && shouldShow ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : styles.emptyCell}`}
                 >
-                  {cell.visible ? cell.note : ""}
+                  {cell.visible && shouldShow ? cell.note : ""}
                 </div>
               );
             })
