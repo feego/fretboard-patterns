@@ -22,10 +22,11 @@ export default function Fretboard() {
     if (fretboardRef.current) {
       const fretElement = fretboardRef.current.querySelector('[data-string="4"][data-fret-number="12"]') as HTMLElement;
       if (fretElement) {
-        const rect = fretElement.getBoundingClientRect();
+        const fretRect = fretElement.getBoundingClientRect();
+        const fretboardRect = fretboardRef.current.getBoundingClientRect();
         setBasePosition({
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2,
+          x: fretRect.left - fretboardRect.left + fretRect.width / 2,
+          y: fretRect.top - fretboardRect.top + fretRect.height / 2 - 3,
         });
       }
     }
@@ -76,10 +77,11 @@ export default function Fretboard() {
             `[data-string="${newString}"][data-fret-number="${wrappedFret}"]`
           ) as HTMLElement;
           if (fretElement) {
-            const rect = fretElement.getBoundingClientRect();
+            const fretRect = fretElement.getBoundingClientRect();
+            const fretboardRect = fretboardRef.current.getBoundingClientRect();
             setBasePosition({
               x: basePosition.x, // Keep x the same
-              y: rect.top + rect.height / 2,
+              y: fretRect.top - fretboardRect.top + fretRect.height / 2 - 3,
             });
           }
         }
@@ -89,16 +91,20 @@ export default function Fretboard() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [hoveredFret, continuousFret, basePosition.x]);
-
-  // Calculate current position based on continuous fret
+  // Calculate current position with modulo to keep overlays cycling
+  // Use modulo 24 frets (2 full cycles of 12) to keep overlays within range
+  const effectiveFret = ((continuousFret - 12) % 24);
   const currentPosition = {
-    x: basePosition.x + (continuousFret - 12) * cellWidth,
+    x: basePosition.x + effectiveFret * cellWidth,
     y: basePosition.y
   };
 
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
+      <div style={{ color: 'white', marginBottom: '1rem', textAlign: 'center', fontSize: '0.875rem' }}>
+        Continuous Fret: {continuousFret} | Wrapped Fret: {hoveredFret.fret} | String: {hoveredFret.string}
+      </div>
       <div className={styles.fretboardWrapper}>
         {/* Fret numbers above the fretboard */}
         <div style={{ marginLeft: "2rem", marginBottom: "0.5rem" }}>
@@ -169,10 +175,16 @@ export default function Fretboard() {
           ))}
           
           {/* Render multiple overlays in alternating pattern based on continuous fret position */}
-          {Array.from({ length: 9 }, (_, i) => {
-            const cycleOffset = Math.floor(i / 2) - 2; // -2, -2, -1, -1, 0, 0, 1, 1, 2
+          {Array.from({ length: 21 }, (_, i) => {
+            const cycleOffset = Math.floor(i / 2) - 5; // -2, -2, -1, -1, 0, 0, 1, 1, 2
             const isFirst = i % 2 === 0;
             const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
+            
+            // Calculate the continuous fret for this overlay instance
+            const overlayFret = continuousFret + cycleOffset * 12;
+            // Wrap it to 1-24 range for display
+            let wrappedOverlayFret = ((overlayFret - 1) % 24) + 1;
+            if (wrappedOverlayFret <= 0) wrappedOverlayFret += 24;
             
             return (
               <OverlayComponent
@@ -186,7 +198,7 @@ export default function Fretboard() {
                   x: currentPosition.x + cycleOffset * 12 * cellWidth,
                   y: currentPosition.y
                 }}
-                hoveredFret={hoveredFret}
+                hoveredFret={{ string: hoveredFret.string, fret: wrappedOverlayFret }}
               />
             );
           })}

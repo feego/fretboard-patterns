@@ -3,8 +3,8 @@ import { colors, spacing, borderRadius } from "../styles/theme";
 
 export const container = style({
   padding: spacing.lg,
-  overflowX: "auto", // Allow horizontal scrolling for long fretboard
-  overflowY: "hidden",
+  overflowX: "visible", // Allow overlays to extend beyond container
+  overflowY: "visible",
   backgroundColor: colors.dark.bg,
   minHeight: "100vh",
   display: "flex",
@@ -21,7 +21,7 @@ export const fretboard = style({
   minWidth: "fit-content", // Ensure fretboard doesn't compress
   boxShadow: `0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)`,
   position: "relative", // For absolute positioning of markers
-  overflow: "hidden",
+  overflow: "hidden", // Clip overlays at fretboard edges
 });
 
 export const fretboardWrapper = style({

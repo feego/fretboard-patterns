@@ -27,7 +27,9 @@ function getNoteAtPosition(stringIndex: number, fretNumber: number): string {
   const openString = stringTuning[stringIndex];
   const openNoteIndex = notes.indexOf(openString.note);
   // Wrap fret number to keep it within valid range for note calculation
-  const wrappedFret = ((fretNumber - 1) % 24) + 1;
+  // Handle negative numbers properly
+  let wrappedFret = ((fretNumber - 1) % 24) + 1;
+  if (wrappedFret <= 0) wrappedFret += 24;
   const noteIndex = (openNoteIndex + wrappedFret) % 12;
   return notes[noteIndex];
 }

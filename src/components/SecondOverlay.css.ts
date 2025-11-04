@@ -2,7 +2,7 @@ import { style } from "@vanilla-extract/css";
 import { colors, borderRadius } from "../styles/theme";
 
 export const overlay = style({
-  position: "fixed",
+  position: "absolute",
   pointerEvents: "none", 
   zIndex: 999,
   transform: "translate(-50%, -50%)",
