@@ -14,7 +14,7 @@ export default function Fretboard() {
   
   const [basePosition, setBasePosition] = useState({ x: 0, y: 0 });
   const [isOverlayVisible, setIsOverlayVisible] = useState(true); // Always visible
-  const [hoveredFret, setHoveredFret] = useState<{ string: number; fret: number }>({ string: 4, fret: 12 }); // 2 strings down (string 4 = A)
+  const [currentFret, setCurrentFret] = useState<{ string: number; fret: number }>({ string: 4, fret: 12 }); // 2 strings down (string 4 = A)
   const [continuousFret, setContinuousFret] = useState(12); // Track continuous position for infinite scroll
   const [showDimmedNotes, setShowDimmedNotes] = useState(false);
   const [tuning, setTuning] = useState("standard");
@@ -44,18 +44,18 @@ export default function Fretboard() {
   // Handle arrow key navigation with infinite scroll
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!hoveredFret) return;
+      if (!currentFret) return;
       
-      let newString = hoveredFret.string;
+      let newString = currentFret.string;
       let newContinuousFret = continuousFret;
       
       switch(e.key) {
         case 'ArrowUp':
-          newString = Math.max(0, hoveredFret.string - 1);
+          newString = Math.max(0, currentFret.string - 1);
           e.preventDefault();
           break;
         case 'ArrowDown':
-          newString = Math.min(5, hoveredFret.string + 1);
+          newString = Math.min(5, currentFret.string + 1);
           e.preventDefault();
           break;
         case 'ArrowLeft':
@@ -76,12 +76,12 @@ export default function Fretboard() {
       let wrappedFret = ((newContinuousFret - 1) % 24) + 1;
       if (wrappedFret <= 0) wrappedFret += 24;
       
-      if (newString !== hoveredFret.string || newContinuousFret !== continuousFret) {
+      if (newString !== currentFret.string || newContinuousFret !== continuousFret) {
         setContinuousFret(newContinuousFret);
-        setHoveredFret({ string: newString, fret: wrappedFret });
+        setCurrentFret({ string: newString, fret: wrappedFret });
         
         // Update base position for string changes only
-        if (newString !== hoveredFret.string && fretboardRef.current) {
+        if (newString !== currentFret.string && fretboardRef.current) {
           const fretElement = fretboardRef.current.querySelector(
             `[data-string="${newString}"][data-fret-number="${wrappedFret}"]`
           ) as HTMLElement;
@@ -99,10 +99,12 @@ export default function Fretboard() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hoveredFret, continuousFret, basePosition.x]);
+  }, [currentFret, continuousFret, basePosition.x]);
   // Calculate current position with modulo to keep overlays cycling
   // Use modulo 24 frets (2 full cycles of 12) to keep overlays within range
-  const effectiveFret = ((continuousFret - 12) % 24);
+  let effectiveFret = (continuousFret - 12) % 24;
+  // Handle negative modulo correctly
+  if (effectiveFret < 0) effectiveFret += 24;
   const currentPosition = {
     x: basePosition.x + effectiveFret * cellWidth,
     y: basePosition.y
@@ -188,26 +190,21 @@ export default function Fretboard() {
             const isFirst = i % 2 === 0;
             const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
             
-            // Calculate the continuous fret for this overlay instance
-            const overlayFret = continuousFret + cycleOffset * 12 - 7;
-            // Wrap it to 1-24 range for display
-            let wrappedOverlayFret = ((overlayFret - 1) % 24) + 1;
-            if (wrappedOverlayFret <= 0) wrappedOverlayFret += 24;
-            
             return (
               <OverlayComponent
                 key={`overlay-${i}`}
                 isVisible={isOverlayVisible}
                 mousePosition={{
-                  x: currentPosition.x + cycleOffset * 12 * cellWidth - 7 * cellWidth,
+                  x: currentPosition.x + cycleOffset * 12 * cellWidth,
                   y: currentPosition.y
                 }}
                 snappedPosition={{
-                  x: currentPosition.x + cycleOffset * 12 * cellWidth - 7 * cellWidth,
+                  x: currentPosition.x + cycleOffset * 12 * cellWidth,
                   y: currentPosition.y
                 }}
-                hoveredFret={{ string: hoveredFret.string, fret: wrappedOverlayFret }}
+                currentFret={currentFret}
                 showDimmedNotes={showDimmedNotes}
+                tuning={tuning}
               />
             );
           })}

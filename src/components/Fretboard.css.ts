@@ -58,7 +58,7 @@ export const fret = style({
   width: "4rem", // Wider frets
   height: "3rem",
   borderRight: `1px solid ${colors.dark.border}`,
-  cursor: "none",
+  cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",

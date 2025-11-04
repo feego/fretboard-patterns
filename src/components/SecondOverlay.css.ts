@@ -82,3 +82,61 @@ export const bottomGrid = style([baseGrid, {
   gridTemplateColumns: "repeat(5, 1fr)",
   gridTemplateRows: "repeat(2, 1fr)",
 }]);
+
+// Single row grids for splitting multi-row grids
+export const singleRowGrid5 = style([baseGrid, {
+  gridTemplateColumns: "repeat(5, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
+
+export const singleRowGrid7 = style([baseGrid, {
+  gridTemplateColumns: "repeat(7, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
+
+// String-specific grids - SecondOverlay
+export const string0Grid7 = style([baseGrid, {
+  gridTemplateColumns: "repeat(7, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
+
+export const string1Grid5 = style([baseGrid, {
+  gridTemplateColumns: "repeat(5, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
+
+export const string2Grid7 = style([baseGrid, {
+  gridTemplateColumns: "repeat(7, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
+
+export const string3Grid5 = style([baseGrid, {
+  gridTemplateColumns: "repeat(5, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
+
+export const string4Grid7 = style([baseGrid, {
+  gridTemplateColumns: "repeat(7, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
+
+export const string5Grid5 = style([baseGrid, {
+  gridTemplateColumns: "repeat(5, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+  borderTop: `2px solid ${colors.dark.border}`,
+  borderBottom: `2px solid ${colors.dark.border}`,
+}]);
