@@ -142,11 +142,12 @@ function generateFourthGrid(centerString: number, centerFret: number): { note: s
       const targetString = gridStartString + row;
       const targetFret = gridStartFret + col;
       
-      const isConnectingNote = (col === 3);
+      // Alternate pattern: highlighted on columns 0, 2, 4, 6 (odd positions)
+      const isHighlighted = col % 2 === 0;
       
       if (targetString >= 0 && targetString < 6) {
         const note = getNoteAtPosition(targetString, targetFret);
-        noteRow.push({ note, visible: true, isCenter: isConnectingNote });
+        noteRow.push({ note, visible: true, isCenter: isHighlighted });
       } else {
         noteRow.push({ note: "", visible: false, isCenter: false });
       }
@@ -170,11 +171,12 @@ function generateFifthGrid(centerString: number, centerFret: number): { note: st
       const targetString = gridStartString + row;
       const targetFret = gridStartFret + col;
       
-      const isConnectingNote = (col === 3);
+      // Alternate pattern: highlighted on columns 0, 2, 4, 6 (odd positions)
+      const isHighlighted = col % 2 === 0;
       
       if (targetString >= 0 && targetString < 6) {
         const note = getNoteAtPosition(targetString, targetFret);
-        noteRow.push({ note, visible: true, isCenter: isConnectingNote });
+        noteRow.push({ note, visible: true, isCenter: isHighlighted });
       } else {
         noteRow.push({ note: "", visible: false, isCenter: false });
       }
@@ -308,11 +310,10 @@ export default function FirstOverlay({
         <div className={styles.fourthGrid}>
           {fourthGrid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
-              const isHighlighted = colIndex === 0 || colIndex === 3 || colIndex === 6; // Left, center, right columns
               return (
                 <div
                   key={`fourth-${rowIndex}-${colIndex}`}
-                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (cell.isCenter ? styles.highlightedNote : styles.dimmedNote) : ""}`}
                 >
                   {cell.visible ? cell.note : ""}
                 </div>
@@ -333,11 +334,10 @@ export default function FirstOverlay({
         <div className={styles.fifthGrid}>
           {fifthGrid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
-              const isHighlighted = colIndex === 0 || colIndex === 3 || colIndex === 6; // Left, center, right columns
               return (
                 <div
                   key={`fifth-${rowIndex}-${colIndex}`}
-                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (cell.isCenter ? styles.highlightedNote : styles.dimmedNote) : ""}`}
                 >
                   {cell.visible ? cell.note : ""}
                 </div>

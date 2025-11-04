@@ -81,7 +81,8 @@ function generateTopGrid(centerString: number, centerFret: number): { note: stri
   // Create 1 row (string), 7 columns (frets) around the visual center
   const noteRow: { note: string; visible: boolean; isCenter: boolean }[] = [];
   for (let col = 0; col < 7; col++) {
-    const isCenter = (col === 3); // Center of 1x7 grid
+    // Alternate pattern: highlighted on columns 0, 2, 4, 6 (odd positions)
+    const isHighlighted = col % 2 === 0;
     
     // Calculate fret offset from visual center
     const fretOffset = col - 3; // -3, -2, -1, 0, 1, 2, 3 for 7 columns centered around visual center
@@ -92,7 +93,7 @@ function generateTopGrid(centerString: number, centerFret: number): { note: stri
     // Check bounds
     if (targetString >= 0 && targetString < 6) {
       const note = getNoteAtPosition(targetString, targetFret);
-      noteRow.push({ note, visible: true, isCenter });
+      noteRow.push({ note, visible: true, isCenter: isHighlighted });
     } else {
       noteRow.push({ note: "", visible: false, isCenter: false });
     }
@@ -217,11 +218,10 @@ export default function SecondOverlay({
         <div className={styles.topGrid}>
           {topGrid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
-              const isHighlighted = colIndex === 0 || colIndex === 3 || colIndex === 6; // Left, center, right columns
               return (
                 <div
                   key={`top-${rowIndex}-${colIndex}`}
-                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (cell.isCenter ? styles.highlightedNote : styles.dimmedNote) : ""}`}
                 >
                   {cell.visible ? cell.note : ""}
                 </div>

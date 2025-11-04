@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import * as styles from "./Fretboard.css";
 import FirstOverlay from "./FirstOverlay";
 import SecondOverlay from "./SecondOverlay";
+import StringLabels from "./StringLabels";
 
 export default function Fretboard() {
   const strings = ["E", "B", "G", "D", "A", "E"]; // Inverted order: high E to low E
@@ -28,7 +29,7 @@ export default function Fretboard() {
           const fretboardRect = fretboardRef.current.getBoundingClientRect();
           setBasePosition({
             x: fretRect.left - fretboardRect.left + fretRect.width / 2,
-            y: fretRect.top - fretboardRect.top + fretRect.height / 2 - 3,
+            y: fretRect.top - fretboardRect.top + fretRect.height / 2,
           });
         }
       }
@@ -86,7 +87,7 @@ export default function Fretboard() {
             const fretboardRect = fretboardRef.current.getBoundingClientRect();
             setBasePosition({
               x: basePosition.x, // Keep x the same
-              y: fretRect.top - fretboardRect.top + fretRect.height / 2 - 3,
+              y: fretRect.top - fretboardRect.top + fretRect.height / 2,
             });
           }
         }
@@ -109,7 +110,8 @@ export default function Fretboard() {
       <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
       <div className={styles.fretboardWrapper}>
         {/* Fret numbers above the fretboard */}
-        <div style={{ marginLeft: "2rem", marginBottom: "0.5rem" }}>
+        <div style={{ marginLeft: "0rem", marginBottom: "0.5rem", display: "flex" }}>
+          <div style={{ width: "2rem" }}></div>
           <div className={styles.stringRow}>
             {[...Array(frets)].map((_, fretIndex) => {
               const fretNumber = fretIndex + 1;
@@ -134,14 +136,15 @@ export default function Fretboard() {
           </div>
         </div>
         
-        <div 
-          className={styles.fretboard}
-          ref={fretboardRef}
-        >
-          {strings.map((string, stringIndex) => (
-            <div key={stringIndex} className={styles.stringRow}>
-              <div className={styles.stringLabel}>{string}</div>
-              {[...Array(frets)].map((_, fretIndex) => {
+        <div className={styles.fretboardRow}>
+          <StringLabels strings={strings} />
+          <div 
+            className={styles.fretboard}
+            ref={fretboardRef}
+          >
+            {strings.map((string, stringIndex) => (
+              <div key={stringIndex} className={styles.stringRow}>
+                {[...Array(frets)].map((_, fretIndex) => {
                 const fretNumber = fretIndex + 1;
                 const isMarkerFret = markerFrets.includes(fretNumber);
                 const isDoubleMarker = fretNumber === 12 || fretNumber === 24;
@@ -204,6 +207,7 @@ export default function Fretboard() {
               />
             );
           })}
+          </div>
         </div>
       </div>
     </div>

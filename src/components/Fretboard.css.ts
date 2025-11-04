@@ -15,11 +15,8 @@ export const container = style({
 
 export const fretboard = style({
   display: "inline-block",
-  border: `3px solid ${colors.dark.border}`,
   backgroundColor: colors.dark.fretboard,
-  borderRadius: borderRadius.md,
   minWidth: "fit-content", // Ensure fretboard doesn't compress
-  boxShadow: `0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)`,
   position: "relative", // For absolute positioning of markers
   overflow: "hidden", // Clip overlays at fretboard edges
 });
@@ -28,6 +25,16 @@ export const fretboardWrapper = style({
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
+});
+
+export const fretboardRow = style({
+  display: "flex",
+  flexDirection: "row",
+  alignItems: "flex-start",
+  border: `3px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  boxShadow: `0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)`,
+  overflow: "hidden",
 });
 
 export const stringRow = style({
