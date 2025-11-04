@@ -42,7 +42,7 @@ export const thirdGrid = style([baseGrid, {
 }]);
 
 export const fourthGrid = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
+  gridTemplateColumns: "repeat(7, 1fr)",
   gridTemplateRows: "repeat(1, 1fr)",
 }]);
 
@@ -95,4 +95,18 @@ export const secondGridFirstRow = style({
 
 export const secondGridSecondRow = style({
   borderLeft: "none", // Remove left blue border for second row of second overlay
+});
+
+export const fifthGrid = style([baseGrid, {
+  gridTemplateColumns: "repeat(7, 1fr)",
+  gridTemplateRows: "repeat(1, 1fr)",
+}]);
+
+export const overlayBottom = style({
+  position: "fixed",
+  pointerEvents: "none", 
+  zIndex: 999,
+  transform: "translate(-50%, -50%)",
+  transition: "opacity 0.2s ease",
+  filter: "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5))",
 });

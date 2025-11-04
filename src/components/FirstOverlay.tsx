@@ -125,7 +125,7 @@ function generateThirdGrid(centerString: number, centerFret: number): { note: st
   return grid;
 }
 
-// Generate a 5x1 grid (fourth overlay)
+// Generate a 7x1 grid (fourth overlay)
 function generateFourthGrid(centerString: number, centerFret: number): { note: string; visible: boolean; isCenter: boolean }[][] {
   const grid: { note: string; visible: boolean; isCenter: boolean }[][] = [];
   
@@ -134,11 +134,39 @@ function generateFourthGrid(centerString: number, centerFret: number): { note: s
   
   for (let row = 0; row < 1; row++) {
     const noteRow: { note: string; visible: boolean; isCenter: boolean }[] = [];
-    for (let col = 0; col < 5; col++) {
+    for (let col = 0; col < 7; col++) {
       const targetString = gridStartString + row;
       const targetFret = gridStartFret + col;
       
-      const isConnectingNote = (col === 2);
+      const isConnectingNote = (col === 3);
+      
+      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
+        const note = getNoteAtPosition(targetString, targetFret);
+        noteRow.push({ note, visible: true, isCenter: isConnectingNote });
+      } else {
+        noteRow.push({ note: "", visible: false, isCenter: false });
+      }
+    }
+    grid.push(noteRow);
+  }
+  
+  return grid;
+}
+
+// Generate a 7x1 grid (fifth overlay - bottom)
+function generateFifthGrid(centerString: number, centerFret: number): { note: string; visible: boolean; isCenter: boolean }[][] {
+  const grid: { note: string; visible: boolean; isCenter: boolean }[][] = [];
+  
+  const gridStartString = centerString + 1;
+  const gridStartFret = centerFret - 4;
+  
+  for (let row = 0; row < 1; row++) {
+    const noteRow: { note: string; visible: boolean; isCenter: boolean }[] = [];
+    for (let col = 0; col < 7; col++) {
+      const targetString = gridStartString + row;
+      const targetFret = gridStartFret + col;
+      
+      const isConnectingNote = (col === 3);
       
       if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
         const note = getNoteAtPosition(targetString, targetFret);
@@ -163,6 +191,7 @@ export default function FirstOverlay({
   const [secondGrid, setSecondGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
   const [thirdGrid, setThirdGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
   const [fourthGrid, setFourthGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
+  const [fifthGrid, setFifthGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
   
   // Update note grids based on hovered fret position
   useEffect(() => {
@@ -171,11 +200,13 @@ export default function FirstOverlay({
       setSecondGrid(generateSecondGrid(hoveredFret.string, hoveredFret.fret));
       setThirdGrid(generateThirdGrid(hoveredFret.string, hoveredFret.fret));
       setFourthGrid(generateFourthGrid(hoveredFret.string, hoveredFret.fret));
+      setFifthGrid(generateFifthGrid(hoveredFret.string, hoveredFret.fret));
     } else {
       setMainGrid([]);
       setSecondGrid([]);
       setThirdGrid([]);
       setFourthGrid([]);
+      setFifthGrid([]);
     }
   }, [hoveredFret]);
   
@@ -262,21 +293,46 @@ export default function FirstOverlay({
         </div>
       </div>
 
-      {/* Fourth Overlay (5x1 grid) */}
+      {/* Fourth Overlay (7x1 grid) */}
       <div
         className={`${styles.overlay} ${isVisible && fourthGrid.length > 0 ? styles.visible : styles.hidden}`}
         style={{
-          left: position.x + 3 * cellWidth,
+          left: position.x + 4 * cellWidth,
           top: position.y - 3 * cellHeight,
         }}
       >
         <div className={styles.fourthGrid}>
           {fourthGrid.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
-              const isHighlighted = colIndex === 0 || colIndex === 2 || colIndex === 4; // Left, center, right columns
+              const isHighlighted = colIndex === 0 || colIndex === 3 || colIndex === 6; // Left, center, right columns
               return (
                 <div
                   key={`fourth-${rowIndex}-${colIndex}`}
+                  className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
+                >
+                  {cell.visible ? cell.note : ""}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Fifth Overlay (7x1 grid - bottom) */}
+      <div
+        className={`${styles.overlayBottom} ${isVisible && fifthGrid.length > 0 ? styles.visible : styles.hidden}`}
+        style={{
+          left: position.x + -1 * cellWidth,
+          top: position.y + 1 * cellHeight,
+        }}
+      >
+        <div className={styles.fifthGrid}>
+          {fifthGrid.map((row, rowIndex) =>
+            row.map((cell, colIndex) => {
+              const isHighlighted = colIndex === 0 || colIndex === 3 || colIndex === 6; // Left, center, right columns
+              return (
+                <div
+                  key={`fifth-${rowIndex}-${colIndex}`}
                   className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible ? (isHighlighted ? styles.highlightedNote : styles.dimmedNote) : ""}`}
                 >
                   {cell.visible ? cell.note : ""}
