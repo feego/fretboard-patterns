@@ -11,10 +11,29 @@ export default function Fretboard() {
   // Tuning-aware string labels (top to bottom: high to low)
   // Standard: high E to low E; All Fourths: high F to low E
   const [tuning, setTuning] = useState("standard");
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // On mount, sync tuning from localStorage (client only)
+  useEffect(() => {
+    setHasMounted(true);
+    try {
+      const stored = window.localStorage.getItem("fretboard-tuning");
+      if (stored === "standard" || stored === "allFourths") setTuning(stored);
+    } catch {}
+  }, []);
   const strings =
     tuning === "allFourths"
       ? ["F", "C", "G", "D", "A", "E"]
       : ["E", "B", "G", "D", "A", "E"]; // Inverted order: high to low
+  // Persist tuning to localStorage
+  useEffect(() => {
+    if (hasMounted) {
+      try {
+        window.localStorage.setItem("fretboard-tuning", tuning);
+      } catch {}
+    }
+  }, [tuning, hasMounted]);
+
   // Stable keys for string rows to avoid index-based keys and handle duplicate names in standard tuning
   const stringRowKeys =
     tuning === "allFourths"
@@ -132,6 +151,9 @@ export default function Fretboard() {
     x: basePosition.x + effectiveFret * cellWidth,
     y: basePosition.y,
   };
+
+  // Prevent hydration mismatch: only render after mount
+  if (!hasMounted) return null;
 
   return (
     <div className={styles.container}>
