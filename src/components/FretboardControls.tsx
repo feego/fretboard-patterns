@@ -22,10 +22,14 @@ export default function FretboardControls({
 
   return (
     <div className={styles.container}>
-      <button className={styles.button} onClick={onToggleDimmedNotes}>
+      <button
+        type="button"
+        className={styles.button}
+        onClick={onToggleDimmedNotes}
+      >
         {showDimmedNotes ? "Hide" : "Show"} Dimmed Notes
       </button>
-      
+
       <div className={styles.selectWrapper}>
         <label className={styles.label} htmlFor="tuning-select">
           Tuning:

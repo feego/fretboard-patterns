@@ -9,17 +9,25 @@ export default function Fretboard() {
   const strings = ["E", "B", "G", "D", "A", "E"]; // Inverted order: high E to low E
   const frets = 24;
   const markerFrets = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24]; // Extended marker frets
-  
+
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isOverlayVisible, setIsOverlayVisible] = useState(true); // Always visible
-  const [snappedPosition, setSnappedPosition] = useState<{ x: number; y: number } | null>(null);
-  const [hoveredFret, setHoveredFret] = useState<{ string: number; fret: number }>({ string: 2, fret: 12 }); // Default to middle position
+  const [snappedPosition, setSnappedPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [hoveredFret, setHoveredFret] = useState<{
+    string: number;
+    fret: number;
+  }>({ string: 2, fret: 12 }); // Default to middle position
   const fretboardRef = useRef<HTMLDivElement>(null);
 
   // Initialize position on mount
   useEffect(() => {
     if (fretboardRef.current) {
-      const fretElement = fretboardRef.current.querySelector('[data-string="2"][data-fret-number="12"]') as HTMLElement;
+      const fretElement = fretboardRef.current.querySelector(
+        '[data-string="2"][data-fret-number="12"]',
+      ) as HTMLElement;
       if (fretElement) {
         const rect = fretElement.getBoundingClientRect();
         setMousePosition({
@@ -38,38 +46,38 @@ export default function Fretboard() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!hoveredFret) return;
-      
+
       let newString = hoveredFret.string;
       let newFret = hoveredFret.fret;
-      
-      switch(e.key) {
-        case 'ArrowUp':
+
+      switch (e.key) {
+        case "ArrowUp":
           newString = Math.max(0, hoveredFret.string - 1);
           e.preventDefault();
           break;
-        case 'ArrowDown':
+        case "ArrowDown":
           newString = Math.min(5, hoveredFret.string + 1);
           e.preventDefault();
           break;
-        case 'ArrowLeft':
+        case "ArrowLeft":
           newFret = Math.max(1, hoveredFret.fret - 1);
           e.preventDefault();
           break;
-        case 'ArrowRight':
+        case "ArrowRight":
           newFret = Math.min(24, hoveredFret.fret + 1);
           e.preventDefault();
           break;
         default:
           return;
       }
-      
+
       if (newString !== hoveredFret.string || newFret !== hoveredFret.fret) {
         setHoveredFret({ string: newString, fret: newFret });
-        
+
         // Update position based on new fret
         if (fretboardRef.current) {
           const fretElement = fretboardRef.current.querySelector(
-            `[data-string="${newString}"][data-fret-number="${newFret}"]`
+            `[data-string="${newString}"][data-fret-number="${newFret}"]`,
           ) as HTMLElement;
           if (fretElement) {
             const rect = fretElement.getBoundingClientRect();
@@ -83,27 +91,31 @@ export default function Fretboard() {
         }
       }
     };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [hoveredFret]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     setMousePosition({ x: e.clientX, y: e.clientY });
-    
+
     // Check if we're over a fret and snap to it
     const target = e.target as HTMLElement;
-    if (target.closest('[data-fret]')) {
-      const fretElement = target.closest('[data-fret]') as HTMLElement;
+    if (target.closest("[data-fret]")) {
+      const fretElement = target.closest("[data-fret]") as HTMLElement;
       const rect = fretElement.getBoundingClientRect();
       setSnappedPosition({
         x: rect.left + rect.width / 2,
         y: rect.top + rect.height / 2,
       });
-      
+
       // Extract string and fret information
-      const stringIndex = parseInt(fretElement.getAttribute('data-string') || '0');
-      const fretNumber = parseInt(fretElement.getAttribute('data-fret-number') || '0');
+      const stringIndex = parseInt(
+        fretElement.getAttribute("data-string") || "0",
+      );
+      const fretNumber = parseInt(
+        fretElement.getAttribute("data-fret-number") || "0",
+      );
       setHoveredFret({ string: stringIndex, fret: fretNumber });
     }
   };
@@ -121,14 +133,14 @@ export default function Fretboard() {
                 <div
                   key={`fret-number-${fretIndex}`}
                   className={styles.fret}
-                  style={{ 
+                  style={{
                     height: "auto",
                     padding: "0.25rem 0",
                     border: "none",
                     backgroundColor: "transparent",
                     fontSize: "0.7rem",
                     color: "#a3a3a3",
-                    fontWeight: "600"
+                    fontWeight: "600",
                   }}
                 >
                   {fretNumber}
@@ -137,8 +149,8 @@ export default function Fretboard() {
             })}
           </div>
         </div>
-        
-        <div 
+
+        <div
           className={styles.fretboard}
           ref={fretboardRef}
           onMouseMove={handleMouseMove}
@@ -153,11 +165,11 @@ export default function Fretboard() {
                 const isOctave = fretNumber === 12;
                 const isFirstFret = fretIndex === 0;
                 const isMiddleString = stringIndex === 2; // G string is now at index 2 (3rd from top)
-                
+
                 let fretClasses = styles.fret;
                 if (isFirstFret) fretClasses += ` ${styles.firstFret}`;
                 if (isOctave) fretClasses += ` ${styles.octaveFret}`;
-                
+
                 // Show markers only on the D string but position them to appear centered between D and G
                 if (isMarkerFret && !isDoubleMarker && isMiddleString) {
                   fretClasses += ` ${styles.markerFret}`;
@@ -165,7 +177,7 @@ export default function Fretboard() {
                 if (isDoubleMarker && isMiddleString) {
                   fretClasses += ` ${styles.doubleMarkerFret}`;
                 }
-                
+
                 return (
                   <div
                     key={fretIndex}
@@ -180,7 +192,7 @@ export default function Fretboard() {
               })}
             </div>
           ))}
-          
+
           {/* Overlays inside fretboard */}
           {/* Render multiple overlays in alternating pattern */}
           {/* Each "cycle" is 12 frets and contains both FirstOverlay and SecondOverlay at the same position */}
@@ -188,19 +200,23 @@ export default function Fretboard() {
             const cycleOffset = Math.floor(i / 2) - 2; // -2, -2, -1, -1, 0, 0, 1, 1, 2
             const isFirst = i % 2 === 0;
             const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
-            
+
             return (
               <OverlayComponent
                 key={`overlay-${i}`}
                 isVisible={isOverlayVisible}
                 mousePosition={{
                   x: mousePosition.x + cycleOffset * 12 * 40,
-                  y: mousePosition.y
+                  y: mousePosition.y,
                 }}
-                snappedPosition={snappedPosition ? {
-                  x: snappedPosition.x + cycleOffset * 12 * 40,
-                  y: snappedPosition.y
-                } : null}
+                snappedPosition={
+                  snappedPosition
+                    ? {
+                        x: snappedPosition.x + cycleOffset * 12 * 40,
+                        y: snappedPosition.y,
+                      }
+                    : null
+                }
                 hoveredFret={hoveredFret}
               />
             );

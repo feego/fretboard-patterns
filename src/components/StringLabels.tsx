@@ -4,14 +4,21 @@ import * as styles from "./StringLabels.css";
 
 interface StringLabelsProps {
   strings: string[];
+  stringKeys?: string[];
 }
 
-export default function StringLabels({ strings }: StringLabelsProps) {
+export default function StringLabels({
+  strings,
+  stringKeys,
+}: StringLabelsProps) {
   return (
     <div className={styles.container}>
-      {strings.map((string, index) => (
-        <div key={index} className={styles.label}>
-          {string}
+      {strings.map((label, index) => (
+        <div
+          key={stringKeys?.[index] ?? `${label}-${index}`}
+          className={styles.label}
+        >
+          {label}
         </div>
       ))}
     </div>

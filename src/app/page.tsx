@@ -1,4 +1,4 @@
-import Fretboard from '../components/Fretboard';
+import Fretboard from "../components/Fretboard";
 
 export default function Home() {
   return (

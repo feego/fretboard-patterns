@@ -31,15 +31,18 @@ function getNoteAtPosition(stringIndex: number, fretNumber: number): string {
 }
 
 // Generate a 5x1 grid showing notes relative to the center position
-function generateFourthGrid(centerString: number, centerFret: number): { note: string; visible: boolean; isCenter: boolean }[][] {
+function generateFourthGrid(
+  centerString: number,
+  centerFret: number,
+): { note: string; visible: boolean; isCenter: boolean }[][] {
   const grid: { note: string; visible: boolean; isCenter: boolean }[][] = [];
-  
-  // The visual positioning is: offsetX = 3 * cellWidth, offsetY = -3 * cellHeight  
+
+  // The visual positioning is: offsetX = 3 * cellWidth, offsetY = -3 * cellHeight
   // This means the overlay appears 1.5 cells right and 1 string up
   // Position on the B string (index 1) relative to center
   const gridStartString = centerString - 1; // Move up 1 string from center
   const gridStartFret = centerFret - 2; // Start 2 frets before center for 5-fret span
-  
+
   // Create 1 row (string), 5 columns (frets)
   for (let row = 0; row < 1; row++) {
     const noteRow: { note: string; visible: boolean; isCenter: boolean }[] = [];
@@ -47,12 +50,17 @@ function generateFourthGrid(centerString: number, centerFret: number): { note: s
       // Calculate absolute position on fretboard
       const targetString = gridStartString + row;
       const targetFret = gridStartFret + col;
-      
+
       // Highlight the center fret (the one being hovered)
-      const isConnectingNote = (col === 2); // Middle column is the hovered fret
-      
+      const isConnectingNote = col === 2; // Middle column is the hovered fret
+
       // Check bounds
-      if (targetString >= 0 && targetString < 6 && targetFret >= 0 && targetFret <= 24) {
+      if (
+        targetString >= 0 &&
+        targetString < 6 &&
+        targetFret >= 0 &&
+        targetFret <= 24
+      ) {
         const note = getNoteAtPosition(targetString, targetFret);
         noteRow.push({ note, visible: true, isCenter: isConnectingNote });
       } else {
@@ -62,18 +70,20 @@ function generateFourthGrid(centerString: number, centerFret: number): { note: s
     }
     grid.push(noteRow);
   }
-  
+
   return grid;
 }
 
-export default function FretboardOverlay4({ 
-  isVisible, 
-  mousePosition, 
+export default function FretboardOverlay4({
+  isVisible,
+  mousePosition,
   snappedPosition,
-  hoveredFret
+  hoveredFret,
 }: FretboardOverlay4Props) {
-  const [noteGrid, setNoteGrid] = useState<{ note: string; visible: boolean; isCenter: boolean }[][]>([]);
-  
+  const [noteGrid, setNoteGrid] = useState<
+    { note: string; visible: boolean; isCenter: boolean }[][]
+  >([]);
+
   // Update note grid based on hovered fret position
   useEffect(() => {
     if (hoveredFret) {
@@ -84,22 +94,22 @@ export default function FretboardOverlay4({
       setNoteGrid([]);
     }
   }, [hoveredFret]);
-  
+
   const position = snappedPosition || mousePosition;
-  
+
   // Use standard 16px font size for rem calculations (most browsers default)
   // This provides better alignment than hardcoded pixel values
   const rootFontSize = 16;
   const cellWidth = 2.5 * rootFontSize; // 2.5rem = 40px
-  const cellHeight = 3 * rootFontSize; // 3rem = 48px  
-  
+  const cellHeight = 3 * rootFontSize; // 3rem = 48px
+
   // Position overlay on the B string (second row from top)
   const offsetX = 3 * cellWidth; // No horizontal offset to align with actual fret position
   const offsetY = -3 * cellHeight; // Move down 1 string to B string position
-  
+
   // Force visibility for debugging
   const isOverlayVisible = isVisible && hoveredFret !== null;
-  
+
   return (
     <div
       className={`${styles.overlay} ${isOverlayVisible ? styles.visible : styles.hidden}`}
@@ -114,12 +124,12 @@ export default function FretboardOverlay4({
             return (
               <div
                 key={`${rowIndex}-${colIndex}`}
-                className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible && cell.note.includes('#') ? styles.sharpNote : ""}`}
+                className={`${styles.gridCell} ${cell.isCenter ? styles.centerCell : ""} ${!cell.visible ? styles.emptyCell : ""} ${cell.visible && cell.note.includes("#") ? styles.sharpNote : ""}`}
               >
                 {cell.visible ? cell.note : ""}
               </div>
             );
-          })
+          }),
         )}
       </div>
     </div>

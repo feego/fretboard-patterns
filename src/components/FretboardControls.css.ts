@@ -1,5 +1,5 @@
 import { style } from "@vanilla-extract/css";
-import { colors, spacing, borderRadius } from "../styles/theme";
+import { borderRadius, colors, spacing } from "../styles/theme";
 
 export const container = style({
   display: "flex",

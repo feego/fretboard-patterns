@@ -1,9 +1,9 @@
 import { style } from "@vanilla-extract/css";
-import { colors, borderRadius } from "../styles/theme";
+import { borderRadius, colors } from "../styles/theme";
 
 export const overlay = style({
   position: "absolute",
-  pointerEvents: "none", 
+  pointerEvents: "none",
   zIndex: 1000,
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",
@@ -26,25 +26,37 @@ const baseGrid = style({
   backgroundColor: colors.dark.surface, // Restore dark background
 });
 
-export const mainGrid = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(3, 1fr)",
-}]);
+export const mainGrid = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateRows: "repeat(3, 1fr)",
+  },
+]);
 
-export const secondGrid = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(2, 1fr)",
-}]);
+export const secondGrid = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateRows: "repeat(2, 1fr)",
+  },
+]);
 
-export const thirdGrid = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-}]);
+export const thirdGrid = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+  },
+]);
 
-export const fourthGrid = style([baseGrid, {
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-}]);
+export const fourthGrid = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+  },
+]);
 
 export const gridCell = style({
   width: "4rem",
@@ -97,72 +109,99 @@ export const secondGridSecondRow = style({
   borderLeft: "none", // Remove left blue border for second row of second overlay
 });
 
-export const fifthGrid = style([baseGrid, {
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-}]);
+export const fifthGrid = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+  },
+]);
 
 // Single row grids for splitting multi-row grids
-export const singleRowGrid5 = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const singleRowGrid5 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
-export const singleRowGrid7 = style([baseGrid, {
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const singleRowGrid7 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
 // String-specific grids - FirstOverlay
-export const string0Grid5 = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const string0Grid5 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
-export const string1Grid7 = style([baseGrid, {
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const string1Grid7 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
-export const string2Grid5 = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const string2Grid5 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
-export const string3Grid7 = style([baseGrid, {
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const string3Grid7 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
-export const string4Grid5 = style([baseGrid, {
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const string4Grid5 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
-export const string5Grid7 = style([baseGrid, {
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gridTemplateRows: "repeat(1, 1fr)",
-  borderTop: `2px solid ${colors.dark.border}`,
-  borderBottom: `2px solid ${colors.dark.border}`,
-}]);
+export const string5Grid7 = style([
+  baseGrid,
+  {
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateRows: "repeat(1, 1fr)",
+    borderTop: `2px solid ${colors.dark.border}`,
+    borderBottom: `2px solid ${colors.dark.border}`,
+  },
+]);
 
 export const overlayBottom = style({
   position: "absolute",
-  pointerEvents: "none", 
+  pointerEvents: "none",
   zIndex: 999,
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",

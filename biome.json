@@ -7,7 +7,28 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!node_modules", "!.next", "!dist", "!build"]
+    "includes": [
+      "**",
+      "!node_modules",
+      "!.next",
+      "!dist",
+      "!build",
+      "!src/components/Fretboard_backup.tsx",
+      "!src/components/Fretboard_old.tsx",
+      "!src/components/Fretboard_old2.tsx",
+      "!src/components/FretboardOverlay.tsx",
+      "!src/components/FretboardOverlay2.tsx",
+      "!src/components/FretboardOverlay3.tsx",
+      "!src/components/FretboardOverlay4.tsx",
+      "!src/components/FretboardOverlay.css.ts",
+      "!src/components/FretboardOverlay2.css.ts",
+      "!src/components/FretboardOverlay3.css.ts",
+      "!src/components/FretboardOverlay4.css.ts",
+      "!src/components/**/*.bak.*",
+      "!src/components/**/*_bak*.*",
+      "!src/components/**/*_old*.*",
+      "!src/components/**/*backup*.*"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -27,7 +48,7 @@
   "assist": {
     "actions": {
       "source": {
-        "organizeImports": "on"
+        "organizeImports": "off"
       }
     }
   }

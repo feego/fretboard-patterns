@@ -1,9 +1,9 @@
 import { style } from "@vanilla-extract/css";
-import { colors, borderRadius } from "../styles/theme";
+import { borderRadius, colors } from "../styles/theme";
 
 export const overlay = style({
   position: "fixed",
-  pointerEvents: "none", 
+  pointerEvents: "none",
   zIndex: 1003, // Higher z-index to render on top of all other overlays
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",
@@ -31,7 +31,7 @@ export const grid = style({
 
 export const gridCell = style({
   width: "2.5rem", // Exact match to fretboard fret width
-  height: "3rem",  // Exact match to fretboard fret height
+  height: "3rem", // Exact match to fretboard fret height
   backgroundColor: colors.dark.surface,
   borderRadius: "0px", // Remove border radius for exact fit
   display: "flex",
@@ -47,7 +47,7 @@ export const gridCell = style({
 
 export const centerCell = style({
   backgroundColor: colors.dark.surface, // Same as regular cells
-  color: colors.dark.text, // Same text color  
+  color: colors.dark.text, // Same text color
   border: `1px solid ${colors.dark.border}`, // Same border as regular cells
 });
 

@@ -45,17 +45,21 @@ const tuningConfigs: Record<string, { note: string; octave: number }[]> = {
 };
 
 // Calculate the note at a specific string and fret
-function getNoteAtPosition(stringIndex: number, fretNumber: number, tuning: string): string {
+function getNoteAtPosition(
+  stringIndex: number,
+  fretNumber: number,
+  tuning: string,
+): string {
   const stringTuning = tuningConfigs[tuning] || tuningConfigs.standard;
   const openString = stringTuning[stringIndex];
   const openNoteIndex = notes.indexOf(openString.note);
-  
+
   // Wrap fret number to stay within 1-24 range (no fret 0 on display)
   // Each fret represents one semitone higher than the previous
   let wrappedFret = fretNumber;
   while (wrappedFret < 1) wrappedFret += 24;
   while (wrappedFret > 24) wrappedFret -= 24;
-  
+
   // Calculate note: open string + fret number
   // Fret 1 = open + 1 semitone, Fret 2 = open + 2 semitones, Fret 12 = open + 12 (octave)
   const noteIndex = (openNoteIndex + wrappedFret) % 12;
@@ -90,15 +94,27 @@ export default function OverlayRow({
   // Start with +2 as requested to align the visual placement without
   // altering upstream positioning logic.
   const overlayShiftFrets = 2;
+  // If all-fourths tuning is selected, move ONLY the top two strings (0=high E, 1=B)
+  // one fret to the left. Other strings remain unchanged.
+  const tuningShiftFrets =
+    tuning === "allFourths" && (stringIndex === 0 || stringIndex === 1)
+      ? -1
+      : 0;
+  const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
 
   // Calculate the cells for this row
-  const cells: { note: string; visible: boolean; isCenter: boolean; fretNumber: number }[] = [];
-  
+  const cells: {
+    note: string;
+    visible: boolean;
+    isCenter: boolean;
+    fretNumber: number;
+  }[] = [];
+
   for (let i = 0; i < numFrets; i++) {
     // startFret is offset from current position
-    const fretNumber = currentFret.fret + startFret + overlayShiftFrets + i;
+    const fretNumber = currentFret.fret + startFret + totalShiftFrets + i;
     const isHighlighted = i % 2 === 0; // Highlight every other column (0, 2, 4, 6)
-    
+
     if (stringIndex >= 0 && stringIndex < 6) {
       const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
       cells.push({ note, visible: true, isCenter: isHighlighted, fretNumber });
@@ -114,7 +130,8 @@ export default function OverlayRow({
   // the center of the entire grid for this row. If the first visible column
   // is at (currentFret + startFret), then the grid center is that fret plus
   // half the grid width minus half a cell: startFret + (numFrets - 1) / 2.
-  const horizontalOffset = (startFret + overlayShiftFrets + (numFrets - 1) / 2) * cellWidth;
+  const horizontalOffset =
+    (startFret + totalShiftFrets + (numFrets - 1) / 2) * cellWidth;
   const verticalOffset = (stringIndex - currentFret.string) * cellHeight;
 
   return (
@@ -126,11 +143,11 @@ export default function OverlayRow({
       }}
     >
       <div className={gridClassName}>
-        {cells.map((cell, colIndex) => {
+        {cells.map((cell) => {
           const shouldShow = cell.isCenter || showDimmedNotes;
           return (
             <div
-              key={`row-${stringIndex}-${colIndex}`}
+              key={`row-${stringIndex}-fret-${cell.fretNumber}`}
               className={`${cellClassName} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${cell.visible && shouldShow ? (cell.isCenter ? highlightedNoteClassName : dimmedNoteClassName) : emptyCellClassName}`}
             >
               {cell.visible && shouldShow ? cell.note : ""}

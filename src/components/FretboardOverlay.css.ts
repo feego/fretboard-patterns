@@ -23,7 +23,7 @@ export const grid = style({
 
 export const gridCell = style({
   width: "2.5rem", // Exact match to fretboard fret width
-  height: "3rem",  // Exact match to fretboard fret height
+  height: "3rem", // Exact match to fretboard fret height
   backgroundColor: colors.dark.surface,
   borderRadius: "0px", // Remove border radius for exact fit
   display: "flex",
