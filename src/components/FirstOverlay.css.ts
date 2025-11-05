@@ -3,11 +3,12 @@ import { borderRadius, colors } from "../styles/theme";
 
 export const overlay = style({
   position: "absolute",
-  pointerEvents: "none",
+  // pointerEvents: "none", // Allow pointer events for cell click
   zIndex: 1000,
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",
-  filter: "none", // Add shadow to the entire overlay component
+  backdropFilter: "blur(2px)",
+  WebkitBackdropFilter: "blur(2px)",
 });
 
 export const visible = style({
@@ -23,9 +24,6 @@ const baseGrid = style({
   gap: "0px",
   padding: "0px",
   borderRadius: borderRadius.md,
-  backgroundColor: "rgba(0, 0, 0, 0.35)",
-  backdropFilter: "blur(6px)",
-  WebkitBackdropFilter: "blur(6px)",
 });
 
 export const mainGrid = style([
@@ -63,7 +61,7 @@ export const fourthGrid = style([
 export const gridCell = style({
   width: "4rem",
   height: "3rem",
-  backgroundColor: "var(--overlay-bg, transparent)",
+  backgroundColor: "var(--overlay-bg, transparent)", // Will be set by overlayBgA/overlayBgB
   borderRadius: "0px",
   display: "flex",
   alignItems: "center",
@@ -77,7 +75,7 @@ export const gridCell = style({
 });
 
 export const centerCell = style({
-  backgroundColor: "var(--overlay-bg, transparent)",
+  backgroundColor: "var(--overlay-bg, transparent)", // Will be set by overlayBgA/overlayBgB
   color: colors.dark.text,
   border: "none",
 });

@@ -138,6 +138,10 @@ interface FirstOverlayProps {
   tuning: string;
   bgVariant?: "A" | "B";
   zIndex?: number;
+  showDegrees?: boolean;
+  toggledCells?: Record<string, boolean>;
+  onCellToggle?: (cellId: string) => void;
+  overlayFretOffset?: number;
 }
 
 export default function FirstOverlay({
@@ -149,6 +153,10 @@ export default function FirstOverlay({
   tuning,
   bgVariant = "A",
   zIndex,
+  showDegrees = false,
+  toggledCells = {},
+  onCellToggle,
+  overlayFretOffset = 0,
 }: FirstOverlayProps) {
   const position = snappedPosition || mousePosition;
 
@@ -193,6 +201,11 @@ export default function FirstOverlay({
   const { bestKey, displayKey, accidentalStyle } = computeGlobalBestKey(centerNotes);
   // console.log("FirstOverlay global bestKey:", bestKey, "displayKey:", displayKey);
 
+  // Swap background color based on bgVariant
+  const backgroundColor = bgVariant === "A"
+    ? "rgba(55, 60, 60, 0.7)"
+    : "rgba(80, 75, 75, 0.7)";
+
   return (
     <>
       {rowConfigs.map((config) => (
@@ -217,9 +230,13 @@ export default function FirstOverlay({
           visibleClassName={styles.visible}
           hiddenClassName={styles.hidden}
           tuning={tuning}
-          backgroundColor={bgVariant === "A" ? "#1a1a1a" : "#2a2a2a"}
           accidentalStyle={accidentalStyle as "sharp" | "flat"}
           displayKey={displayKey}
+          backgroundColor={backgroundColor}
+          showDegrees={showDegrees}
+          toggledCells={toggledCells}
+          onCellToggle={onCellToggle}
+          overlayFretOffset={overlayFretOffset}
         />
       ))}
     </>

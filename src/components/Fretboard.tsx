@@ -8,6 +8,12 @@ import SecondOverlay from "./SecondOverlay";
 import StringLabels from "./StringLabels";
 
 export default function Fretboard() {
+  // Track toggled cells relative to the overlay's current visible fret (continuousFret)
+  const [toggledCells, setToggledCells] = useState<Record<string, boolean>>({});
+  // When a cell is clicked, store the cellId using the current overlay's continuousFret as base
+  const handleCellToggle = (cellId: string) => {
+    setToggledCells((prev) => ({ ...prev, [cellId]: !prev[cellId] }));
+  };
   // Tuning-aware string labels (top to bottom: high to low)
   // Standard: high E to low E; All Fourths: high F to low E
   const [tuning, setTuning] = useState("standard");
@@ -51,6 +57,7 @@ export default function Fretboard() {
   const [continuousFret, setContinuousFret] = useState(12); // Track continuous position for infinite scroll
   const [showDimmedNotes, setShowDimmedNotes] = useState(false);
   const [swapBg, setSwapBg] = useState(false);
+  const [showDegrees, setShowDegrees] = useState(false);
   const fretboardRef = useRef<HTMLDivElement>(null);
   const cellWidth = 64; // 4rem * 16px
 
@@ -81,30 +88,31 @@ export default function Fretboard() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!currentFret) return;
 
-      const newString = currentFret.string;
+      let newString = currentFret.string;
       let newContinuousFret = continuousFret;
-
+      let fretDelta = 0;
+      let stringDelta = 0;
       switch (e.key) {
         case "ArrowUp":
-          // Move 5 frets to the right (higher pitch)
           newContinuousFret = continuousFret + 5;
           setSwapBg((s) => !s);
+          stringDelta = -1;
           e.preventDefault();
           break;
         case "ArrowDown":
-          // Move 5 frets to the left (lower pitch)
           newContinuousFret = continuousFret - 5;
           setSwapBg((s) => !s);
+          stringDelta = 1;
           e.preventDefault();
           break;
         case "ArrowLeft":
-          // Decrease continuous fret (can go negative for infinite scroll)
           newContinuousFret = continuousFret - 1;
+          fretDelta = -1;
           e.preventDefault();
           break;
         case "ArrowRight":
-          // Increase continuous fret (can go beyond 24 for infinite scroll)
           newContinuousFret = continuousFret + 1;
+          fretDelta = 1;
           e.preventDefault();
           break;
         default:
@@ -114,6 +122,22 @@ export default function Fretboard() {
       // Calculate wrapped fret (1-24) from continuous fret
       let wrappedFret = ((newContinuousFret - 1) % 24) + 1;
       if (wrappedFret <= 0) wrappedFret += 24;
+
+      // Move toggled cells by stringDelta (vertical) or fretDelta (horizontal)
+      setToggledCells((prev) => {
+        const updated: Record<string, boolean> = {};
+        Object.entries(prev).forEach(([cellId, value]) => {
+          if (!value) return;
+          const [strIdx, fretNum] = cellId.split(":").map(Number);
+          let newStrIdx = strIdx + stringDelta;
+          let newFretNum = fretNum + fretDelta;
+          if (newFretNum < 1) newFretNum = 24;
+          if (newFretNum > 24) newFretNum = 1;
+          if (newStrIdx < 0 || newStrIdx > 5) return;
+          updated[`${newStrIdx}:${newFretNum}`] = true;
+        });
+        return updated;
+      });
 
       if (
         newString !== currentFret.string ||
@@ -237,7 +261,7 @@ export default function Fretboard() {
 
             {/* Render multiple overlays in alternating pattern based on continuous fret position */}
             {Array.from({ length: 21 }, (_, i) => {
-              const cycleOffset = Math.floor(i / 2) - 5; // -2, -2, -1, -1, 0, 0, 1, 1, 2
+              const cycleOffset = Math.floor(i / 2) - 5;
               const isFirst = i % 2 === 0;
               const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
               const bgVariant = isFirst
@@ -247,9 +271,7 @@ export default function Fretboard() {
                 : swapBg
                   ? "A"
                   : "B";
-              // Keep SecondOverlay above so the currently assigned color on it is visible
               const zIndex = isFirst ? 999 : 1001;
-
               return (
                 <OverlayComponent
                   key={`overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}
@@ -267,6 +289,9 @@ export default function Fretboard() {
                   tuning={tuning}
                   bgVariant={bgVariant}
                   zIndex={zIndex}
+                  showDegrees={showDegrees}
+                  toggledCells={toggledCells}
+                  onCellToggle={handleCellToggle}
                 />
               );
             })}
@@ -279,6 +304,8 @@ export default function Fretboard() {
         onToggleDimmedNotes={() => setShowDimmedNotes(!showDimmedNotes)}
         tuning={tuning}
         onTuningChange={setTuning}
+        showDegrees={showDegrees}
+        onToggleDegrees={() => setShowDegrees((v) => !v)}
       />
     </div>
   );

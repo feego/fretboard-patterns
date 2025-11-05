@@ -66,12 +66,8 @@ export const fret = style({
   fontSize: "0.75rem", // Smaller font for fret numbers
   fontWeight: "500",
   color: colors.dark.text,
-  ":hover": {
-    backgroundColor: colors.dark.accent,
-  },
-  ":active": {
-    backgroundColor: colors.dark.accentHover,
-  },
+  // No hover effect
+  // No active effect
 });
 
 export const firstFret = style({

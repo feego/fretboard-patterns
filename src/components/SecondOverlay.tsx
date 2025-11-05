@@ -136,6 +136,10 @@ interface SecondOverlayProps {
   tuning: string;
   bgVariant?: "A" | "B";
   zIndex?: number;
+  showDegrees?: boolean;
+  toggledCells?: Record<string, boolean>;
+  onCellToggle?: (cellId: string) => void;
+  overlayFretOffset?: number;
 }
 
 export default function SecondOverlay({
@@ -147,6 +151,10 @@ export default function SecondOverlay({
   tuning,
   bgVariant = "B",
   zIndex,
+  showDegrees = false,
+  toggledCells = {},
+  onCellToggle,
+  overlayFretOffset = 0,
 }: SecondOverlayProps) {
   const position = snappedPosition || mousePosition;
 
@@ -186,6 +194,11 @@ export default function SecondOverlay({
   const { bestKey, displayKey, accidentalStyle } = computeGlobalBestKey(centerNotes);
   // console.log("SecondOverlay global bestKey:", bestKey, "displayKey:", displayKey);
 
+  // Swap background color based on bgVariant
+  const backgroundColor = bgVariant === "A"
+    ? "rgba(55, 60, 60, 0.7)"
+    : "rgba(80, 75, 75, 0.7)";
+
   return (
     <>
       {rowConfigs.map((config) => (
@@ -210,10 +223,14 @@ export default function SecondOverlay({
           visibleClassName={styles.visible}
           hiddenClassName={styles.hidden}
           tuning={tuning}
-          backgroundColor={bgVariant === "A" ? "#1a1a1a" : "#2a2a2a"}
           zIndex={zIndex}
           accidentalStyle={accidentalStyle as "sharp" | "flat"}
           displayKey={displayKey}
+          backgroundColor={backgroundColor}
+          showDegrees={showDegrees}
+          toggledCells={toggledCells}
+          onCellToggle={onCellToggle}
+          overlayFretOffset={overlayFretOffset}
         />
       ))}
     </>

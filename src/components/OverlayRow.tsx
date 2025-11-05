@@ -49,6 +49,10 @@ interface OverlayRowProps {
   topCellBorderClassName?: string;
   accidentalStyle?: "sharp" | "flat";
   displayKey?: string;
+  showDegrees?: boolean;
+  toggledCells?: Record<string, boolean>;
+  onCellToggle?: (cellId: string) => void;
+  overlayFretOffset?: number;
 }
 
 const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -122,6 +126,10 @@ export default function OverlayRow({
   topCellBorderClassName,
   accidentalStyle = "sharp",
   displayKey = "C",
+  showDegrees = false,
+  toggledCells = {},
+  onCellToggle,
+  overlayFretOffset = 0,
 }: OverlayRowProps) {
   if (!currentFret) return null;
 
@@ -188,31 +196,37 @@ export default function OverlayRow({
 
      if (stringIndex >= 0 && stringIndex < 6) {
        const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
-       let displayNote = note;
+       let displayText = note;
+       // Compute the displayed note name as it would appear for this cell
        if (displayKey === "Gb") {
-         // Show Gb major notes for F#/Gb key
-         if (note === "F#") displayNote = "Gb";
-         else if (note === "G#") displayNote = "Ab";
-         else if (note === "A#") displayNote = "Bb";
-         else if (note === "B") displayNote = "Cb";
-         else if (note === "C#") displayNote = "Db";
-         else if (note === "D#") displayNote = "Eb";
-         else if (note === "E") displayNote = "F";
-         else displayNote = note;
+         if (note === "F#") displayText = "Gb";
+         else if (note === "G#") displayText = "Ab";
+         else if (note === "A#") displayText = "Bb";
+         else if (note === "B") displayText = "Cb";
+         else if (note === "C#") displayText = "Db";
+         else if (note === "D#") displayText = "Eb";
+         else if (note === "E") displayText = "F";
+         else displayText = note;
        } else if (displayKey === "Db") {
-         // Show Db major notes for C#/Db key
-         if (note === "C#") displayNote = "Db";
-         else if (note === "D#") displayNote = "Eb";
-         else if (note === "F#") displayNote = "Gb";
-         else if (note === "G#") displayNote = "Ab";
-         else if (note === "A#") displayNote = "Bb";
-         else if (note === "E#") displayNote = "F";
-         else if (note === "B#") displayNote = "C";
-         else displayNote = note;
+         if (note === "C#") displayText = "Db";
+         else if (note === "D#") displayText = "Eb";
+         else if (note === "F#") displayText = "Gb";
+         else if (note === "G#") displayText = "Ab";
+         else if (note === "A#") displayText = "Bb";
+         else if (note === "E#") displayText = "F";
+         else if (note === "B#") displayText = "C";
+         else displayText = note;
        } else {
-         displayNote = accidentalStyle === "flat" ? toFlat(note) : toSharp(note);
+         displayText = accidentalStyle === "flat" ? toFlat(note) : toSharp(note);
        }
-       cells.push({ note: displayNote, visible: true, isCenter: isHighlighted, fretNumber });
+
+       // For degree display, match the displayed note name to the scale
+       if (showDegrees && majorScales[displayKey]) {
+         const scale = majorScales[displayKey];
+         const idx = scale.indexOf(displayText);
+         displayText = idx !== -1 ? String(idx + 1) : "";
+       }
+       cells.push({ note: displayText, visible: true, isCenter: isHighlighted, fretNumber });
      } else {
        cells.push({ note: "", visible: false, isCenter: false, fretNumber });
      }
@@ -236,9 +250,7 @@ export default function OverlayRow({
         left: position.x + horizontalOffset,
         top: position.y + verticalOffset,
         ...(typeof zIndex === "number" ? { zIndex } : {}),
-        ...(backgroundColor
-          ? ({ "--overlay-bg": backgroundColor } as React.CSSProperties)
-          : {}),
+        ...(backgroundColor ? { backgroundColor } : {}),
       }}
     >
       <div className={gridClassName}>
@@ -251,13 +263,36 @@ export default function OverlayRow({
             : "";
           const sideBordersClass = `${idx === 0 && leftCellBorderClassName ? leftCellBorderClassName : ""} ${idx === cells.length - 1 && rightCellBorderClassName ? rightCellBorderClassName : ""}`.trim();
           const topBorderClass = `${numFrets === 7 && idx < 2 && topCellBorderClassName ? topCellBorderClassName : ""}`.trim();
+          // Wrap fretNumber to 1-24 for cellId
+          let wrappedFret = cell.fretNumber;
+          while (wrappedFret < 1) wrappedFret += 24;
+          while (wrappedFret > 24) wrappedFret -= 24;
+          const cellId = `${stringIndex}:${wrappedFret}`;
+          const isToggled = toggledCells[cellId];
           return (
             <div
               key={`row-${stringIndex}-fret-${cell.fretNumber}`}
               className={`${cellClassName} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${textClass} ${sideBordersClass} ${topBorderClass}`}
-              style={backgroundColor ? { backgroundColor } : undefined}
+              style={{ position: "relative", cursor: onCellToggle && showText ? "pointer" : undefined }}
+              onClick={onCellToggle && showText ? (e) => { e.stopPropagation(); onCellToggle(cellId); } : undefined}
             >
               {showText ? cell.note : ""}
+              {isToggled && showText && (
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "2.2rem",
+                    height: "2.2rem",
+                    borderRadius: "50%",
+                    border: "3px solid #fff",
+                    background: "rgba(255,255,255,0.18)",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
             </div>
           );
         })}
