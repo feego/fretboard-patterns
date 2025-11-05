@@ -1,4 +1,26 @@
-"use client";
+
+
+const flatMap: Record<string, string> = {
+  "C#": "Db",
+  "D#": "Eb",
+  "F#": "Gb",
+  "G#": "Ab",
+  "A#": "Bb",
+};
+
+// Circle of Fifths: keys that use sharps, all others use flats
+const sharpKeys = new Set([
+  "C", "G", "D", "A", "E", "B", "F#", "C#"
+]);
+
+function toFlat(note: string): string {
+  return flatMap[note] || note;
+}
+
+function toSharp(note: string): string {
+  return note;
+}
+
 
 interface OverlayRowProps {
   stringIndex: number;
@@ -25,6 +47,8 @@ interface OverlayRowProps {
   leftCellBorderClassName?: string;
   rightCellBorderClassName?: string;
   topCellBorderClassName?: string;
+  accidentalStyle?: "sharp" | "flat";
+  displayKey?: string;
 }
 
 const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -96,6 +120,8 @@ export default function OverlayRow({
   leftCellBorderClassName,
   rightCellBorderClassName,
   topCellBorderClassName,
+  accidentalStyle = "sharp",
+  displayKey = "C",
 }: OverlayRowProps) {
   if (!currentFret) return null;
 
@@ -112,26 +138,85 @@ export default function OverlayRow({
       : 0;
   const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
 
-  // Calculate the cells for this row
-  const cells: {
-    note: string;
-    visible: boolean;
-    isCenter: boolean;
-    fretNumber: number;
-  }[] = [];
+   // Major key scales (natural notes only, for matching)
+   const majorScales: Record<string, string[]> = {
+     C:    ["C", "D", "E", "F", "G", "A", "B"],
+     G:    ["G", "A", "B", "C", "D", "E", "F#"],
+     D:    ["D", "E", "F#", "G", "A", "B", "C#"],
+     A:    ["A", "B", "C#", "D", "E", "F#", "G#"],
+     E:    ["E", "F#", "G#", "A", "B", "C#", "D#"],
+     B:    ["B", "C#", "D#", "E", "F#", "G#", "A#"],
+     "F#": ["F#", "G#", "A#", "B", "C#", "D#", "E#"],
+     "C#": ["C#", "D#", "E#", "F#", "G#", "A#", "B#"],
+     F:    ["F", "G", "A", "Bb", "C", "D", "E"],
+     Bb:   ["Bb", "C", "D", "Eb", "F", "G", "A"],
+     Eb:   ["Eb", "F", "G", "Ab", "Bb", "C", "D"],
+     Ab:   ["Ab", "Bb", "C", "Db", "Eb", "F", "G"],
+     Db:   ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"],
+     Gb:   ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"],
+     Cb:   ["Cb", "Db", "Eb", "Fb", "Gb", "Ab", "Bb"],
+   };
 
-  for (let i = 0; i < numFrets; i++) {
-    // startFret is offset from current position
-    const fretNumber = currentFret.fret + startFret + totalShiftFrets + i;
-    const isHighlighted = i % 2 === 0; // Highlight every other column (0, 2, 4, 6)
+   // Helper: get all visible (center) notes for this row, as sharps and as flats
+   const centerNotes: string[] = [];
+   for (let i = 0; i < numFrets; i++) {
+     const isHighlighted = i % 2 === 0;
+     if (isHighlighted && stringIndex >= 0 && stringIndex < 6) {
+       const fretNumber = currentFret.fret + startFret + totalShiftFrets + i;
+       const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
+       centerNotes.push(note);
+     }
+   }
 
-    if (stringIndex >= 0 && stringIndex < 6) {
-      const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
-      cells.push({ note, visible: true, isCenter: isHighlighted, fretNumber });
-    } else {
-      cells.push({ note: "", visible: false, isCenter: false, fretNumber });
-    }
-  }
+
+  // Use accidentalStyle and displayKey from props (global, from parent)
+  // accidentalStyle and displayKey are now props, defaulted above
+  // Optionally log for debugging
+  // console.log("OverlayRow using displayKey:", displayKey, "accidentalStyle:", accidentalStyle);
+
+   const cells: {
+     note: string;
+     visible: boolean;
+     isCenter: boolean;
+     fretNumber: number;
+   }[] = [];
+
+   for (let i = 0; i < numFrets; i++) {
+     // startFret is offset from current position
+     const fretNumber = currentFret.fret + startFret + totalShiftFrets + i;
+     const isHighlighted = i % 2 === 0; // Highlight every other column (0, 2, 4, 6)
+
+     if (stringIndex >= 0 && stringIndex < 6) {
+       const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
+       let displayNote = note;
+       if (displayKey === "Gb") {
+         // Show Gb major notes for F#/Gb key
+         if (note === "F#") displayNote = "Gb";
+         else if (note === "G#") displayNote = "Ab";
+         else if (note === "A#") displayNote = "Bb";
+         else if (note === "B") displayNote = "Cb";
+         else if (note === "C#") displayNote = "Db";
+         else if (note === "D#") displayNote = "Eb";
+         else if (note === "E") displayNote = "F";
+         else displayNote = note;
+       } else if (displayKey === "Db") {
+         // Show Db major notes for C#/Db key
+         if (note === "C#") displayNote = "Db";
+         else if (note === "D#") displayNote = "Eb";
+         else if (note === "F#") displayNote = "Gb";
+         else if (note === "G#") displayNote = "Ab";
+         else if (note === "A#") displayNote = "Bb";
+         else if (note === "E#") displayNote = "F";
+         else if (note === "B#") displayNote = "C";
+         else displayNote = note;
+       } else {
+         displayNote = accidentalStyle === "flat" ? toFlat(note) : toSharp(note);
+       }
+       cells.push({ note: displayNote, visible: true, isCenter: isHighlighted, fretNumber });
+     } else {
+       cells.push({ note: "", visible: false, isCenter: false, fretNumber });
+     }
+   }
 
   // Calculate position: center the grid relative to the current fret.
   // Each cell is exactly one fret wide. Our incoming position.x is the CENTER
