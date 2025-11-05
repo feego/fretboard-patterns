@@ -1,6 +1,6 @@
 "use client";
-import OverlayRow from "./OverlayRow";
 import * as styles from "./SecondOverlay.css";
+import OverlayRow from "./OverlayRow";
 
 interface SecondOverlayProps {
   isVisible: boolean;
@@ -9,6 +9,8 @@ interface SecondOverlayProps {
   currentFret: { string: number; fret: number } | null;
   showDimmedNotes: boolean;
   tuning: string;
+  bgVariant?: "A" | "B";
+  zIndex?: number;
 }
 
 export default function SecondOverlay({
@@ -18,6 +20,8 @@ export default function SecondOverlay({
   currentFret,
   showDimmedNotes,
   tuning,
+  bgVariant = "B",
+  zIndex,
 }: SecondOverlayProps) {
   const position = snappedPosition || mousePosition;
 
@@ -66,7 +70,7 @@ export default function SecondOverlay({
           position={position}
           cellWidth={cellWidth}
           cellHeight={cellHeight}
-          gridClassName={config.gridStyle}
+          gridClassName={`${config.gridStyle}`}
           cellClassName={styles.gridCell}
           centerCellClassName={styles.centerCell}
           emptyCellClassName={styles.emptyCell}
@@ -76,6 +80,8 @@ export default function SecondOverlay({
           visibleClassName={styles.visible}
           hiddenClassName={styles.hidden}
           tuning={tuning}
+          backgroundColor={bgVariant === "A" ? "#1a1a1a" : "#2a2a2a"}
+          zIndex={zIndex}
         />
       ))}
     </>

@@ -23,13 +23,15 @@ const baseGrid = style({
   gap: "0px",
   padding: "0px",
   borderRadius: borderRadius.md,
-  backgroundColor: "#3a3a3a",
+  backgroundColor: "rgba(0, 0, 0, 0.35)",
+  backdropFilter: "blur(6px)",
+  WebkitBackdropFilter: "blur(6px)",
 });
 
 export const gridCell = style({
   width: "4rem",
   height: "3rem",
-  backgroundColor: "#3a3a3a",
+  backgroundColor: "transparent",
   borderRadius: "0px",
   display: "flex",
   alignItems: "center",
@@ -43,7 +45,7 @@ export const gridCell = style({
 });
 
 export const centerCell = style({
-  backgroundColor: "#3a3a3a",
+  backgroundColor: "transparent",
   color: colors.dark.text,
   border: "none",
 });
@@ -87,6 +89,32 @@ export const topGridBottom = style([
   },
 ]);
 
+// Add left/right borders for 5-fret grids
+export const fiveColBorders = style({
+  borderLeft: `2px solid ${colors.dark.border}`,
+  borderRight: `2px solid ${colors.dark.border}`,
+});
+
+// Add left/right borders for 7-fret grids
+export const sevenColBorders = style({
+  borderLeft: `2px solid ${colors.dark.border}`,
+  borderRight: `2px solid ${colors.dark.border}`,
+});
+
+// Cell-level borders for first/last cells in a row
+export const cellLeftBorder = style({
+  borderLeft: `2px solid ${colors.dark.border}`,
+});
+
+export const cellRightBorder = style({
+  borderRight: `2px solid ${colors.dark.border}`,
+});
+
+// Top border for the first two cells of 7-fret rows
+export const cellTopBorder = style({
+  borderTop: `2px solid ${colors.dark.border}`,
+});
+
 export const bottomGrid = style([
   baseGrid,
   {
@@ -101,8 +129,6 @@ export const singleRowGrid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -111,8 +137,6 @@ export const singleRowGrid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -122,8 +146,6 @@ export const string0Grid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -132,8 +154,6 @@ export const string1Grid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -142,8 +162,6 @@ export const string2Grid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -152,8 +170,6 @@ export const string3Grid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -162,8 +178,6 @@ export const string4Grid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -172,7 +186,5 @@ export const string5Grid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);

@@ -23,7 +23,9 @@ const baseGrid = style({
   gap: "0px",
   padding: "0px",
   borderRadius: borderRadius.md,
-  backgroundColor: colors.dark.surface, // Restore dark background
+  backgroundColor: "rgba(0, 0, 0, 0.35)",
+  backdropFilter: "blur(6px)",
+  WebkitBackdropFilter: "blur(6px)",
 });
 
 export const mainGrid = style([
@@ -61,7 +63,7 @@ export const fourthGrid = style([
 export const gridCell = style({
   width: "4rem",
   height: "3rem",
-  backgroundColor: colors.dark.surface,
+  backgroundColor: "var(--overlay-bg, transparent)",
   borderRadius: "0px",
   display: "flex",
   alignItems: "center",
@@ -75,9 +77,9 @@ export const gridCell = style({
 });
 
 export const centerCell = style({
-  backgroundColor: colors.dark.surface, // Same as regular cells
+  backgroundColor: "var(--overlay-bg, transparent)",
   color: colors.dark.text,
-  border: "none", // Remove border from center cells too
+  border: "none",
 });
 
 export const sharpNote = style({
@@ -123,8 +125,6 @@ export const singleRowGrid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -133,8 +133,6 @@ export const singleRowGrid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -144,8 +142,6 @@ export const string0Grid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -154,8 +150,6 @@ export const string1Grid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -164,8 +158,6 @@ export const string2Grid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -174,8 +166,6 @@ export const string3Grid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -184,8 +174,6 @@ export const string4Grid5 = style([
   {
     gridTemplateColumns: "repeat(5, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -194,8 +182,6 @@ export const string5Grid7 = style([
   {
     gridTemplateColumns: "repeat(7, 1fr)",
     gridTemplateRows: "repeat(1, 1fr)",
-    borderTop: `2px solid ${colors.dark.border}`,
-    borderBottom: `2px solid ${colors.dark.border}`,
   },
 ]);
 
@@ -206,4 +192,47 @@ export const overlayBottom = style({
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",
   filter: "none",
+});
+
+// Theme variants to toggle backgrounds
+export const cellBgA = style({
+  backgroundColor: colors.dark.surface,
+});
+
+export const cellBgB = style({
+  backgroundColor: colors.dark.fretboard,
+});
+
+export const overlayBgA = style({
+  backgroundColor: colors.dark.surface,
+});
+
+export const overlayBgB = style({
+  backgroundColor: colors.dark.fretboard,
+});
+
+// Add left/right borders for 5-fret grids
+export const fiveColBorders = style({
+  borderLeft: `2px solid ${colors.dark.border}`,
+  borderRight: `2px solid ${colors.dark.border}`,
+});
+
+// Add left/right borders for 7-fret grids
+export const sevenColBorders = style({
+  borderLeft: `2px solid ${colors.dark.border}`,
+  borderRight: `2px solid ${colors.dark.border}`,
+});
+
+// Cell-level borders for first/last cells in a row
+export const cellLeftBorder = style({
+  borderLeft: `2px solid ${colors.dark.border}`,
+});
+
+export const cellRightBorder = style({
+  borderRight: `2px solid ${colors.dark.border}`,
+});
+
+// Top border for the first two cells of 7-fret rows
+export const cellTopBorder = style({
+  borderTop: `2px solid ${colors.dark.border}`,
 });

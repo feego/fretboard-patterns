@@ -10,6 +10,8 @@ interface FirstOverlayProps {
   currentFret: { string: number; fret: number } | null;
   showDimmedNotes: boolean;
   tuning: string;
+  bgVariant?: "A" | "B";
+  zIndex?: number;
 }
 
 export default function FirstOverlay({
@@ -19,6 +21,8 @@ export default function FirstOverlay({
   currentFret,
   showDimmedNotes,
   tuning,
+  bgVariant = "A",
+  zIndex,
 }: FirstOverlayProps) {
   const position = snappedPosition || mousePosition;
 
@@ -72,7 +76,7 @@ export default function FirstOverlay({
           position={position}
           cellWidth={cellWidth}
           cellHeight={cellHeight}
-          gridClassName={config.gridStyle}
+          gridClassName={`${config.gridStyle}`}
           cellClassName={styles.gridCell}
           centerCellClassName={styles.centerCell}
           emptyCellClassName={styles.emptyCell}
@@ -82,6 +86,7 @@ export default function FirstOverlay({
           visibleClassName={styles.visible}
           hiddenClassName={styles.hidden}
           tuning={tuning}
+          backgroundColor={bgVariant === "A" ? "#1a1a1a" : "#2a2a2a"}
         />
       ))}
     </>

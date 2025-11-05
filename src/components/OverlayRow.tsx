@@ -20,6 +20,11 @@ interface OverlayRowProps {
   visibleClassName: string;
   hiddenClassName: string;
   tuning: string;
+  backgroundColor?: string;
+  zIndex?: number;
+  leftCellBorderClassName?: string;
+  rightCellBorderClassName?: string;
+  topCellBorderClassName?: string;
 }
 
 const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -86,6 +91,11 @@ export default function OverlayRow({
   visibleClassName,
   hiddenClassName,
   tuning,
+  backgroundColor,
+  zIndex,
+  leftCellBorderClassName,
+  rightCellBorderClassName,
+  topCellBorderClassName,
 }: OverlayRowProps) {
   if (!currentFret) return null;
 
@@ -140,17 +150,29 @@ export default function OverlayRow({
       style={{
         left: position.x + horizontalOffset,
         top: position.y + verticalOffset,
+        ...(typeof zIndex === "number" ? { zIndex } : {}),
+        ...(backgroundColor
+          ? ({ "--overlay-bg": backgroundColor } as React.CSSProperties)
+          : {}),
       }}
     >
       <div className={gridClassName}>
-        {cells.map((cell) => {
-          const shouldShow = cell.isCenter || showDimmedNotes;
+        {cells.map((cell, idx) => {
+          const showText = cell.visible && (cell.isCenter || showDimmedNotes);
+          const textClass = showText
+            ? cell.isCenter
+              ? highlightedNoteClassName
+              : dimmedNoteClassName
+            : "";
+          const sideBordersClass = `${idx === 0 && leftCellBorderClassName ? leftCellBorderClassName : ""} ${idx === cells.length - 1 && rightCellBorderClassName ? rightCellBorderClassName : ""}`.trim();
+          const topBorderClass = `${numFrets === 7 && idx < 2 && topCellBorderClassName ? topCellBorderClassName : ""}`.trim();
           return (
             <div
               key={`row-${stringIndex}-fret-${cell.fretNumber}`}
-              className={`${cellClassName} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${cell.visible && shouldShow ? (cell.isCenter ? highlightedNoteClassName : dimmedNoteClassName) : emptyCellClassName}`}
+              className={`${cellClassName} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${textClass} ${sideBordersClass} ${topBorderClass}`}
+              style={backgroundColor ? { backgroundColor } : undefined}
             >
-              {cell.visible && shouldShow ? cell.note : ""}
+              {showText ? cell.note : ""}
             </div>
           );
         })}

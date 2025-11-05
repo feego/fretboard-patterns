@@ -31,6 +31,7 @@ export default function Fretboard() {
   }>({ string: 4, fret: 12 }); // 2 strings down (string 4 = A)
   const [continuousFret, setContinuousFret] = useState(12); // Track continuous position for infinite scroll
   const [showDimmedNotes, setShowDimmedNotes] = useState(false);
+  const [swapBg, setSwapBg] = useState(false);
   const fretboardRef = useRef<HTMLDivElement>(null);
   const cellWidth = 64; // 4rem * 16px
 
@@ -68,11 +69,13 @@ export default function Fretboard() {
         case "ArrowUp":
           // Move 5 frets to the right (higher pitch)
           newContinuousFret = continuousFret + 5;
+          setSwapBg((s) => !s);
           e.preventDefault();
           break;
         case "ArrowDown":
           // Move 5 frets to the left (lower pitch)
           newContinuousFret = continuousFret - 5;
+          setSwapBg((s) => !s);
           e.preventDefault();
           break;
         case "ArrowLeft":
@@ -215,6 +218,15 @@ export default function Fretboard() {
               const cycleOffset = Math.floor(i / 2) - 5; // -2, -2, -1, -1, 0, 0, 1, 1, 2
               const isFirst = i % 2 === 0;
               const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
+              const bgVariant = isFirst
+                ? swapBg
+                  ? "B"
+                  : "A"
+                : swapBg
+                  ? "A"
+                  : "B";
+              // Keep SecondOverlay above so the currently assigned color on it is visible
+              const zIndex = isFirst ? 999 : 1001;
 
               return (
                 <OverlayComponent
@@ -231,6 +243,8 @@ export default function Fretboard() {
                   currentFret={currentFret}
                   showDimmedNotes={showDimmedNotes}
                   tuning={tuning}
+                  bgVariant={bgVariant}
+                  zIndex={zIndex}
                 />
               );
             })}
