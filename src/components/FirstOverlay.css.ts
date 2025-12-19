@@ -59,8 +59,8 @@ export const fourthGrid = style([
 ]);
 
 export const gridCell = style({
-  width: "4rem",
-  height: "3rem",
+  width: "var(--fret-width, 4rem)",
+  height: "var(--fret-height, 3rem)",
   backgroundColor: "var(--overlay-bg, transparent)", // Will be set by overlayBgA/overlayBgB
   borderRadius: "0px",
   display: "flex",

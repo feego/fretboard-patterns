@@ -7,8 +7,8 @@ export const container = style({
 });
 
 export const label = style({
-  width: spacing.lg,
-  height: "3rem",
+  width: "var(--label-width, 2rem)",
+  height: "var(--fret-height, 3rem)",
   textAlign: "center",
   fontWeight: "bold",
   display: "flex",
@@ -18,4 +18,10 @@ export const label = style({
   color: colors.dark.text,
   fontSize: "0.875rem",
   borderRight: `1px solid ${colors.dark.border}`,
+
+  "@media": {
+    "screen and (max-width: 900px) and (max-height: 500px)": {
+      fontSize: "0.75rem",
+    },
+  },
 });

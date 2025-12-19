@@ -27,8 +27,8 @@ const baseGrid = style({
 });
 
 export const gridCell = style({
-  width: "4rem",
-  height: "3rem",
+  width: "var(--fret-width, 4rem)",
+  height: "var(--fret-height, 3rem)",
   backgroundColor: "transparent",
   borderRadius: "0px",
   display: "flex",

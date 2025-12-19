@@ -133,6 +133,8 @@ interface FirstOverlayProps {
   isVisible: boolean;
   mousePosition: { x: number; y: number };
   snappedPosition: { x: number; y: number } | null;
+  cellWidth?: number;
+  cellHeight?: number;
   currentFret: { string: number; fret: number } | null;
   showDimmedNotes: boolean;
   tuning: string;
@@ -148,6 +150,8 @@ export default function FirstOverlay({
   isVisible,
   mousePosition,
   snappedPosition,
+  cellWidth: measuredCellWidth,
+  cellHeight: measuredCellHeight,
   currentFret,
   showDimmedNotes,
   tuning,
@@ -160,9 +164,8 @@ export default function FirstOverlay({
 }: FirstOverlayProps) {
   const position = snappedPosition || mousePosition;
 
-  const rootFontSize = 16;
-  const cellWidth = 4 * rootFontSize;
-  const cellHeight = 3 * rootFontSize;
+  const cellWidth = measuredCellWidth ?? 64;
+  const cellHeight = measuredCellHeight ?? 48;
 
   // Configuration for each string's row
   // String indices: 0=high E (top), 5=low E (bottom)

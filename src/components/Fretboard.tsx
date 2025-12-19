@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import FirstOverlay from "./FirstOverlay";
 import * as styles from "./Fretboard.css";
 import FretboardControls from "./FretboardControls";
@@ -59,29 +59,72 @@ export default function Fretboard() {
   const [swapBg, setSwapBg] = useState(false);
   const [showDegrees, setShowDegrees] = useState(false);
   const fretboardRef = useRef<HTMLDivElement>(null);
-  const cellWidth = 64; // 4rem * 16px
+  const fretboardWrapperRef = useRef<HTMLDivElement>(null);
+  const [cellWidth, setCellWidth] = useState(64);
+  const [cellHeight, setCellHeight] = useState(48);
+  const [fretboardScale, setFretboardScale] = useState(1);
 
-  // Initialize position on mount
+  const measureBaseFromDom = () => {
+    if (!fretboardRef.current) return;
+    const fretElement = fretboardRef.current.querySelector(
+      '[data-string="4"][data-fret-number="12"]',
+    ) as HTMLElement | null;
+    if (!fretElement) return;
+
+    const fretRect = fretElement.getBoundingClientRect();
+    const fretboardRect = fretboardRef.current.getBoundingClientRect();
+
+    const scale = fretboardScale || 1;
+
+    setCellWidth((fretRect.width || 64) / scale);
+    setCellHeight((fretRect.height || 48) / scale);
+    setBasePosition({
+      x: (fretRect.left - fretboardRect.left + fretRect.width / 2) / scale,
+      y: (fretRect.top - fretboardRect.top + fretRect.height / 2) / scale,
+    });
+  };
+
+  // Compute a scale so the fretboard wrapper fits viewport width (important for iPhone landscape).
   useEffect(() => {
-    // Add a small delay to ensure CSS is fully loaded
-    const timer = setTimeout(() => {
-      if (fretboardRef.current) {
-        const fretElement = fretboardRef.current.querySelector(
-          '[data-string="4"][data-fret-number="12"]',
-        ) as HTMLElement;
-        if (fretElement) {
-          const fretRect = fretElement.getBoundingClientRect();
-          const fretboardRect = fretboardRef.current.getBoundingClientRect();
-          setBasePosition({
-            x: fretRect.left - fretboardRect.left + fretRect.width / 2,
-            y: fretRect.top - fretboardRect.top + fretRect.height / 2,
-          });
-        }
-      }
-    }, 100);
+    const computeScale = () => {
+      const wrapper = fretboardWrapperRef.current;
+      if (!wrapper) return;
 
-    return () => clearTimeout(timer);
+      // scrollWidth is not affected by CSS transforms; it's ideal for computing scale.
+      const contentWidth = wrapper.scrollWidth;
+      if (!contentWidth) return;
+
+      const viewportWidth = Math.min(
+        window.innerWidth,
+        document.documentElement.clientWidth,
+      );
+      // Small gutter so borders/shadows don't clip.
+      const availableWidth = Math.max(0, viewportWidth - 16);
+      const nextScale = Math.min(1, availableWidth / contentWidth);
+
+      setFretboardScale(Number.isFinite(nextScale) ? nextScale : 1);
+    };
+
+    // Initial + on resize/orientation
+    const timer = window.setTimeout(computeScale, 100);
+    window.addEventListener("resize", computeScale);
+    window.addEventListener("orientationchange", computeScale);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", computeScale);
+      window.removeEventListener("orientationchange", computeScale);
+    };
   }, []);
+
+  // After scale changes (or initial render), re-measure base/cell width so overlays stay aligned.
+  useLayoutEffect(() => {
+    // Allow the transform to apply before measuring.
+    const raf = window.requestAnimationFrame(() => {
+      measureBaseFromDom();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [fretboardScale]);
 
   // Handle arrow key navigation with infinite scroll
   useEffect(() => {
@@ -182,7 +225,14 @@ export default function Fretboard() {
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
-      <div className={styles.fretboardWrapper}>
+      <div
+        className={styles.fretboardWrapper}
+        ref={fretboardWrapperRef}
+        style={{
+          transform: `scale(${fretboardScale})`,
+          transformOrigin: "top center",
+        }}
+      >
         {/* Fret numbers above the fretboard */}
         <div
           style={{
@@ -191,7 +241,7 @@ export default function Fretboard() {
             display: "flex",
           }}
         >
-          <div style={{ width: "2rem" }}></div>
+          <div style={{ width: "var(--label-width, 2rem)" }}></div>
           <div className={styles.stringRow}>
             {[...Array(frets)].map((_, fretIndex) => {
               const fretNumber = fretIndex + 1;
@@ -284,6 +334,8 @@ export default function Fretboard() {
                     x: currentPosition.x + cycleOffset * 12 * cellWidth,
                     y: currentPosition.y,
                   }}
+                  cellWidth={cellWidth}
+                  cellHeight={cellHeight}
                   currentFret={currentFret}
                   showDimmedNotes={showDimmedNotes}
                   tuning={tuning}

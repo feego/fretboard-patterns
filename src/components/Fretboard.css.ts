@@ -2,6 +2,13 @@ import { style } from "@vanilla-extract/css";
 import { borderRadius, colors, spacing } from "../styles/theme";
 
 export const container = style({
+  // CSS variables used for responsive sizing across the fretboard + labels
+  // (vanilla-extract doesn't have typed support for custom properties)
+  // Keep stable base sizing; viewport fitting is handled by JS scaling.
+  ["--fret-width" as any]: "4rem",
+  ["--fret-height" as any]: "3rem",
+  ["--label-width" as any]: "2rem",
+  ["--page-title-size" as any]: "2.5rem",
   padding: spacing.lg,
   overflowX: "visible", // Allow overlays to extend beyond container
   overflowY: "visible",
@@ -11,6 +18,18 @@ export const container = style({
   flexDirection: "column",
   alignItems: "center", // Only horizontal centering
   paddingTop: spacing.xl, // Add some top spacing instead of vertical centering
+
+  "@media": {
+    // Small-landscape baseline reduction (in addition to JS scaling)
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      ["--fret-width" as any]: "3rem",
+      ["--fret-height" as any]: "2.25rem",
+      ["--label-width" as any]: "1.75rem",
+      ["--page-title-size" as any]: "1.5rem",
+      padding: spacing.sm,
+      paddingTop: spacing.sm,
+    },
+  },
 });
 
 export const fretboard = style({
@@ -55,8 +74,8 @@ export const stringLabel = style({
 });
 
 export const fret = style({
-  width: "4rem", // Wider frets
-  height: "3rem",
+  width: "var(--fret-width, 4rem)",
+  height: "var(--fret-height, 3rem)",
   borderRight: `1px solid ${colors.dark.border}`,
   cursor: "pointer",
   display: "flex",
@@ -81,7 +100,8 @@ export const markerFret = style({
     position: "absolute",
     top: "50%",
     left: "50%",
-    transform: "translate(-50%, calc(-50% + 1.5rem))", // Shift down to center between D and G strings
+    transform:
+      "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "8px",
     height: "8px",
     backgroundColor: colors.dark.text,
@@ -97,7 +117,8 @@ export const doubleMarkerFret = style({
     position: "absolute",
     top: "30%",
     left: "50%",
-    transform: "translate(-50%, calc(-50% + 1.5rem))", // Shift down to center between D and G strings
+    transform:
+      "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "6px",
     height: "6px",
     backgroundColor: colors.dark.text,
@@ -109,7 +130,8 @@ export const doubleMarkerFret = style({
     position: "absolute",
     top: "70%",
     left: "50%",
-    transform: "translate(-50%, calc(-50% + 1.5rem))", // Shift down to center between D and G strings
+    transform:
+      "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "6px",
     height: "6px",
     backgroundColor: colors.dark.text,
@@ -132,9 +154,15 @@ export const fretNumber = style({
 });
 
 export const pageTitle = style({
-  fontSize: "2.5rem",
+  fontSize: "var(--page-title-size, 2.5rem)",
   fontWeight: "bold",
   color: colors.dark.text,
   textAlign: "center",
   marginBottom: spacing.lg,
+
+  "@media": {
+    "screen and (max-width: 900px) and (max-height: 500px)": {
+      marginBottom: spacing.sm,
+    },
+  },
 });
