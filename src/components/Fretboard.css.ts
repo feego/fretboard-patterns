@@ -8,7 +8,7 @@ export const container = style({
   ["--fret-width" as any]: "4rem",
   ["--fret-height" as any]: "3rem",
   ["--label-width" as any]: "2rem",
-  ["--page-title-size" as any]: "2.5rem",
+  ["--page-title-size" as any]: "2rem",
   padding: spacing.lg,
   overflowX: "visible", // Allow overlays to extend beyond container
   overflowY: "visible",
@@ -20,6 +20,10 @@ export const container = style({
   paddingTop: spacing.xl, // Add some top spacing instead of vertical centering
 
   "@media": {
+    // Mobile portrait/narrow screens
+    "screen and (max-width: 600px)": {
+      ["--page-title-size" as any]: "1.25rem",
+    },
     // Small-landscape baseline reduction (in addition to JS scaling)
     "screen and (orientation: landscape) and (max-height: 450px)": {
       ["--fret-width" as any]: "3rem",
@@ -155,7 +159,9 @@ export const fretNumber = style({
 
 export const pageTitle = style({
   fontSize: "var(--page-title-size, 2.5rem)",
-  fontWeight: "bold",
+  fontFamily: "var(--font-geist-mono)",
+  fontWeight: "500",
+  textTransform: "uppercase",
   color: colors.dark.text,
   textAlign: "center",
   marginBottom: spacing.lg,

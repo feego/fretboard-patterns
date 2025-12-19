@@ -10,6 +10,13 @@ export const container = style({
   marginTop: spacing.md,
 
   "@media": {
+    "screen and (max-width: 600px)": {
+      flexDirection: "column",
+      alignItems: "center",
+      marginTop: 0,
+      padding: 0,
+      gap: spacing.sm,
+    },
     "screen and (orientation: landscape) and (max-height: 450px)": {
       flexWrap: "wrap",
       gap: spacing.sm,
@@ -20,6 +27,7 @@ export const container = style({
 });
 
 export const button = style({
+  fontFamily: "var(--font-geist-mono)",
   padding: `${spacing.sm} ${spacing.md}`,
   backgroundColor: colors.dark.surface,
   color: colors.dark.text,
@@ -38,6 +46,9 @@ export const button = style({
   },
 
   "@media": {
+    "screen and (max-width: 600px)": {
+      width: "min(22rem, 100%)",
+    },
     "screen and (orientation: landscape) and (max-height: 450px)": {
       padding: `${spacing.xs} ${spacing.sm}`,
       fontSize: "0.8rem",
@@ -49,9 +60,17 @@ export const selectWrapper = style({
   display: "flex",
   alignItems: "center",
   gap: spacing.sm,
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      width: "min(22rem, 100%)",
+      justifyContent: "space-between",
+    },
+  },
 });
 
 export const label = style({
+  fontFamily: "var(--font-geist-mono)",
   color: colors.dark.text,
   fontSize: "0.875rem",
   fontWeight: "600",
@@ -64,6 +83,7 @@ export const label = style({
 });
 
 export const select = style({
+  fontFamily: "var(--font-geist-mono)",
   padding: `${spacing.sm} ${spacing.md}`,
   backgroundColor: colors.dark.surface,
   color: colors.dark.text,
@@ -82,6 +102,9 @@ export const select = style({
   },
 
   "@media": {
+    "screen and (max-width: 600px)": {
+      flex: 1,
+    },
     "screen and (orientation: landscape) and (max-height: 450px)": {
       padding: `${spacing.xs} ${spacing.sm}`,
       fontSize: "0.8rem",

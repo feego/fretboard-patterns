@@ -39,7 +39,6 @@ export default function FretboardControls({
         type="button"
         className={styles.button}
         onClick={onToggleDegrees}
-        style={{ marginLeft: 8 }}
       >
         {showDegrees ? "Show Note Names" : "Show Scale Degrees"}
       </button>
