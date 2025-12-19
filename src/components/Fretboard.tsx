@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import FirstOverlay from "./FirstOverlay";
 import * as styles from "./Fretboard.css";
+import FretboardArrows, { type ArrowKey } from "./FretboardArrows";
 import FretboardControls from "./FretboardControls";
 import SecondOverlay from "./SecondOverlay";
 import StringLabels from "./StringLabels";
 
 export default function Fretboard() {
-  // Track toggled cells relative to the overlay's current visible fret (continuousFret)
+  // Track toggled overlay cells (keyed as "stringIndex:fretNumber")
   const [toggledCells, setToggledCells] = useState<Record<string, boolean>>({});
-  // When a cell is clicked, store the cellId using the current overlay's continuousFret as base
+  // When a cell is clicked, toggle its id (e.g. "4:12")
   const handleCellToggle = (cellId: string) => {
     setToggledCells((prev) => ({ ...prev, [cellId]: !prev[cellId] }));
   };
@@ -60,9 +61,15 @@ export default function Fretboard() {
   const [showDegrees, setShowDegrees] = useState(false);
   const fretboardRef = useRef<HTMLDivElement>(null);
   const fretboardWrapperRef = useRef<HTMLDivElement>(null);
+  const [selectedMarkerPositions, setSelectedMarkerPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
   const [cellWidth, setCellWidth] = useState(64);
   const [cellHeight, setCellHeight] = useState(48);
   const [fretboardScale, setFretboardScale] = useState(1);
+  const [scaledWrapperHeightPx, setScaledWrapperHeightPx] = useState<
+    number | null
+  >(null);
 
   const measureBaseFromDom = () => {
     if (!fretboardRef.current) return;
@@ -103,6 +110,11 @@ export default function Fretboard() {
       const nextScale = Math.min(1, availableWidth / contentWidth);
 
       setFretboardScale(Number.isFinite(nextScale) ? nextScale : 1);
+
+      const contentHeight = wrapper.scrollHeight;
+      if (contentHeight) {
+        setScaledWrapperHeightPx(contentHeight * nextScale);
+      }
     };
 
     // Initial + on resize/orientation
@@ -117,62 +129,102 @@ export default function Fretboard() {
     };
   }, []);
 
-  // After scale changes (or initial render), re-measure base/cell width so overlays stay aligned.
+  // After mount (DOM exists) and after scale changes, re-measure base/cell size so overlays stay aligned.
   useLayoutEffect(() => {
+    if (!hasMounted) return;
     // Allow the transform to apply before measuring.
     const raf = window.requestAnimationFrame(() => {
       measureBaseFromDom();
     });
     return () => window.cancelAnimationFrame(raf);
-  }, [fretboardScale]);
+  }, [hasMounted, fretboardScale]);
 
-  // Handle arrow key navigation with infinite scroll
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!currentFret) return;
+  // Keep selection markers positioned above overlays.
+  useLayoutEffect(() => {
+    if (!hasMounted) return;
+    const fretboardEl = fretboardRef.current;
+    if (!fretboardEl) return;
 
-      let newString = currentFret.string;
-      let newContinuousFret = continuousFret;
-      let fretDelta = 0;
-      let stringDelta = 0;
-      switch (e.key) {
-        case "ArrowUp":
-          newContinuousFret = continuousFret + 5;
-          setSwapBg((s) => !s);
-          stringDelta = -1;
-          e.preventDefault();
-          break;
-        case "ArrowDown":
-          newContinuousFret = continuousFret - 5;
-          setSwapBg((s) => !s);
-          stringDelta = 1;
-          e.preventDefault();
-          break;
-        case "ArrowLeft":
-          newContinuousFret = continuousFret - 1;
-          fretDelta = -1;
-          e.preventDefault();
-          break;
-        case "ArrowRight":
-          newContinuousFret = continuousFret + 1;
-          fretDelta = 1;
-          e.preventDefault();
-          break;
-        default:
-          return;
+    const raf = window.requestAnimationFrame(() => {
+      const next: Record<string, { x: number; y: number }> = {};
+      const fretboardRect = fretboardEl.getBoundingClientRect();
+      const scale = fretboardScale || 1;
+
+      for (const [cellId, isOn] of Object.entries(toggledCells)) {
+        if (!isOn) continue;
+        const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
+        const stringIndex = Number(stringIndexRaw);
+        const fretNumber = Number(fretNumberRaw);
+        if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
+
+        const cellEl = fretboardEl.querySelector(
+          `[data-string="${stringIndex}"][data-fret-number="${fretNumber}"]`,
+        ) as HTMLElement | null;
+        if (!cellEl) continue;
+
+        const cellRect = cellEl.getBoundingClientRect();
+        next[cellId] = {
+          x: (cellRect.left - fretboardRect.left + cellRect.width / 2) / scale,
+          y: (cellRect.top - fretboardRect.top + cellRect.height / 2) / scale,
+        };
       }
 
+      setSelectedMarkerPositions(next);
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [hasMounted, toggledCells, fretboardScale, tuning]);
+
+  // Handle arrow key navigation with infinite scroll
+  const navigate = useCallback(
+    (key: ArrowKey) => {
+      if (!currentFret) return;
+
+      let nextContinuousFret = continuousFret;
+      let desiredStringDelta = 0;
+      let fretDelta = 0;
+
+      switch (key) {
+        case "ArrowUp":
+          // Move diagonally: up one string and forward 5 frets (keeps overlays moving).
+          nextContinuousFret = continuousFret + 5;
+          desiredStringDelta = -1;
+          setSwapBg((s) => !s);
+          break;
+        case "ArrowDown":
+          // Move diagonally: down one string and back 5 frets (keeps overlays moving).
+          nextContinuousFret = continuousFret - 5;
+          desiredStringDelta = 1;
+          setSwapBg((s) => !s);
+          break;
+        case "ArrowLeft":
+          nextContinuousFret = continuousFret - 1;
+          fretDelta = -1;
+          break;
+        case "ArrowRight":
+          nextContinuousFret = continuousFret + 1;
+          fretDelta = 1;
+          break;
+      }
+
+      const nextString = Math.min(
+        5,
+        Math.max(0, currentFret.string + desiredStringDelta),
+      );
+      const actualStringDelta = nextString - currentFret.string;
+
       // Calculate wrapped fret (1-24) from continuous fret
-      let wrappedFret = ((newContinuousFret - 1) % 24) + 1;
+      let wrappedFret = ((nextContinuousFret - 1) % 24) + 1;
       if (wrappedFret <= 0) wrappedFret += 24;
 
-      // Move toggled cells by stringDelta (vertical) or fretDelta (horizontal)
+      // Move toggled cells by the same navigation deltas.
+      // Up/Down move strings; Left/Right move frets.
       setToggledCells((prev) => {
         const updated: Record<string, boolean> = {};
         Object.entries(prev).forEach(([cellId, value]) => {
           if (!value) return;
           const [strIdx, fretNum] = cellId.split(":").map(Number);
-          let newStrIdx = strIdx + stringDelta;
+          const newStrIdx = strIdx + actualStringDelta;
           let newFretNum = fretNum + fretDelta;
           if (newFretNum < 1) newFretNum = 24;
           if (newFretNum > 24) newFretNum = 1;
@@ -183,32 +235,51 @@ export default function Fretboard() {
       });
 
       if (
-        newString !== currentFret.string ||
-        newContinuousFret !== continuousFret
+        nextString !== currentFret.string ||
+        nextContinuousFret !== continuousFret
       ) {
-        setContinuousFret(newContinuousFret);
-        setCurrentFret({ string: newString, fret: wrappedFret });
+        setContinuousFret(nextContinuousFret);
+        setCurrentFret({ string: nextString, fret: wrappedFret });
 
         // Update base position for string changes only
-        if (newString !== currentFret.string && fretboardRef.current) {
+        if (actualStringDelta !== 0 && fretboardRef.current) {
           const fretElement = fretboardRef.current.querySelector(
-            `[data-string="${newString}"][data-fret-number="${wrappedFret}"]`,
-          ) as HTMLElement;
+            `[data-string="${nextString}"][data-fret-number="${wrappedFret}"]`,
+          ) as HTMLElement | null;
           if (fretElement) {
             const fretRect = fretElement.getBoundingClientRect();
             const fretboardRect = fretboardRef.current.getBoundingClientRect();
             setBasePosition({
               x: basePosition.x, // Keep x the same
-              y: fretRect.top - fretboardRect.top + fretRect.height / 2,
+              y:
+                (fretRect.top - fretboardRect.top + fretRect.height / 2) /
+                (fretboardScale || 1),
             });
           }
         }
       }
+    },
+    [currentFret, continuousFret, basePosition.x, fretboardScale],
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key !== "ArrowUp" &&
+        e.key !== "ArrowDown" &&
+        e.key !== "ArrowLeft" &&
+        e.key !== "ArrowRight"
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      navigate(e.key);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentFret, continuousFret, basePosition.x]);
+  }, [navigate]);
   // Calculate current position with modulo to keep overlays cycling
   // Use modulo 24 frets (2 full cycles of 12) to keep overlays within range
   let effectiveFret = (continuousFret - 12) % 24;
@@ -226,13 +297,20 @@ export default function Fretboard() {
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
       <div
-        className={styles.fretboardWrapper}
-        ref={fretboardWrapperRef}
-        style={{
-          transform: `scale(${fretboardScale})`,
-          transformOrigin: "top center",
-        }}
+        style={
+          fretboardScale < 1 && scaledWrapperHeightPx
+            ? { height: `${scaledWrapperHeightPx}px` }
+            : undefined
+        }
       >
+        <div
+          className={styles.fretboardWrapper}
+          ref={fretboardWrapperRef}
+          style={{
+            transform: `scale(${fretboardScale})`,
+            transformOrigin: "top center",
+          }}
+        >
         {/* Fret numbers above the fretboard */}
         <div
           style={{
@@ -281,7 +359,6 @@ export default function Fretboard() {
                   const isOctave = fretNumber === 12;
                   const isFirstFret = fretIndex === 0;
                   const isMiddleString = stringIndex === 2; // G string is now at index 2 (3rd from top)
-
                   let fretClasses = styles.fret;
                   if (isFirstFret) fretClasses += ` ${styles.firstFret}`;
                   if (isOctave) fretClasses += ` ${styles.octaveFret}`;
@@ -302,12 +379,21 @@ export default function Fretboard() {
                       data-string={stringIndex}
                       data-fret-number={fretNumber}
                     >
-                      {/* Note markers can be added here later */}
                     </div>
                   );
                 })}
               </div>
             ))}
+
+            <div className={styles.selectionLayer}>
+              {Object.entries(selectedMarkerPositions).map(([cellId, pos]) => (
+                <span
+                  key={`selected-${cellId}`}
+                  className={styles.selectionMarker}
+                  style={{ left: pos.x, top: pos.y }}
+                />
+              ))}
+            </div>
 
             {/* Render multiple overlays in alternating pattern based on continuous fret position */}
             {Array.from({ length: 21 }, (_, i) => {
@@ -349,7 +435,10 @@ export default function Fretboard() {
             })}
           </div>
         </div>
+        </div>
       </div>
+
+      <FretboardArrows onNavigate={navigate} />
 
       <FretboardControls
         showDimmedNotes={showDimmedNotes}

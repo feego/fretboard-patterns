@@ -263,7 +263,7 @@ export default function OverlayRow({
             : "";
           const sideBordersClass = `${idx === 0 && leftCellBorderClassName ? leftCellBorderClassName : ""} ${idx === cells.length - 1 && rightCellBorderClassName ? rightCellBorderClassName : ""}`.trim();
           const topBorderClass = `${numFrets === 7 && idx < 2 && topCellBorderClassName ? topCellBorderClassName : ""}`.trim();
-          // Wrap fretNumber to 1-24 for cellId
+          // Wrap fretNumber to 1-24 for stable toggle ids.
           let wrappedFret = cell.fretNumber;
           while (wrappedFret < 1) wrappedFret += 24;
           while (wrappedFret > 24) wrappedFret -= 24;
@@ -274,7 +274,14 @@ export default function OverlayRow({
               key={`row-${stringIndex}-fret-${cell.fretNumber}`}
               className={`${cellClassName} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${textClass} ${sideBordersClass} ${topBorderClass}`}
               style={{ position: "relative", cursor: onCellToggle && showText ? "pointer" : undefined }}
-              onClick={onCellToggle && showText ? (e) => { e.stopPropagation(); onCellToggle(cellId); } : undefined}
+              onClick={
+                onCellToggle && showText
+                  ? (e) => {
+                      e.stopPropagation();
+                      onCellToggle(cellId);
+                    }
+                  : undefined
+              }
             >
               {showText ? cell.note : ""}
               {isToggled && showText && (
