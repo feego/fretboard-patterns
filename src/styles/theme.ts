@@ -32,6 +32,7 @@ export const colors = {
     textMuted: "#a3a3a3",
     accent: "#60a5fa",
     accentHover: "#3b82f6",
+    danger: "#ef4444",
   },
 } as const;
 

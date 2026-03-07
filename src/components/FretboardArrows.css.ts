@@ -6,13 +6,13 @@ export const container = style({
   alignItems: "center",
   justifyContent: "center",
   gap: spacing.sm,
-  paddingTop: `calc(${spacing.sm} + 5px)`,
-  paddingBottom: `calc(${spacing.xs} + 15px)`,
+  paddingTop: 0,
+  paddingBottom: 0,
 
   "@media": {
     "screen and (orientation: landscape) and (max-height: 450px)": {
       gap: spacing.xs,
-      paddingTop: `calc(${spacing.xs} + 5px)`,
+      paddingTop: 0,
     },
   },
 });

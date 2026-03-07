@@ -36,6 +36,147 @@ export const container = style({
   },
 });
 
+export const header = style({
+  width: "min(90rem, 100%)",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: spacing.md,
+  marginBottom: spacing.sm,
+
+  "@media": {
+    "screen and (max-width: 900px)": {
+      gridTemplateColumns: "1fr",
+      justifyItems: "center",
+      gap: spacing.sm,
+    },
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      marginBottom: spacing.sm,
+      gap: spacing.sm,
+    },
+  },
+});
+
+export const headerTuning = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+});
+
+export const headerTuningLabel = style({
+  fontFamily: "var(--font-geist-mono)",
+  color: colors.dark.text,
+  fontSize: "0.875rem",
+  fontWeight: "600",
+});
+
+export const headerTuningSelect = style({
+  fontFamily: "var(--font-geist-mono)",
+  padding: `${spacing.sm} ${spacing.md}`,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.875rem",
+  fontWeight: "600",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  appearance: "none",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  backgroundImage: "none",
+  ":hover": {
+    borderColor: colors.dark.accent,
+  },
+  ":focus": {
+    outline: "none",
+    borderColor: colors.dark.accent,
+  },
+});
+
+export const arrowsDock = style({
+  width: "min(90rem, 100%)",
+  display: "flex",
+  justifyContent: "center",
+  marginTop: spacing.sm,
+  marginBottom: 0,
+});
+
+export const headerCenter = style({
+  justifySelf: "center",
+});
+
+export const headerRight = style({
+  justifySelf: "end",
+
+  "@media": {
+    "screen and (max-width: 900px)": {
+      justifySelf: "center",
+    },
+  },
+});
+
+export const metronomeControls = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+  padding: spacing.xs,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  backgroundColor: colors.dark.surface,
+});
+
+export const metronomeButton = style({
+  fontFamily: "var(--font-geist-mono)",
+  padding: `${spacing.xs} ${spacing.sm}`,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.8rem",
+  fontWeight: "700",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  ":hover": {
+    backgroundColor: colors.dark.accent,
+    borderColor: colors.dark.accent,
+  },
+  ":active": {
+    backgroundColor: colors.dark.accentHover,
+  },
+});
+
+export const metronomeLabel = style({
+  fontFamily: "var(--font-geist-mono)",
+  color: colors.dark.textMuted,
+  fontSize: "0.8rem",
+  fontWeight: "700",
+});
+
+export const metronomeInput = style({
+  fontFamily: "var(--font-geist-mono)",
+  padding: `${spacing.xs} ${spacing.sm}`,
+  backgroundColor: colors.dark.fretboard,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.8rem",
+  fontWeight: "700",
+  width: "5.5rem",
+  ":focus": {
+    outline: "none",
+    borderColor: colors.dark.accent,
+  },
+  "::-webkit-outer-spin-button": {
+    WebkitAppearance: "none",
+    margin: 0,
+  },
+  "::-webkit-inner-spin-button": {
+    WebkitAppearance: "none",
+    margin: 0,
+  },
+});
+
 export const fretboard = style({
   display: "inline-block",
   backgroundColor: colors.dark.fretboard,
@@ -191,11 +332,11 @@ export const pageTitle = style({
   textTransform: "uppercase",
   color: colors.dark.text,
   textAlign: "center",
-  marginBottom: spacing.lg,
+  marginBottom: 0,
 
   "@media": {
     "screen and (max-width: 900px) and (max-height: 500px)": {
-      marginBottom: spacing.sm,
+      marginBottom: 0,
     },
   },
 });

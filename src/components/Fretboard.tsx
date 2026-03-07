@@ -339,6 +339,100 @@ export default function Fretboard() {
   const [showDimmedNotes, setShowDimmedNotes] = useState(false);
   const [swapBg, setSwapBg] = useState(false);
   const [showDegrees, setShowDegrees] = useState(false);
+
+  // Metronome (header, top-right)
+  const [bpm, setBpm] = useState(120);
+  const [metronomeOn, setMetronomeOn] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const intervalIdRef = useRef<number | null>(null);
+  const nextClickTimeRef = useRef(0);
+  const beatIndexRef = useRef(0);
+  const bpmRef = useRef(bpm);
+
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
+
+  const stopMetronome = useCallback(() => {
+    if (intervalIdRef.current != null) {
+      window.clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
+    }
+    setMetronomeOn(false);
+  }, []);
+
+  const scheduleClick = useCallback(
+    (ctx: AudioContext, time: number, isAccent: boolean) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "square";
+      osc.frequency.value = isAccent ? 1200 : 900;
+
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(0.35, time + 0.001);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(time);
+      osc.stop(time + 0.035);
+    },
+    [],
+  );
+
+  const startMetronome = useCallback(async () => {
+    if (metronomeOn) return;
+
+    const AudioContextCtor =
+      window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextCtor) return;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContextCtor();
+    }
+
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+
+    try {
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+    } catch {
+      return;
+    }
+
+    const LOOKAHEAD_MS = 25;
+    const SCHEDULE_AHEAD_S = 0.12;
+    nextClickTimeRef.current = ctx.currentTime + 0.05;
+    beatIndexRef.current = 0;
+
+    const scheduler = () => {
+      const bpmNow = Math.max(30, Math.min(300, bpmRef.current || 120));
+      const secondsPerBeat = 60 / bpmNow;
+      while (nextClickTimeRef.current < ctx.currentTime + SCHEDULE_AHEAD_S) {
+        const isAccent = beatIndexRef.current % 4 === 0;
+        scheduleClick(ctx, nextClickTimeRef.current, isAccent);
+        nextClickTimeRef.current += secondsPerBeat;
+        beatIndexRef.current = (beatIndexRef.current + 1) % 4;
+      }
+    };
+
+    setMetronomeOn(true);
+    scheduler();
+    intervalIdRef.current = window.setInterval(scheduler, LOOKAHEAD_MS);
+  }, [metronomeOn, scheduleClick]);
+
+  useEffect(() => {
+    return () => {
+      if (intervalIdRef.current != null) {
+        window.clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
+    };
+  }, []);
   const fretboardRef = useRef<HTMLDivElement>(null);
   const fretboardWrapperRef = useRef<HTMLDivElement>(null);
   const [selectedMarkerPositions, setSelectedMarkerPositions] = useState<
@@ -728,7 +822,24 @@ export default function Fretboard() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
+      <div className={styles.header}>
+        <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
+
+        <div className={styles.headerTuning}>
+          <label className={styles.headerTuningLabel} htmlFor="tuning-select">
+            Tuning:
+          </label>
+          <select
+            id="tuning-select"
+            className={styles.headerTuningSelect}
+            value={tuning}
+            onChange={(e) => setTuning(e.target.value)}
+          >
+            <option value="standard">Standard (E-A-D-G-B-E)</option>
+            <option value="allFourths">All Fourths (E-A-D-G-C-F)</option>
+          </select>
+        </div>
+      </div>
       <div
         style={
           fretboardScale < 1 && scaledWrapperHeightPx
@@ -881,17 +992,27 @@ export default function Fretboard() {
         </div>
       </div>
 
-      <FretboardArrows onNavigate={navigate} />
+      <div className={styles.arrowsDock}>
+        <FretboardArrows onNavigate={navigate} />
+      </div>
 
       <FretboardControls
         showDimmedNotes={showDimmedNotes}
         onToggleDimmedNotes={() => setShowDimmedNotes(!showDimmedNotes)}
-        tuning={tuning}
-        onTuningChange={setTuning}
         showDegrees={showDegrees}
         onToggleDegrees={() => setShowDegrees((v) => !v)}
         onSelectCagedNotes={selectCagedNotes}
         onClearSelectedNotes={clearSelectedNotes}
+        metronomeOn={metronomeOn}
+        bpm={bpm}
+        onToggleMetronome={() => {
+          if (metronomeOn) stopMetronome();
+          else startMetronome();
+        }}
+        onBpmChange={(next) => {
+          if (!Number.isFinite(next)) return;
+          setBpm(Math.max(30, Math.min(300, next)));
+        }}
       />
     </div>
   );
