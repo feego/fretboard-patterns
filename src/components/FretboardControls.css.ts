@@ -129,3 +129,47 @@ export const select = style({
     },
   },
 });
+
+export const input = style({
+  fontFamily: "var(--font-geist-mono)",
+  padding: `${spacing.sm} ${spacing.md}`,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.875rem",
+  fontWeight: "600",
+  transition: "all 0.2s ease",
+  width: "8rem",
+  ":hover": {
+    borderColor: colors.dark.accent,
+  },
+  ":focus": {
+    outline: "none",
+    borderColor: colors.dark.accent,
+  },
+
+  "::placeholder": {
+    color: colors.dark.textMuted,
+  },
+
+  "::-webkit-outer-spin-button": {
+    WebkitAppearance: "none",
+    margin: 0,
+  },
+  "::-webkit-inner-spin-button": {
+    WebkitAppearance: "none",
+    margin: 0,
+  },
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      flex: 1,
+      width: "auto",
+    },
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      padding: `${spacing.xs} ${spacing.sm}`,
+      fontSize: "0.8rem",
+    },
+  },
+});
