@@ -144,6 +144,11 @@ interface FirstOverlayProps {
   toggledCells?: Record<string, boolean>;
   onCellToggle?: (cellId: string) => void;
   overlayFretOffset?: number;
+  fretMetrics?: {
+    centerXByFret: Record<number, number>;
+    widthByFret: Record<number, number>;
+    octaveWidth: number;
+  };
 }
 
 export default function FirstOverlay({
@@ -161,6 +166,7 @@ export default function FirstOverlay({
   toggledCells = {},
   onCellToggle,
   overlayFretOffset = 0,
+  fretMetrics,
 }: FirstOverlayProps) {
   const position = snappedPosition || mousePosition;
 
@@ -240,6 +246,7 @@ export default function FirstOverlay({
           toggledCells={toggledCells}
           onCellToggle={onCellToggle}
           overlayFretOffset={overlayFretOffset}
+          fretMetrics={fretMetrics}
         />
       ))}
     </>

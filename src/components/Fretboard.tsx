@@ -156,12 +156,68 @@ function computeMajorTriadRawNotes(tonicRaw: string): Set<string> {
   return new Set([tonicRaw, majorThird, perfectFifth]);
 }
 
+const FRET_WIDTH_MAX_FACTOR = 1.15;
+function getFretWidthFactor(fretNumber: number): number {
+  // Make the left side (low fret numbers) slightly wider than the right.
+  // Repeat the taper every 12 frets so octave-shifted overlays remain aligned.
+  // 12th and 24th frets remain the base width (factor 1.0).
+  const wrapped = ((Math.round(fretNumber) - 1) % 12 + 12) % 12 + 1;
+  const t = (wrapped - 1) / 11; // 0 at fret 1, 1 at fret 12
+  return FRET_WIDTH_MAX_FACTOR + (1 - FRET_WIDTH_MAX_FACTOR) * t;
+}
+
+function fretWidthCss(fretNumber: number): string {
+  const factor = getFretWidthFactor(fretNumber);
+  return `calc(var(--fret-width, 4rem) * ${factor.toFixed(4)})`;
+}
+
+type FretMetrics = {
+  centerXByFret: Record<number, number>;
+  widthByFret: Record<number, number>;
+  octaveWidth: number;
+};
+
+function getFretCenterX(
+  fretMetrics: FretMetrics | null,
+  fretNumber: number,
+): number | null {
+  if (!fretMetrics) return null;
+
+  // Geometry repeats in 12-fret (octave) cycles. Fold back into 1..24 and
+  // apply octave offsets so motion stays continuous.
+  let normalized = fretNumber;
+  let octaveOffsetX = 0;
+  while (normalized < 1) {
+    normalized += 12;
+    octaveOffsetX -= fretMetrics.octaveWidth;
+  }
+  while (normalized > 24) {
+    normalized -= 12;
+    octaveOffsetX += fretMetrics.octaveWidth;
+  }
+
+  const base = fretMetrics.centerXByFret[normalized];
+  if (typeof base !== "number") return null;
+  return base + octaveOffsetX;
+}
+
 export default function Fretboard() {
   // Track toggled overlay cells (keyed as "stringIndex:fretNumber")
   const [toggledCells, setToggledCells] = useState<Record<string, boolean>>({});
   const [selectedCellTones, setSelectedCellTones] = useState<
     Record<string, MarkerTone>
   >({});
+  const toggledCellsRef = useRef(toggledCells);
+  const selectedCellTonesRef = useRef(selectedCellTones);
+  const prevTuningRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    toggledCellsRef.current = toggledCells;
+  }, [toggledCells]);
+
+  useEffect(() => {
+    selectedCellTonesRef.current = selectedCellTones;
+  }, [selectedCellTones]);
   // When a cell is clicked, toggle its id (e.g. "4:12")
   const handleCellToggle = (cellId: string) => {
     setToggledCells((prev) => {
@@ -208,6 +264,63 @@ export default function Fretboard() {
     }
   }, [tuning, hasMounted]);
 
+  // When switching between standard and all-fourths, the overlays shift the top
+  // two strings (0 and 1) by one fret. Keep selected notes aligned by applying
+  // the same shift to the selection state.
+  useEffect(() => {
+    if (!hasMounted) return;
+
+    const prev = prevTuningRef.current;
+    prevTuningRef.current = tuning;
+
+    if (!prev || prev === tuning) return;
+
+    const isPrevAllFourths = prev === "allFourths";
+    const isNextAllFourths = tuning === "allFourths";
+
+    // Standard -> All Fourths: overlays move left by 1 on top 2 strings => selection should also move left.
+    // All Fourths -> Standard: move right by 1 on top 2 strings.
+    const topStringFretDelta = !isPrevAllFourths && isNextAllFourths ? -1 : isPrevAllFourths && !isNextAllFourths ? 1 : 0;
+    if (topStringFretDelta === 0) return;
+
+    const prevToggled = toggledCellsRef.current;
+    const prevTones = selectedCellTonesRef.current;
+
+    const nextToggled: Record<string, boolean> = {};
+    const nextTones: Record<string, MarkerTone> = {};
+
+    const mergeTone = (a: MarkerTone | undefined, b: MarkerTone | undefined): MarkerTone | undefined => {
+      if (a === "primary" || b === "primary") return "primary";
+      if (a === "dim" || b === "dim") return "dim";
+      return undefined;
+    };
+
+    for (const [cellId, isOn] of Object.entries(prevToggled)) {
+      if (!isOn) continue;
+      const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
+      const stringIndex = Number(stringIndexRaw);
+      const fretNumber = Number(fretNumberRaw);
+      if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
+
+      let nextFretNumber = fretNumber;
+      if (stringIndex === 0 || stringIndex === 1) {
+        nextFretNumber = fretNumber + topStringFretDelta;
+      }
+
+      if (nextFretNumber < 1 || nextFretNumber > 24) continue;
+      const nextId = `${stringIndex}:${nextFretNumber}`;
+      nextToggled[nextId] = true;
+
+      const incomingTone = prevTones[cellId];
+      const existingTone = nextTones[nextId];
+      const merged = mergeTone(existingTone, incomingTone);
+      if (merged) nextTones[nextId] = merged;
+    }
+
+    setToggledCells(nextToggled);
+    setSelectedCellTones(nextTones);
+  }, [tuning, hasMounted]);
+
   // Stable keys for string rows to avoid index-based keys and handle duplicate names in standard tuning
   const stringRowKeys =
     tuning === "allFourths"
@@ -231,6 +344,7 @@ export default function Fretboard() {
   const [selectedMarkerPositions, setSelectedMarkerPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
+  const [fretMetrics, setFretMetrics] = useState<FretMetrics | null>(null);
 
   const clearSelectedNotes = useCallback(() => {
     setToggledCells({});
@@ -437,6 +551,43 @@ export default function Fretboard() {
     return () => window.cancelAnimationFrame(raf);
   }, [hasMounted, toggledCells, fretboardScale, tuning]);
 
+  // Measure per-fret widths/centers (needed when frets are not uniform width).
+  useLayoutEffect(() => {
+    if (!hasMounted) return;
+    const fretboardEl = fretboardRef.current;
+    if (!fretboardEl) return;
+
+    const raf = window.requestAnimationFrame(() => {
+      const fretboardRect = fretboardEl.getBoundingClientRect();
+      const scale = fretboardScale || 1;
+
+      const centerXByFret: Record<number, number> = {};
+      const widthByFret: Record<number, number> = {};
+
+      for (let fretNumber = 1; fretNumber <= 24; fretNumber++) {
+        const cellEl = fretboardEl.querySelector(
+          `[data-string="0"][data-fret-number="${fretNumber}"]`,
+        ) as HTMLElement | null;
+        if (!cellEl) continue;
+        const rect = cellEl.getBoundingClientRect();
+        widthByFret[fretNumber] = (rect.width || 0) / scale;
+        centerXByFret[fretNumber] =
+          (rect.left - fretboardRect.left + rect.width / 2) / scale;
+      }
+
+      // 12-fret octave width, used for placing octave-shifted overlay copies.
+      const d1 =
+        centerXByFret[13] != null && centerXByFret[1] != null
+          ? centerXByFret[13] - centerXByFret[1]
+          : null;
+      const octaveWidth = typeof d1 === "number" ? d1 : cellWidth * 12;
+
+      setFretMetrics({ centerXByFret, widthByFret, octaveWidth });
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [hasMounted, fretboardScale, cellWidth]);
+
   // Handle arrow key navigation with infinite scroll
   const navigate = useCallback(
     (key: ArrowKey) => {
@@ -561,8 +712,14 @@ export default function Fretboard() {
   let effectiveFret = (continuousFret - 12) % 24;
   // Handle negative modulo correctly
   if (effectiveFret < 0) effectiveFret += 24;
+  const fallbackX = basePosition.x + effectiveFret * cellWidth;
+
+  // Anchor the overlay base X to the infinite-scroll fret value.
+  const measuredCenterX = currentFret
+    ? getFretCenterX(fretMetrics, currentFret.fret)
+    : null;
   const currentPosition = {
-    x: basePosition.x + effectiveFret * cellWidth,
+    x: measuredCenterX ?? fallbackX,
     y: basePosition.y,
   };
 
@@ -604,6 +761,7 @@ export default function Fretboard() {
                   key={`fret-number-${fretNumber}`}
                   className={styles.fret}
                   style={{
+                    width: fretWidthCss(fretNumber),
                     height: "auto",
                     padding: "0.25rem 0",
                     border: "none",
@@ -651,6 +809,7 @@ export default function Fretboard() {
                     <div
                       key={`fret-${fretNumber}`}
                       className={fretClasses}
+                      style={{ width: fretWidthCss(fretNumber) }}
                       data-fret={`${stringIndex}-${fretIndex}`}
                       data-string={stringIndex}
                       data-fret-number={fretNumber}
@@ -684,16 +843,22 @@ export default function Fretboard() {
                   ? "A"
                   : "B";
               const zIndex = isFirst ? 999 : 1001;
+
+              // OverlayRow already accounts for `overlayFretOffset` when computing
+              // its horizontal placement (including tapered frets via fretMetrics).
+              // If we also shift X here, copies get double-shifted and only the
+              // middle tile stays on-screen.
+              const shiftedX = currentPosition.x;
               return (
                 <OverlayComponent
                   key={`overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}
                   isVisible={isOverlayVisible}
                   mousePosition={{
-                    x: currentPosition.x + cycleOffset * 12 * cellWidth,
+                    x: shiftedX,
                     y: currentPosition.y,
                   }}
                   snappedPosition={{
-                    x: currentPosition.x + cycleOffset * 12 * cellWidth,
+                    x: shiftedX,
                     y: currentPosition.y,
                   }}
                   cellWidth={cellWidth}
@@ -706,6 +871,8 @@ export default function Fretboard() {
                   showDegrees={showDegrees}
                   toggledCells={toggledCells}
                   onCellToggle={handleCellToggle}
+                  fretMetrics={fretMetrics ?? undefined}
+                  overlayFretOffset={cycleOffset * 12}
                 />
               );
             })}

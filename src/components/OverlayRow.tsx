@@ -53,6 +53,11 @@ interface OverlayRowProps {
   toggledCells?: Record<string, boolean>;
   onCellToggle?: (cellId: string) => void;
   overlayFretOffset?: number;
+  fretMetrics?: {
+    centerXByFret: Record<number, number>;
+    widthByFret: Record<number, number>;
+    octaveWidth: number;
+  };
 }
 
 const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -130,6 +135,7 @@ export default function OverlayRow({
   toggledCells = {},
   onCellToggle,
   overlayFretOffset = 0,
+  fretMetrics,
 }: OverlayRowProps) {
   if (!currentFret) return null;
 
@@ -170,7 +176,12 @@ export default function OverlayRow({
    for (let i = 0; i < numFrets; i++) {
      const isHighlighted = i % 2 === 0;
      if (isHighlighted && stringIndex >= 0 && stringIndex < 6) {
-       const fretNumber = currentFret.fret + startFret + totalShiftFrets + i;
+       const fretNumber =
+         currentFret.fret +
+         startFret +
+         totalShiftFrets +
+         overlayFretOffset +
+         i;
        const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
        centerNotes.push(note);
      }
@@ -191,7 +202,8 @@ export default function OverlayRow({
 
    for (let i = 0; i < numFrets; i++) {
      // startFret is offset from current position
-     const fretNumber = currentFret.fret + startFret + totalShiftFrets + i;
+     const fretNumber =
+       currentFret.fret + startFret + totalShiftFrets + overlayFretOffset + i;
      const isHighlighted = i % 2 === 0; // Highlight every other column (0, 2, 4, 6)
 
      if (stringIndex >= 0 && stringIndex < 6) {
@@ -237,11 +249,89 @@ export default function OverlayRow({
   // of the currently selected fret. The overlay element itself is centered via
   // CSS (translate(-50%, -50%)). Therefore, the 'left' value we set should be
   // the center of the entire grid for this row. If the first visible column
-  // is at (currentFret + startFret), then the grid center is that fret plus
-  // half the grid width minus half a cell: startFret + (numFrets - 1) / 2.
-  const horizontalOffset =
-    (startFret + totalShiftFrets + (numFrets - 1) / 2) * cellWidth;
+  const getFretCenterX = (fretNumber: number): number | null => {
+    if (!fretMetrics) return null;
+
+    // Geometry repeats over 12-fret octaves. If a fretNumber falls outside 1..24,
+    // fold it back by +/- 12 and offset by the measured octave width.
+    let normalized = fretNumber;
+    let octaveOffsetX = 0;
+    while (normalized < 1) {
+      normalized += 12;
+      octaveOffsetX -= fretMetrics.octaveWidth;
+    }
+    while (normalized > 24) {
+      normalized -= 12;
+      octaveOffsetX += fretMetrics.octaveWidth;
+    }
+    const base = fretMetrics.centerXByFret[normalized];
+    if (typeof base !== "number") return null;
+    return base + octaveOffsetX;
+  };
+
+  const getFretWidth = (fretNumber: number): number | null => {
+    if (!fretMetrics) return null;
+    let normalized = fretNumber;
+    while (normalized < 1) normalized += 12;
+    while (normalized > 24) normalized -= 12;
+    const w = fretMetrics.widthByFret[normalized];
+    return typeof w === "number" && w > 0 ? w : null;
+  };
+
+  const getFretLeftEdgeX = (fretNumber: number): number | null => {
+    const cx = getFretCenterX(fretNumber);
+    const w = getFretWidth(fretNumber);
+    if (cx == null || w == null) return null;
+    return cx - w / 2;
+  };
+
+  // Compute horizontal offset from the *geometric* center of the grid,
+  // based on measured per-fret widths (important when frets taper).
+  let horizontalOffset =
+    (startFret + totalShiftFrets + overlayFretOffset + (numFrets - 1) / 2) *
+    cellWidth;
+
+  const currentCenterX = getFretCenterX(currentFret.fret);
+  const firstCellFret =
+    currentFret.fret + startFret + totalShiftFrets + overlayFretOffset;
+  const firstCellLeftEdgeX = getFretLeftEdgeX(firstCellFret);
+
+  let totalGridWidth = 0;
+  let hasAllWidths = true;
+  if (fretMetrics) {
+    for (let i = 0; i < numFrets; i++) {
+      const w = getFretWidth(firstCellFret + i);
+      if (w == null) {
+        hasAllWidths = false;
+        break;
+      }
+      totalGridWidth += w;
+    }
+  } else {
+    hasAllWidths = false;
+  }
+
+  if (
+    currentCenterX != null &&
+    firstCellLeftEdgeX != null &&
+    hasAllWidths &&
+    totalGridWidth > 0
+  ) {
+    const gridCenterX = firstCellLeftEdgeX + totalGridWidth / 2;
+    horizontalOffset = gridCenterX - currentCenterX;
+  }
   const verticalOffset = (stringIndex - currentFret.string) * cellHeight;
+
+  const gridTemplateColumns = fretMetrics
+    ? Array.from({ length: numFrets }, (_, i) => {
+        let fretNumber =
+          currentFret.fret + startFret + totalShiftFrets + i + overlayFretOffset;
+        while (fretNumber < 1) fretNumber += 12;
+        while (fretNumber > 24) fretNumber -= 12;
+        const w = fretMetrics.widthByFret[fretNumber];
+        return `${typeof w === "number" && w > 0 ? w : cellWidth}px`;
+      }).join(" ")
+    : undefined;
 
   return (
     <div
@@ -253,7 +343,10 @@ export default function OverlayRow({
         ...(backgroundColor ? { backgroundColor } : {}),
       }}
     >
-      <div className={gridClassName}>
+      <div
+        className={gridClassName}
+        style={gridTemplateColumns ? { gridTemplateColumns } : undefined}
+      >
         {cells.map((cell, idx) => {
           const showText = cell.visible && (cell.isCenter || showDimmedNotes);
           const textClass = showText
@@ -273,7 +366,11 @@ export default function OverlayRow({
             <div
               key={`row-${stringIndex}-fret-${cell.fretNumber}`}
               className={`${cellClassName} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${textClass} ${sideBordersClass} ${topBorderClass}`}
-              style={{ position: "relative", cursor: onCellToggle && showText ? "pointer" : undefined }}
+              style={{
+                position: "relative",
+                cursor: onCellToggle && showText ? "pointer" : undefined,
+                width: "100%",
+              }}
               onClick={
                 onCellToggle && showText
                   ? (e) => {
