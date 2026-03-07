@@ -3,6 +3,7 @@ import { borderRadius, colors, spacing } from "../styles/theme";
 
 export const container = style({
   display: "flex",
+  flexDirection: "column",
   gap: spacing.md,
   alignItems: "center",
   justifyContent: "center",
@@ -11,17 +12,34 @@ export const container = style({
 
   "@media": {
     "screen and (max-width: 600px)": {
-      flexDirection: "column",
       alignItems: "center",
       marginTop: 0,
       padding: 0,
       gap: spacing.sm,
     },
     "screen and (orientation: landscape) and (max-height: 450px)": {
-      flexWrap: "wrap",
       gap: spacing.sm,
       padding: spacing.sm,
       marginTop: spacing.sm,
+    },
+  },
+});
+
+export const row = style({
+  display: "flex",
+  gap: spacing.md,
+  alignItems: "center",
+  justifyContent: "center",
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      flexDirection: "column",
+      gap: spacing.sm,
+      width: "100%",
+    },
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      flexWrap: "wrap",
+      gap: spacing.sm,
     },
   },
 });

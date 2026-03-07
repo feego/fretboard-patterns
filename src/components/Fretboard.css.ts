@@ -63,6 +63,14 @@ export const selectionMarker = style({
   background: "rgba(229,229,229,0.18)",
 });
 
+export const selectionMarkerDim = style({
+  // Keep dim markers extremely subtle but still visible.
+  // Use color-mix with transparent so only border/fill are faint,
+  // without making the whole element effectively disappear.
+  border: `2px solid color-mix(in srgb, ${colors.dark.textMuted} 10%, transparent)`,
+  background: `color-mix(in srgb, ${colors.dark.textMuted} 2%, transparent)`,
+});
+
 export const fretboardWrapper = style({
   display: "flex",
   flexDirection: "column",

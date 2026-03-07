@@ -284,22 +284,6 @@ export default function OverlayRow({
               }
             >
               {showText ? cell.note : ""}
-              {isToggled && showText && (
-                <span
-                  style={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "2.2rem",
-                    height: "2.2rem",
-                    borderRadius: "50%",
-                    border: "3px solid #fff",
-                    background: "rgba(255,255,255,0.18)",
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
             </div>
           );
         })}

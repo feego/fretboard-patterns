@@ -8,12 +8,179 @@ import FretboardControls from "./FretboardControls";
 import SecondOverlay from "./SecondOverlay";
 import StringLabels from "./StringLabels";
 
+type ToggledCellMap = Record<string, boolean>;
+type MarkerTone = "primary" | "dim";
+
+const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+const TUNING_CONFIGS: Record<string, { note: string; octave: number }[]> = {
+  standard: [
+    { note: "E", octave: 4 },
+    { note: "B", octave: 3 },
+    { note: "G", octave: 3 },
+    { note: "D", octave: 3 },
+    { note: "A", octave: 2 },
+    { note: "E", octave: 2 },
+  ],
+  allFourths: [
+    { note: "F", octave: 4 },
+    { note: "C", octave: 4 },
+    { note: "G", octave: 3 },
+    { note: "D", octave: 3 },
+    { note: "A", octave: 2 },
+    { note: "E", octave: 2 },
+  ],
+};
+
+function getNoteAtPosition(
+  stringIndex: number,
+  fretNumber: number,
+  tuning: string,
+): string {
+  const stringTuning = TUNING_CONFIGS[tuning] || TUNING_CONFIGS.standard;
+  const openString = stringTuning[stringIndex];
+  const openNoteIndex = NOTES.indexOf(openString.note);
+
+  let wrappedFret = fretNumber;
+  while (wrappedFret < 1) wrappedFret += 24;
+  while (wrappedFret > 24) wrappedFret -= 24;
+
+  const noteIndex = (openNoteIndex + wrappedFret) % 12;
+  return NOTES[noteIndex];
+}
+
+const FLAT_MAP: Record<string, string> = {
+  "C#": "Db",
+  "D#": "Eb",
+  "F#": "Gb",
+  "G#": "Ab",
+  "A#": "Bb",
+};
+
+const SHARP_KEYS = new Set(["C", "G", "D", "A", "E", "B", "F#", "C#"]);
+
+const MAJOR_SCALES: Record<string, string[]> = {
+  C: ["C", "D", "E", "F", "G", "A", "B"],
+  G: ["G", "A", "B", "C", "D", "E", "F#"],
+  D: ["D", "E", "F#", "G", "A", "B", "C#"],
+  A: ["A", "B", "C#", "D", "E", "F#", "G#"],
+  E: ["E", "F#", "G#", "A", "B", "C#", "D#"],
+  B: ["B", "C#", "D#", "E", "F#", "G#", "A#"],
+  "F#": ["F#", "G#", "A#", "B", "C#", "D#", "E#"],
+  "C#": ["C#", "D#", "E#", "F#", "G#", "A#", "B#"],
+  F: ["F", "G", "A", "Bb", "C", "D", "E"],
+  Bb: ["Bb", "C", "D", "Eb", "F", "G", "A"],
+  Eb: ["Eb", "F", "G", "Ab", "Bb", "C", "D"],
+  Ab: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"],
+  Db: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"],
+  Gb: ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"],
+  Cb: ["Cb", "Db", "Eb", "Fb", "Gb", "Ab", "Bb"],
+};
+
+const ENHARMONIC_MAP: Record<string, string[]> = {
+  "E#": ["F"],
+  F: ["E#"],
+  "B#": ["C"],
+  C: ["B#"],
+  Cb: ["B"],
+  B: ["Cb"],
+  Fb: ["E"],
+  E: ["Fb"],
+};
+
+function computeGlobalDisplayKey(centerNotes: string[]) {
+  let bestKey = "C";
+  let bestCount = -1;
+  let bestIsFlat = false;
+
+  for (const [key, scale] of Object.entries(MAJOR_SCALES)) {
+    let count = 0;
+    for (const n of centerNotes) {
+      if (scale.includes(n) || scale.includes(FLAT_MAP[n] || n)) {
+        count++;
+        continue;
+      }
+      if (ENHARMONIC_MAP[n]) {
+        for (const enh of ENHARMONIC_MAP[n]) {
+          if (scale.includes(enh)) {
+            count++;
+            break;
+          }
+        }
+      }
+    }
+
+    if (count > bestCount) {
+      bestKey = key;
+      bestCount = count;
+      bestIsFlat = !SHARP_KEYS.has(key);
+    }
+  }
+
+  // Always display Gb for F# and Db for C# (matches overlays)
+  let displayKey = bestKey;
+  if (bestKey === "F#" || bestKey === "Gb") displayKey = "Gb";
+  if (bestKey === "C#" || bestKey === "Db") displayKey = "Db";
+
+  const accidentalStyle = bestIsFlat ? "flat" : "sharp";
+  return { bestKey, displayKey, accidentalStyle };
+}
+
+function displayKeyToRawTonic(displayKey: string): string {
+  switch (displayKey) {
+    case "Db":
+      return "C#";
+    case "Eb":
+      return "D#";
+    case "Gb":
+      return "F#";
+    case "Ab":
+      return "G#";
+    case "Bb":
+      return "A#";
+    case "Cb":
+      return "B";
+    case "Fb":
+      return "E";
+    default:
+      return displayKey;
+  }
+}
+
+function computeMajorTriadRawNotes(tonicRaw: string): Set<string> {
+  const tonicIndex = NOTES.indexOf(tonicRaw);
+  if (tonicIndex < 0) return new Set([tonicRaw]);
+
+  const majorThird = NOTES[(tonicIndex + 4) % 12];
+  const perfectFifth = NOTES[(tonicIndex + 7) % 12];
+  return new Set([tonicRaw, majorThird, perfectFifth]);
+}
+
 export default function Fretboard() {
   // Track toggled overlay cells (keyed as "stringIndex:fretNumber")
   const [toggledCells, setToggledCells] = useState<Record<string, boolean>>({});
+  const [selectedCellTones, setSelectedCellTones] = useState<
+    Record<string, MarkerTone>
+  >({});
   // When a cell is clicked, toggle its id (e.g. "4:12")
   const handleCellToggle = (cellId: string) => {
-    setToggledCells((prev) => ({ ...prev, [cellId]: !prev[cellId] }));
+    setToggledCells((prev) => {
+      const nextIsOn = !prev[cellId];
+      const next = { ...prev, [cellId]: nextIsOn };
+      if (!nextIsOn) delete next[cellId];
+      return next;
+    });
+    setSelectedCellTones((prev) => {
+      const next = { ...prev };
+      if (toggledCells[cellId]) {
+        // Turning off
+        delete next[cellId];
+      } else {
+        // Turning on: manual selections default to primary.
+        next[cellId] = "primary";
+      }
+      return next;
+    });
   };
   // Tuning-aware string labels (top to bottom: high to low)
   // Standard: high E to low E; All Fourths: high F to low E
@@ -64,6 +231,101 @@ export default function Fretboard() {
   const [selectedMarkerPositions, setSelectedMarkerPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
+
+  const clearSelectedNotes = useCallback(() => {
+    setToggledCells({});
+    setSelectedCellTones({});
+  }, []);
+
+  const selectCagedNotes = useCallback(() => {
+    if (!currentFret) return;
+
+    // Mirror the same row configs used by FirstOverlay/SecondOverlay.
+    const firstOverlayRows = [
+      { stringIndex: 0, startFret: -6, numFrets: 5 },
+      { stringIndex: 1, startFret: -8, numFrets: 7 },
+      { stringIndex: 2, startFret: -9, numFrets: 5 },
+      { stringIndex: 3, startFret: -11, numFrets: 7 },
+      { stringIndex: 4, startFret: -11, numFrets: 5 },
+      { stringIndex: 5, startFret: -1, numFrets: 7 },
+    ];
+    const secondOverlayRows = [
+      { stringIndex: 0, startFret: -1, numFrets: 7 },
+      { stringIndex: 1, startFret: -1, numFrets: 5 },
+      { stringIndex: 2, startFret: -4, numFrets: 7 },
+      { stringIndex: 3, startFret: -4, numFrets: 5 },
+      { stringIndex: 4, startFret: -6, numFrets: 7 },
+      { stringIndex: 5, startFret: -6, numFrets: 5 },
+    ];
+
+    const overlayShiftFrets = 2;
+    const octaveCycleOffsets = Array.from({ length: 11 }, (_, i) => i - 5); // -5..+5
+
+    const next: ToggledCellMap = {};
+    const nextTones: Record<string, MarkerTone> = {};
+
+    // Determine the current tonic (degree 1) using the same "best key" heuristic as overlays.
+    const centerNotes: string[] = [];
+    const collectCenterNotes = (
+      rows: { stringIndex: number; startFret: number; numFrets: number }[],
+    ) => {
+      for (const row of rows) {
+        const tuningShiftFrets =
+          tuning === "allFourths" && (row.stringIndex === 0 || row.stringIndex === 1)
+            ? -1
+            : 0;
+        const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
+        for (let i = 0; i < row.numFrets; i++) {
+          if (i % 2 !== 0) continue;
+          const fretNumber =
+            currentFret.fret + row.startFret + totalShiftFrets + i;
+          const note = getNoteAtPosition(row.stringIndex, fretNumber, tuning);
+          centerNotes.push(note);
+        }
+      }
+    };
+    collectCenterNotes(firstOverlayRows);
+    collectCenterNotes(secondOverlayRows);
+
+    const { displayKey } = computeGlobalDisplayKey(centerNotes);
+    const tonicRaw = displayKeyToRawTonic(displayKey);
+    const primaryRawNotes = computeMajorTriadRawNotes(tonicRaw);
+
+    const addOverlaySelections = (
+      rows: { stringIndex: number; startFret: number; numFrets: number }[],
+    ) => {
+      for (const row of rows) {
+        const tuningShiftFrets =
+          tuning === "allFourths" && (row.stringIndex === 0 || row.stringIndex === 1)
+            ? -1
+            : 0;
+        const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
+
+        for (let i = 0; i < row.numFrets; i++) {
+          // Match the overlay's always-visible (highlighted) columns.
+          if (i % 2 !== 0) continue;
+          const baseFret =
+            currentFret.fret + row.startFret + totalShiftFrets + i;
+
+          for (const cycleOffset of octaveCycleOffsets) {
+            const fretNumber = baseFret + cycleOffset * 12;
+            if (fretNumber < 1 || fretNumber > 24) continue;
+            const cellId = `${row.stringIndex}:${fretNumber}`;
+            next[cellId] = true;
+
+            const rawNote = getNoteAtPosition(row.stringIndex, fretNumber, tuning);
+            nextTones[cellId] = primaryRawNotes.has(rawNote) ? "primary" : "dim";
+          }
+        }
+      }
+    };
+
+    addOverlaySelections(firstOverlayRows);
+    addOverlaySelections(secondOverlayRows);
+
+    setToggledCells(next);
+    setSelectedCellTones(nextTones);
+  }, [currentFret, tuning]);
   const [cellWidth, setCellWidth] = useState(64);
   const [cellHeight, setCellHeight] = useState(48);
   const [fretboardScale, setFretboardScale] = useState(1);
@@ -219,20 +481,27 @@ export default function Fretboard() {
 
       // Move toggled cells by the same navigation deltas.
       // Up/Down move strings; Left/Right move frets.
-      setToggledCells((prev) => {
-        const updated: Record<string, boolean> = {};
-        Object.entries(prev).forEach(([cellId, value]) => {
-          if (!value) return;
+      if (actualStringDelta !== 0 || fretDelta !== 0) {
+        const moved: Record<string, boolean> = {};
+        const movedTones: Record<string, MarkerTone> = {};
+
+        for (const [cellId, isOn] of Object.entries(toggledCells)) {
+          if (!isOn) continue;
           const [strIdx, fretNum] = cellId.split(":").map(Number);
           const newStrIdx = strIdx + actualStringDelta;
           let newFretNum = fretNum + fretDelta;
           if (newFretNum < 1) newFretNum = 24;
           if (newFretNum > 24) newFretNum = 1;
-          if (newStrIdx < 0 || newStrIdx > 5) return;
-          updated[`${newStrIdx}:${newFretNum}`] = true;
-        });
-        return updated;
-      });
+          if (newStrIdx < 0 || newStrIdx > 5) continue;
+
+          const nextId = `${newStrIdx}:${newFretNum}`;
+          moved[nextId] = true;
+          movedTones[nextId] = selectedCellTones[cellId] ?? "primary";
+        }
+
+        setToggledCells(moved);
+        setSelectedCellTones(movedTones);
+      }
 
       if (
         nextString !== currentFret.string ||
@@ -259,7 +528,14 @@ export default function Fretboard() {
         }
       }
     },
-    [currentFret, continuousFret, basePosition.x, fretboardScale],
+    [
+      currentFret,
+      continuousFret,
+      basePosition.x,
+      fretboardScale,
+      toggledCells,
+      selectedCellTones,
+    ],
   );
 
   useEffect(() => {
@@ -389,7 +665,7 @@ export default function Fretboard() {
               {Object.entries(selectedMarkerPositions).map(([cellId, pos]) => (
                 <span
                   key={`selected-${cellId}`}
-                  className={styles.selectionMarker}
+                  className={`${styles.selectionMarker} ${selectedCellTones[cellId] === "dim" ? styles.selectionMarkerDim : ""}`}
                   style={{ left: pos.x, top: pos.y }}
                 />
               ))}
@@ -447,6 +723,8 @@ export default function Fretboard() {
         onTuningChange={setTuning}
         showDegrees={showDegrees}
         onToggleDegrees={() => setShowDegrees((v) => !v)}
+        onSelectCagedNotes={selectCagedNotes}
+        onClearSelectedNotes={clearSelectedNotes}
       />
     </div>
   );
