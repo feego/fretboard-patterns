@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as styles from "./FretboardControls.css";
 
 type ChordValidationResult = { valid: true } | { valid: false; error: string };
@@ -21,6 +21,8 @@ function validateChordSymbol(raw: string): ChordValidationResult {
   // Common "no chord" markers.
   if (/^(?:N\.?C\.?|NC)$/i.test(chord)) return { valid: true };
   if (chord === "-" || chord === "—") return { valid: true };
+  // Common "repeat previous" marker in charts.
+  if (chord === "%") return { valid: true };
 
   // Only allow a limited, musician-friendly character set.
   // (Still parsed below; this is just an early reject for typos.)
@@ -272,12 +274,6 @@ function getBeatWeight(chordText: string): number {
 }
 
 interface FretboardControlsProps {
-  showDimmedNotes: boolean;
-  onToggleDimmedNotes: () => void;
-  showDegrees: boolean;
-  onToggleDegrees: () => void;
-  showCagedNotes: boolean;
-  onToggleCagedNotes: () => void;
   metronomeState: "stopped" | "running" | "paused";
   metronomeBeat: number | null;
   bpm: number;
@@ -289,12 +285,6 @@ interface FretboardControlsProps {
 }
 
 export default function FretboardControls({
-  showDimmedNotes,
-  onToggleDimmedNotes,
-  showDegrees,
-  onToggleDegrees,
-  showCagedNotes,
-  onToggleCagedNotes,
   metronomeState,
   metronomeBeat,
   bpm,
@@ -305,6 +295,34 @@ export default function FretboardControls({
   onActiveBeatChordChange,
 }: FretboardControlsProps) {
   const [isDesktopGrid, setIsDesktopGrid] = useState(false);
+
+  type BuiltInSongId = "blank" | "allTheThingsYouAre";
+  type SongId = BuiltInSongId | string;
+  type SavedSong = {
+    id: string;
+    name: string;
+    bars: string[][];
+    beatKeys: string[][];
+    bpm: number;
+    createdAt: number;
+  };
+
+  const SONGS_STORAGE_KEY = "gfv:songs:v1";
+  const SELECTED_SONG_ID_STORAGE_KEY = "gfv:selectedSongId:v1";
+
+  const [selectedSongId, setSelectedSongId] = useState<SongId>("blank");
+  const [savedSongs, setSavedSongs] = useState<SavedSong[]>([]);
+  const [isSavingSong, setIsSavingSong] = useState(false);
+  const [songNameDraft, setSongNameDraft] = useState("");
+  const songNameInputRef = useRef<HTMLInputElement | null>(null);
+  const hasRestoredSelectedSongRef = useRef(false);
+
+  const selectedSavedSong = useMemo(() => {
+    if (selectedSongId === "blank" || selectedSongId === "allTheThingsYouAre") {
+      return null;
+    }
+    return savedSongs.find((s) => s.id === selectedSongId) ?? null;
+  }, [savedSongs, selectedSongId]);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 900px)");
@@ -320,6 +338,249 @@ export default function FretboardControls({
   const [beatKeys, setBeatKeys] = useState<string[][]>(() =>
     Array.from({ length: 12 }, () => ["", "", "", ""]),
   );
+
+  const resetToEmptyGrid = () => {
+    setBars(Array.from({ length: 12 }, () => ["", "", "", ""]));
+    setBeatKeys(Array.from({ length: 12 }, () => ["", "", "", ""]));
+  };
+
+  const allTheThingsSpec = useMemo(
+    () =>
+      [
+        "Fm7",
+        "Bbm7",
+        "Eb7",
+        "Abmaj7",
+        "Dbmaj7",
+        "Dm7 G7",
+        "Cmaj7",
+        "%",
+        "Cm7",
+        "Fm7",
+        "Bb7",
+        "Ebmaj7",
+        "Abmaj7",
+        "Am7 D7",
+        "Gmaj7",
+        "%",
+        "Am7",
+        "D7",
+        "Gmaj7",
+        "%",
+        "F#m7b5",
+        "B7",
+        "Emaj7",
+        "C7",
+        "Fm7",
+        "Bbm7",
+        "Eb7",
+        "Abmaj7",
+        "Dbmaj7",
+        "Dbm7 Gb7",
+        "Abmaj7",
+        "Bdim",
+        "Bbm7",
+        "Eb7",
+        "Abmaj7",
+        "%",
+      ] as const,
+    [],
+  );
+
+  const allTheThingsKeysSpec = useMemo(
+    () =>
+      [
+        // Bar-level key centers (rendered on beat 1). Empty string = none.
+        "Ab",
+        "",
+        "",
+        "",
+        "",
+        "c",
+        "",
+        "",
+        "Eb",
+        "",
+        "",
+        "",
+        "",
+        "G",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "E",
+        "Ab",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "B",
+        "Ab",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ] as const,
+    [],
+  );
+
+  const loadSavedSongs = () => {
+    try {
+      const raw = window.localStorage.getItem(SONGS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+
+      const next: SavedSong[] = [];
+      for (const item of parsed) {
+        if (
+          !item ||
+          typeof item !== "object" ||
+          typeof (item as any).id !== "string" ||
+          typeof (item as any).name !== "string" ||
+          !Array.isArray((item as any).bars) ||
+          !Array.isArray((item as any).beatKeys)
+        ) {
+          continue;
+        }
+        next.push({
+          id: (item as any).id,
+          name: (item as any).name,
+          bars: (item as any).bars,
+          beatKeys: (item as any).beatKeys,
+          bpm:
+            typeof (item as any).bpm === "number" && Number.isFinite((item as any).bpm)
+              ? (item as any).bpm
+              : bpm,
+          createdAt:
+            typeof (item as any).createdAt === "number" ? (item as any).createdAt : 0,
+        });
+      }
+      // Newest first.
+      next.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return next;
+    } catch {
+      return [];
+    }
+  };
+
+  const persistSavedSongs = (songs: SavedSong[]) => {
+    try {
+      window.localStorage.setItem(SONGS_STORAGE_KEY, JSON.stringify(songs));
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadSelectedSongId = (): SongId | null => {
+    try {
+      const raw = window.localStorage.getItem(SELECTED_SONG_ID_STORAGE_KEY);
+      if (!raw) return null;
+      if (typeof raw !== "string") return null;
+      return raw as SongId;
+    } catch {
+      return null;
+    }
+  };
+
+  const persistSelectedSongId = (songId: SongId) => {
+    try {
+      window.localStorage.setItem(SELECTED_SONG_ID_STORAGE_KEY, String(songId));
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    const songs = loadSavedSongs();
+    setSavedSongs(songs);
+
+    const stored = loadSelectedSongId();
+    const exists =
+      stored != null &&
+      (stored === "blank" ||
+        stored === "allTheThingsYouAre" ||
+        songs.some((s) => s.id === stored));
+
+    const nextId: SongId = exists ? (stored as SongId) : "blank";
+    setSelectedSongId(nextId);
+    applySongById(nextId, songs);
+
+    hasRestoredSelectedSongRef.current = true;
+  }, []);
+
+  // Persist selected song whenever it changes (after initial restore attempt).
+  useEffect(() => {
+    if (!hasRestoredSelectedSongRef.current) return;
+    persistSelectedSongId(selectedSongId);
+  }, [selectedSongId]);
+
+  const applySongById = (songId: SongId, songs: SavedSong[] = savedSongs) => {
+    if (songId === "blank") {
+      resetToEmptyGrid();
+      return;
+    }
+
+    if (songId === "allTheThingsYouAre") {
+      const nextBars: string[][] = allTheThingsSpec.map((barText) => {
+        const trimmed = barText.trim();
+        if (!trimmed) return ["", "", "", ""];
+
+        const parts = trimmed.split(/\s+/).filter(Boolean);
+        if (parts.length <= 1) return [parts[0] ?? "", "", "", ""];
+        return [parts[0] ?? "", "", parts[1] ?? "", ""];
+      });
+      setBars(nextBars);
+      const nextKeys: string[][] = nextBars.map((_, barIndex) => {
+        const key = allTheThingsKeysSpec[barIndex] ?? "";
+        return [key, "", "", ""];
+      });
+      setBeatKeys(nextKeys);
+      return;
+    }
+
+    const saved = songs.find((s) => s.id === songId);
+    if (!saved) return;
+
+    setBars(saved.bars);
+    setBeatKeys(saved.beatKeys);
+    if (typeof saved.bpm === "number" && Number.isFinite(saved.bpm)) {
+      onBpmChange(saved.bpm);
+    }
+  };
+
+  const deleteSavedSongById = (songId: string) => {
+    const existing = savedSongs.find((s) => s.id === songId);
+    if (!existing) return;
+
+    const ok =
+      typeof window !== "undefined" &&
+      window.confirm(`Delete song "${existing.name}"? This can't be undone.`);
+    if (!ok) return;
+
+    const next = savedSongs.filter((s) => s.id !== songId);
+    setSavedSongs(next);
+    persistSavedSongs(next);
+
+    // Keep UI consistent: if we deleted the selected song, fall back to Blank.
+    if (selectedSongId === songId) {
+      setSelectedSongId("blank");
+      resetToEmptyGrid();
+    }
+  };
+
+  useEffect(() => {
+    if (!isSavingSong) return;
+    const t = window.setTimeout(() => songNameInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [isSavingSong]);
 
   const totalBeats = bars.length * 4;
   const metronomeActive = metronomeState !== "stopped";
@@ -452,6 +713,163 @@ export default function FretboardControls({
             }}
           />
         </div>
+
+        <div
+          className={`${styles.songPicker} ${isSavingSong ? styles.songPickerSaving : ""}`}
+        >
+          {isSavingSong ? (
+            <>
+              <div className={styles.songPickerRow}>
+                <input
+                  id="song-name"
+                  ref={songNameInputRef}
+                  className={styles.songNameInput}
+                  type="text"
+                  value={songNameDraft}
+                  placeholder="Song name"
+                  onChange={(e) => setSongNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setIsSavingSong(false);
+                      setSongNameDraft("");
+                      return;
+                    }
+
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const name = songNameDraft.trim();
+                      if (!name) return;
+
+                      const createdAt = Date.now();
+                      const id =
+                        typeof crypto !== "undefined" &&
+                        "randomUUID" in crypto &&
+                        typeof (crypto as any).randomUUID === "function"
+                          ? (crypto as any).randomUUID()
+                          : String(createdAt);
+
+                      const nextSong: SavedSong = {
+                        id,
+                        name,
+                        bars,
+                        beatKeys,
+                        bpm,
+                        createdAt,
+                      };
+
+                      const next = [
+                        nextSong,
+                        ...savedSongs.filter((s) => s.name !== name),
+                      ];
+                      setSavedSongs(next);
+                      persistSavedSongs(next);
+                      setSelectedSongId(id);
+                      setIsSavingSong(false);
+                      setSongNameDraft("");
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className={styles.metronomeButton}
+                  onClick={() => {
+                    const name = songNameDraft.trim();
+                    if (!name) return;
+
+                    const createdAt = Date.now();
+                    const id =
+                      typeof crypto !== "undefined" &&
+                      "randomUUID" in crypto &&
+                      typeof (crypto as any).randomUUID === "function"
+                        ? (crypto as any).randomUUID()
+                        : String(createdAt);
+
+                    const nextSong: SavedSong = {
+                      id,
+                      name,
+                      bars,
+                      beatKeys,
+                      bpm,
+                      createdAt,
+                    };
+
+                    const next = [
+                      nextSong,
+                      ...savedSongs.filter((s) => s.name !== name),
+                    ];
+                    setSavedSongs(next);
+                    persistSavedSongs(next);
+                    setSelectedSongId(id);
+                    setIsSavingSong(false);
+                    setSongNameDraft("");
+                  }}
+                  aria-label="Confirm save song"
+                  title="Save"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className={styles.metronomeButton}
+                  onClick={() => {
+                    setIsSavingSong(false);
+                    setSongNameDraft("");
+                  }}
+                  aria-label="Cancel save song"
+                  title="Cancel"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className={styles.metronomeLabel} htmlFor="song-preset">
+                Song
+              </label>
+              <select
+                id="song-preset"
+                className={styles.songSelect}
+                value={selectedSongId}
+                onChange={(e) => {
+                  const next = e.target.value as SongId;
+                  setSelectedSongId(next);
+                  applySongById(next);
+                }}
+              >
+                <option value="blank">Blank</option>
+                <option value="allTheThingsYouAre">All the Things You Are</option>
+                {savedSongs.map((song) => (
+                  <option key={song.id} value={song.id}>
+                    {song.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={styles.metronomeButton}
+                onClick={() => setIsSavingSong(true)}
+                aria-label="Save song preset"
+                title="Save"
+              >
+                Save
+              </button>
+
+              {selectedSavedSong ? (
+                <button
+                  type="button"
+                  className={styles.metronomeButton}
+                  onClick={() => deleteSavedSongById(selectedSavedSong.id)}
+                  aria-label={`Delete song ${selectedSavedSong.name}`}
+                  title="Delete"
+                >
+                  Delete
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
 
       <div className={styles.section} data-chords-editor="true">
@@ -539,27 +957,50 @@ export default function FretboardControls({
                                 : styles.beatCell3
                         } ${isInvalid ? styles.beatCellError : ""}`}
                       >
-                        <input
-                          aria-label={`Bar ${barIndex + 1} Beat ${beatIndex + 1} Key`}
-                          className={styles.beatKeyInput}
-                          type="text"
-                          value={beatKeys[barIndex]?.[beatIndex] ?? ""}
-                          placeholder={
-                            barIndex === 0 && beatIndex === 0 ? "C" : ""
-                          }
-                          onChange={(e) => {
-                            const nextKey = e.target.value;
-                            setBeatKeys((prev) => {
-                              const copy = [...prev];
-                              const barCopy = [
-                                ...(copy[barIndex] ?? ["", "", "", ""]),
-                              ];
-                              barCopy[beatIndex] = nextKey;
-                              copy[barIndex] = barCopy;
-                              return copy;
-                            });
-                          }}
-                        />
+                        {barIndex === 0 && beatIndex === 0 ? (
+                          <div className={styles.beatKeyRow}>
+                            <span className={styles.beatKeyInlineLabel}>KEY:</span>
+                            <input
+                              aria-label={`Bar ${barIndex + 1} Beat ${beatIndex + 1} Key`}
+                              className={styles.beatKeyInputWithLabel}
+                              type="text"
+                              value={beatKeys[barIndex]?.[beatIndex] ?? ""}
+                              placeholder={barIndex === 0 ? "C" : ""}
+                              onChange={(e) => {
+                                const nextKey = e.target.value;
+                                setBeatKeys((prev) => {
+                                  const copy = [...prev];
+                                  const barCopy = [
+                                    ...(copy[barIndex] ?? ["", "", "", ""]),
+                                  ];
+                                  barCopy[beatIndex] = nextKey;
+                                  copy[barIndex] = barCopy;
+                                  return copy;
+                                });
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            aria-label={`Bar ${barIndex + 1} Beat ${beatIndex + 1} Key`}
+                            className={styles.beatKeyInput}
+                            type="text"
+                            value={beatKeys[barIndex]?.[beatIndex] ?? ""}
+                            placeholder=""
+                            onChange={(e) => {
+                              const nextKey = e.target.value;
+                              setBeatKeys((prev) => {
+                                const copy = [...prev];
+                                const barCopy = [
+                                  ...(copy[barIndex] ?? ["", "", "", ""]),
+                                ];
+                                barCopy[beatIndex] = nextKey;
+                                copy[barIndex] = barCopy;
+                                return copy;
+                              });
+                            }}
+                          />
+                        )}
                         <input
                           aria-label={`Bar ${barIndex + 1} Beat ${beatIndex + 1}`}
                           className={`${styles.beatChordInput} ${
@@ -601,38 +1042,6 @@ export default function FretboardControls({
             );
           })}
         </div>
-      </div>
-
-      <div className={styles.row}>
-        <label className={styles.toggleLabel}>
-          <input
-            className={styles.toggleCheckbox}
-            type="checkbox"
-            checked={showDimmedNotes}
-            onChange={onToggleDimmedNotes}
-          />
-          <span className={styles.toggleText}>Show Dimmed Notes</span>
-        </label>
-
-        <label className={styles.toggleLabel}>
-          <input
-            className={styles.toggleCheckbox}
-            type="checkbox"
-            checked={showDegrees}
-            onChange={onToggleDegrees}
-          />
-          <span className={styles.toggleText}>Show Scale Degrees</span>
-        </label>
-
-        <label className={styles.toggleLabel}>
-          <input
-            className={styles.toggleCheckbox}
-            type="checkbox"
-            checked={showCagedNotes}
-            onChange={onToggleCagedNotes}
-          />
-          <span className={styles.toggleText}>Show CAGED Notes</span>
-        </label>
       </div>
     </div>
   );

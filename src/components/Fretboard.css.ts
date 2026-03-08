@@ -100,6 +100,7 @@ export const arrowsDock = style({
   alignItems: "center",
   gap: spacing.md,
   justifyContent: "center",
+  flexWrap: "wrap",
   marginTop: spacing.sm,
   marginBottom: 0,
 });
@@ -239,12 +240,30 @@ export const selectionMarker = style({
   background: "rgba(229,229,229,0.18)",
 });
 
+// Chord-driven markers should be slightly lighter than manual selections.
+export const chordSelectionMarker = style({
+  position: "absolute",
+  left: 0,
+  top: 0,
+  transform: "translate(-50%, -50%)",
+  width: "min(2.2rem, calc(var(--fret-height, 3rem) - 0.3rem))",
+  height: "min(2.2rem, calc(var(--fret-height, 3rem) - 0.3rem))",
+  borderRadius: borderRadius.full,
+  border: `2px solid ${colors.dark.text}`,
+  background: "rgba(229,229,229,0.16)",
+});
+
+export const selectionMarkerNonRoot = style({
+  border: `1.5px solid color-mix(in srgb, ${colors.dark.text} 35%, transparent)` as any,
+  background: `color-mix(in srgb, ${colors.dark.text} 5%, transparent)` as any,
+});
+
 export const selectionMarkerDim = style({
   // Keep dim markers extremely subtle but still visible.
   // Use color-mix with transparent so only border/fill are faint,
   // without making the whole element effectively disappear.
-  border: `2px solid color-mix(in srgb, ${colors.dark.textMuted} 10%, transparent)`,
-  background: `color-mix(in srgb, ${colors.dark.textMuted} 2%, transparent)`,
+  border: `1px solid color-mix(in srgb, ${colors.dark.textMuted} 10%, transparent)` as any,
+  background: `color-mix(in srgb, ${colors.dark.textMuted} 1.25%, transparent)` as any,
 });
 
 export const fretboardWrapper = style({

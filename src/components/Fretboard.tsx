@@ -5,6 +5,7 @@ import FirstOverlay from "./FirstOverlay";
 import * as styles from "./Fretboard.css";
 import FretboardArrows, { type ArrowKey } from "./FretboardArrows";
 import FretboardControls from "./FretboardControls";
+import * as controlStyles from "./FretboardControls.css";
 import SecondOverlay from "./SecondOverlay";
 import StringLabels from "./StringLabels";
 
@@ -217,6 +218,7 @@ function noteTokenToRawNote(token: string): string | null {
 }
 
 type ParsedChordTones = {
+  rootPitchClass: number;
   primaryPitchClasses: Set<number>;
   dimPitchClasses: Set<number>;
 };
@@ -343,7 +345,7 @@ function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
   // Ensure primary beats dim on overlap.
   for (const pc of primary) dim.delete(pc);
 
-  return { primaryPitchClasses: primary, dimPitchClasses: dim };
+  return { rootPitchClass: rootIndex, primaryPitchClasses: primary, dimPitchClasses: dim };
 }
 
 function computeMajorTriadRawNotes(tonicRaw: string): Set<string> {
@@ -717,6 +719,9 @@ export default function Fretboard() {
   const [chordSelectedCellTones, setChordSelectedCellTones] = useState<
     Record<string, MarkerTone>
   >({});
+  const [chordSelectedCellIsRoot, setChordSelectedCellIsRoot] = useState<
+    Record<string, boolean>
+  >({});
   const [chordMarkerPositions, setChordMarkerPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
@@ -814,6 +819,7 @@ export default function Fretboard() {
 
     const nextCells: Record<string, boolean> = {};
     const nextTones: Record<string, MarkerTone> = {};
+    const nextIsRoot: Record<string, boolean> = {};
 
     for (let stringIndex = 0; stringIndex < 6; stringIndex++) {
       for (let fretNumber = 1; fretNumber <= 24; fretNumber++) {
@@ -831,16 +837,25 @@ export default function Fretboard() {
         nextTones[id] = activeChordTones.dimPitchClasses.has(pc)
           ? "dim"
           : "primary";
+        nextIsRoot[id] = pc === activeChordTones.rootPitchClass;
       }
     }
 
     setChordSelectedCells(nextCells);
     setChordSelectedCellTones(nextTones);
+    setChordSelectedCellIsRoot(nextIsRoot);
   }, [activeChordTones, tuning]);
 
   const clearSelectedNotes = useCallback(() => {
     setToggledCells({});
     setSelectedCellTones({});
+
+    // Also clear chord-driven highlights.
+    setChordSelectedCells({});
+    setChordSelectedCellTones({});
+    setChordSelectedCellIsRoot({});
+    setChordMarkerPositions({});
+    setActiveChordTones(null);
   }, []);
 
   // Compute highlighted CAGED cells for the current overlay anchor.
@@ -1401,7 +1416,7 @@ export default function Fretboard() {
               {Object.entries(chordMarkerPositions).map(([cellId, pos]) => (
                 <span
                   key={`chord-${cellId}`}
-                  className={`${styles.selectionMarker} ${chordSelectedCellTones[cellId] === "dim" ? styles.selectionMarkerDim : ""}`}
+                  className={`${styles.chordSelectionMarker} ${chordSelectedCellIsRoot[cellId] === false ? styles.selectionMarkerNonRoot : ""} ${chordSelectedCellTones[cellId] === "dim" ? styles.selectionMarkerDim : ""}`}
                   style={{ left: pos.x, top: pos.y }}
                 />
               ))}
@@ -1472,17 +1487,41 @@ export default function Fretboard() {
           className={styles.arrowsDockButton}
           onClick={clearSelectedNotes}
         >
-          Clear Selected Notes
+          Clear Selected
         </button>
+
+        <label className={controlStyles.toggleLabel}>
+          <input
+            className={controlStyles.toggleCheckbox}
+            type="checkbox"
+            checked={showDimmedNotes}
+            onChange={() => setShowDimmedNotes(!showDimmedNotes)}
+          />
+          <span className={controlStyles.toggleText}>Dimmed Notes</span>
+        </label>
+
+        <label className={controlStyles.toggleLabel}>
+          <input
+            className={controlStyles.toggleCheckbox}
+            type="checkbox"
+            checked={showDegrees}
+            onChange={() => setShowDegrees((v) => !v)}
+          />
+          <span className={controlStyles.toggleText}>Scale Degrees</span>
+        </label>
+
+        <label className={controlStyles.toggleLabel}>
+          <input
+            className={controlStyles.toggleCheckbox}
+            type="checkbox"
+            checked={showCagedNotes}
+            onChange={() => setShowCagedNotes((v) => !v)}
+          />
+          <span className={controlStyles.toggleText}>CAGED</span>
+        </label>
       </div>
 
       <FretboardControls
-        showDimmedNotes={showDimmedNotes}
-        onToggleDimmedNotes={() => setShowDimmedNotes(!showDimmedNotes)}
-        showDegrees={showDegrees}
-        onToggleDegrees={() => setShowDegrees((v) => !v)}
-        showCagedNotes={showCagedNotes}
-        onToggleCagedNotes={() => setShowCagedNotes((v) => !v)}
         metronomeState={metronomeState}
         metronomeBeat={metronomeBeat}
         bpm={bpm}

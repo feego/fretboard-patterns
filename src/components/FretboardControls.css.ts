@@ -80,7 +80,8 @@ export const toggleLabel = style({
   alignItems: "center",
   gap: spacing.sm,
   fontFamily: "var(--font-geist-mono)",
-  padding: `${spacing.sm} ${spacing.md}`,
+  height: "2.5rem",
+  padding: `0 ${spacing.md}`,
   backgroundColor: colors.dark.surface,
   color: colors.dark.text,
   border: `2px solid ${colors.dark.border}`,
@@ -90,6 +91,7 @@ export const toggleLabel = style({
   cursor: "pointer",
   userSelect: "none",
   transition: "all 0.2s ease",
+  whiteSpace: "nowrap",
   ":hover": {
     borderColor: colors.dark.accent,
   },
@@ -100,7 +102,8 @@ export const toggleLabel = style({
       justifyContent: "flex-start",
     },
     "screen and (orientation: landscape) and (max-height: 450px)": {
-      padding: `${spacing.xs} ${spacing.sm}`,
+      height: "2.25rem",
+      padding: `0 ${spacing.sm}`,
       fontSize: "0.8rem",
     },
   },
@@ -264,12 +267,85 @@ export const chordsTopRightRow = style({
   alignItems: "center",
   gap: spacing.sm,
   width: "100%",
+  maxWidth: "90rem",
+  marginLeft: "auto",
+  marginRight: "auto",
   marginBottom: spacing.sm,
 
   "@media": {
     "screen and (max-width: 600px)": {
       flexWrap: "wrap",
       justifyContent: "center",
+    },
+  },
+});
+
+export const songPicker = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.xs,
+  marginLeft: "auto",
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      marginLeft: 0,
+    },
+  },
+});
+
+export const songPickerSaving = style({
+  flexDirection: "column",
+  alignItems: "flex-start",
+});
+
+export const songPickerRow = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.xs,
+});
+
+export const songSelect = style({
+  fontFamily: "var(--font-geist-mono)",
+  padding: `${spacing.xs} ${spacing.sm}`,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.8rem",
+  fontWeight: "700",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  appearance: "none",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  backgroundImage: "none",
+  ":hover": {
+    borderColor: colors.dark.accent,
+  },
+  ":focus": {
+    outline: "none",
+    borderColor: colors.dark.accent,
+  },
+});
+
+export const songNameInput = style({
+  fontFamily: "var(--font-geist-mono)",
+  padding: `${spacing.xs} ${spacing.sm}`,
+  backgroundColor: colors.dark.fretboard,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.8rem",
+  fontWeight: "700",
+  width: "12rem",
+  ":focus": {
+    outline: "none",
+    borderColor: colors.dark.accent,
+  },
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      width: "10rem",
     },
   },
 });
@@ -396,7 +472,6 @@ export const barsGrid = style({
   gridTemplateColumns: "repeat(auto-fit, minmax(18rem, 1fr))",
   gap: 0,
   rowGap: 0,
-  paddingRight: 6,
   boxSizing: "border-box",
 
   "@media": {
@@ -410,17 +485,20 @@ export const barCell = style({
   position: "relative",
   display: "flex",
   alignItems: "center",
-  padding: spacing.xs,
+  paddingLeft: spacing.xs,
+  paddingRight: spacing.xs,
+  paddingTop: "2px",
+  paddingBottom: "5px",
   borderRadius: 0,
   backgroundColor: colors.dark.fretboard,
   // Use a single-sided 1px divider to avoid doubled borders between bars.
   borderLeft:
     `2px solid color-mix(in srgb, ${colors.dark.border} 52%, transparent)` as any,
   borderTop:
-    `1px solid color-mix(in srgb, ${colors.dark.border} 55%, transparent)` as any,
+    `0.5px solid color-mix(in srgb, ${colors.dark.border} 55%, transparent)` as any,
   borderRight: "none",
   borderBottom:
-    `1px solid color-mix(in srgb, ${colors.dark.border} 55%, transparent)` as any,
+    `0.5px solid color-mix(in srgb, ${colors.dark.border} 55%, transparent)` as any,
 });
 
 export const barCellActive = style({
@@ -531,22 +609,8 @@ export const barMenuButtonDanger = style({
 });
 
 export const barCellLast = style({
-  borderRight: "none",
-
-  selectors: {
-    "&::after": {
-      content: "\"\"",
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      right: -6,
-      width: 4,
-      pointerEvents: "none",
-      borderRadius: borderRadius.md,
-      backgroundColor:
-        `color-mix(in srgb, ${colors.dark.border} 70%, transparent)` as any,
-    },
-  },
+  borderRight:
+    `2px solid color-mix(in srgb, ${colors.dark.border} 52%, transparent)` as any,
 });
 
 export const barBeatGrid = style({
@@ -653,6 +717,33 @@ export const beatKeyInput = style({
     color: colors.dark.textMuted,
   },
 });
+
+export const beatKeyRow = style({
+  display: "flex",
+  alignItems: "baseline",
+  gap: "0.35rem",
+  width: "100%",
+  minWidth: 0,
+});
+
+export const beatKeyInlineLabel = style({
+  fontFamily: "var(--font-geist-mono)",
+  color: colors.dark.textMuted,
+  fontSize: "0.7rem",
+  fontWeight: "800",
+  lineHeight: 1,
+  letterSpacing: "0.04em",
+  userSelect: "none",
+  flex: "0 0 auto",
+});
+
+export const beatKeyInputWithLabel = style([
+  beatKeyInput,
+  {
+    flex: 1,
+    minWidth: 0,
+  },
+]);
 
 // Ensures long chord text from earlier beats can overlap later beat separators
 // (native <input> can't truly overflow its own box, so we avoid a "cut" look).
