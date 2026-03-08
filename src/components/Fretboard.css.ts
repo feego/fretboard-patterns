@@ -236,7 +236,7 @@ export const selectionMarker = style({
   width: "min(2.2rem, calc(var(--fret-height, 3rem) - 0.3rem))",
   height: "min(2.2rem, calc(var(--fret-height, 3rem) - 0.3rem))",
   borderRadius: borderRadius.full,
-  border: `3px solid ${colors.dark.text}`,
+  border: `2px solid ${colors.dark.accent}`,
   background: "rgba(229,229,229,0.18)",
 });
 

@@ -1,6 +1,9 @@
 import { style } from "@vanilla-extract/css";
 import { borderRadius, colors, spacing } from "../styles/theme";
 
+const dimmedFretboardBg =
+  `color-mix(in srgb, ${colors.dark.fretboard} 70%, ${colors.dark.bg})` as any;
+
 export const container = style({
   display: "flex",
   flexDirection: "column",
@@ -490,7 +493,8 @@ export const barCell = style({
   paddingTop: "2px",
   paddingBottom: "5px",
   borderRadius: 0,
-  backgroundColor: colors.dark.fretboard,
+  // Slightly dimmer than the base fretboard color.
+  backgroundColor: dimmedFretboardBg,
   // Use a single-sided 1px divider to avoid doubled borders between bars.
   borderLeft:
     `2px solid color-mix(in srgb, ${colors.dark.border} 52%, transparent)` as any,
@@ -499,6 +503,27 @@ export const barCell = style({
   borderRight: "none",
   borderBottom:
     `0.5px solid color-mix(in srgb, ${colors.dark.border} 55%, transparent)` as any,
+});
+
+export const barSeekHandle = style({
+  position: "absolute",
+  left: 0,
+  top: 0,
+  bottom: 0,
+  width: "0.75rem",
+  background: "transparent",
+  border: "none",
+  padding: 0,
+  margin: 0,
+  cursor: "pointer",
+  zIndex: 60,
+
+  selectors: {
+    "&:focus-visible": {
+      outline: `2px solid color-mix(in srgb, ${colors.dark.accent} 70%, transparent)` as any,
+      outlineOffset: "2px",
+    },
+  },
 });
 
 export const barCellActive = style({
@@ -609,8 +634,29 @@ export const barMenuButtonDanger = style({
 });
 
 export const barCellLast = style({
+  // Render the last-bar "double line" *outside* the bar box.
+  borderRight: "none",
+
+  selectors: {
+    "&::after": {
+      content: '""',
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: "calc(100% + 4px)",
+      width: 4,
+      pointerEvents: "none",
+      backgroundColor: colors.dark.border,
+      borderRadius: borderRadius.md,
+      // Keep the line below the bar +/- hover menu (which is z-index: 50).
+      zIndex: 20,
+    },
+  },
+});
+
+export const barCellRightEdge = style({
   borderRight:
-    `2px solid color-mix(in srgb, ${colors.dark.border} 52%, transparent)` as any,
+    `2px solid color-mix(in srgb, ${colors.dark.border} 75%, transparent)` as any,
 });
 
 export const barBeatGrid = style({
@@ -638,7 +684,7 @@ export const beatCell = style({
       bottom: 0,
       width: 1,
       backgroundColor:
-        `color-mix(in srgb, ${colors.dark.border} 55%, transparent)` as any,
+        `color-mix(in srgb, ${colors.dark.border} 22%, transparent)` as any,
       pointerEvents: "none",
       zIndex: 0,
     },
@@ -697,7 +743,7 @@ export const beatKeyInput = style({
   fontFamily: "var(--font-geist-mono)",
   padding: 0,
   paddingRight: spacing.sm,
-  backgroundColor: colors.dark.fretboard,
+  backgroundColor: dimmedFretboardBg,
   color: colors.dark.textMuted,
   border: "none",
   fontSize: "0.8rem",
@@ -756,7 +802,7 @@ export const beatChordInput = style({
   fontFamily: "var(--font-geist-mono)",
   padding: 0,
   paddingRight: spacing.sm,
-  backgroundColor: colors.dark.fretboard,
+  backgroundColor: dimmedFretboardBg,
   color: colors.dark.text,
   border: "none",
   fontSize: "1rem",

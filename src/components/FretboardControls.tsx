@@ -280,6 +280,7 @@ interface FretboardControlsProps {
   onPlayPauseMetronome: () => void;
   onStopMetronome: () => void;
   onBpmChange: (bpm: number) => void;
+  onSeekToBeat?: (beatIndex: number) => void;
   onActiveBeatKeyChange?: (keyText: string) => void;
   onActiveBeatChordChange?: (chordText: string) => void;
 }
@@ -291,6 +292,7 @@ export default function FretboardControls({
   onPlayPauseMetronome,
   onStopMetronome,
   onBpmChange,
+  onSeekToBeat,
   onActiveBeatKeyChange,
   onActiveBeatChordChange,
 }: FretboardControlsProps) {
@@ -583,7 +585,7 @@ export default function FretboardControls({
   }, [isSavingSong]);
 
   const totalBeats = bars.length * 4;
-  const metronomeActive = metronomeState !== "stopped";
+  const metronomeActive = metronomeState !== "stopped" || metronomeBeat != null;
   const activeFlatBeat =
     metronomeActive && metronomeBeat != null && totalBeats > 0
       ? ((metronomeBeat % totalBeats) + totalBeats) % totalBeats
@@ -600,7 +602,38 @@ export default function FretboardControls({
       return;
     }
 
-    onActiveBeatKeyChange(beatKeys[activeBarIndex]?.[activeBeatIndex] ?? "");
+    const totalBars = beatKeys.length;
+    if (totalBars <= 0) {
+      onActiveBeatKeyChange("");
+      return;
+    }
+
+    const getDefinedKeyForBar = (barIndex: number): string => {
+      const beats = beatKeys[barIndex];
+      if (!beats) return "";
+      for (const maybeKey of beats) {
+        const trimmed = (maybeKey ?? "").trim();
+        if (trimmed) return trimmed;
+      }
+      return "";
+    };
+
+    // Spec: key should match the last bar before the selected bar that has a defined key.
+    // We interpret this as: find the nearest previous bar (including current, if it defines a key)
+    // with any non-empty key field, scanning backwards and wrapping.
+    const startBar = ((activeBarIndex % totalBars) + totalBars) % totalBars;
+    let resolvedKey = "";
+
+    for (let step = 0; step < totalBars; step++) {
+      const barIdx = (startBar - step + totalBars) % totalBars;
+      const candidate = getDefinedKeyForBar(barIdx);
+      if (candidate) {
+        resolvedKey = candidate;
+        break;
+      }
+    }
+
+    onActiveBeatKeyChange(resolvedKey);
   }, [
     onActiveBeatKeyChange,
     metronomeActive,
@@ -617,7 +650,42 @@ export default function FretboardControls({
       return;
     }
 
-    onActiveBeatChordChange(bars[activeBarIndex]?.[activeBeatIndex] ?? "");
+    const raw = bars[activeBarIndex]?.[activeBeatIndex] ?? "";
+    const trimmed = raw.trim();
+    const upper = trimmed.toUpperCase();
+    const isRepeat = trimmed === "%";
+    const isNoChord = upper === "NC" || upper === "N.C.";
+
+    if (!isRepeat) {
+      onActiveBeatChordChange(isNoChord ? "" : raw);
+      return;
+    }
+
+    const total = bars.length * 4;
+    if (total <= 0) {
+      onActiveBeatChordChange("");
+      return;
+    }
+
+    const flat = activeBarIndex * 4 + activeBeatIndex;
+    let resolved = "";
+
+    // Walk backwards (wrapping) to find the last non-empty, non-repeat chord.
+    for (let step = 1; step <= total; step++) {
+      const idx = (flat - step + total) % total;
+      const barIdx = Math.floor(idx / 4);
+      const beatIdx = idx % 4;
+      const candidateRaw = bars[barIdx]?.[beatIdx] ?? "";
+      const candidateTrimmed = candidateRaw.trim();
+      if (!candidateTrimmed) continue;
+      if (candidateTrimmed === "%") continue;
+      const candidateUpper = candidateTrimmed.toUpperCase();
+      if (candidateUpper === "NC" || candidateUpper === "N.C.") continue;
+      resolved = candidateRaw;
+      break;
+    }
+
+    onActiveBeatChordChange(resolved);
   }, [
     onActiveBeatChordChange,
     metronomeActive,
@@ -688,7 +756,7 @@ export default function FretboardControls({
             type="button"
             className={styles.metronomeButton}
             onClick={onStopMetronome}
-            disabled={metronomeState === "stopped"}
+            disabled={metronomeState === "stopped" && metronomeBeat == null}
             aria-label="Stop metronome"
             title="Stop"
           >
@@ -888,6 +956,11 @@ export default function FretboardControls({
             const isBottomRight =
               shouldRoundLastRowRight && barIndex === bars.length - 1;
 
+            const isRightEdge =
+              columns === 1 ||
+              (barIndex + 1) % columns === 0 ||
+              barIndex === bars.length - 1;
+
             const gridTemplateColumns = barBeats
               .map(
                 (beatChord) => `minmax(4.25rem, ${getBeatWeight(beatChord)}fr)`,
@@ -903,6 +976,7 @@ export default function FretboardControls({
                 key={`bar-${barIndex}`}
                 className={
                   `${styles.barCell} ` +
+                  `${isRightEdge ? styles.barCellRightEdge : ""} ` +
                   `${isLastBar ? styles.barCellLast : ""} ` +
                   `${isActiveBar ? styles.barCellActive : ""} ` +
                   `${isTopLeft ? styles.barCellTopLeft : ""} ` +
@@ -910,8 +984,40 @@ export default function FretboardControls({
                   `${isBottomLeft ? styles.barCellBottomLeft : ""} ` +
                   `${isBottomRight ? styles.barCellBottomRight : ""}`
                 }
+                onPointerDownCapture={(e) => {
+                  if (!onSeekToBeat) return;
+                  const target = e.target as HTMLElement | null;
+                  if (!target) return;
+
+                  // Don't hijack interactions with the bar +/- menu.
+                  if (target.closest('[data-bar-menu="true"]')) return;
+
+                  onSeekToBeat(barIndex * 4);
+                }}
+                onClick={(e) => {
+                  if (!onSeekToBeat) return;
+                  const target = e.target as HTMLElement | null;
+                  if (!target) return;
+
+                  // Don't seek when editing inputs or using bar controls.
+                  if (target.closest("input,button,select,textarea,label,a")) return;
+
+                  onSeekToBeat(barIndex * 4);
+                }}
               >
-                <div className={styles.barMenu}>
+                <button
+                  type="button"
+                  className={styles.barSeekHandle}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSeekToBeat?.(barIndex * 4);
+                  }}
+                  aria-label={`Set playhead to bar ${barIndex + 1}`}
+                  title="Jump playhead to this bar"
+                />
+
+                <div className={styles.barMenu} data-bar-menu="true">
                   <button
                     type="button"
                     className={`${styles.barMenuButton} ${styles.barMenuButtonDanger}`}

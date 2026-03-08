@@ -281,6 +281,10 @@ function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
   if (hasMaj7) seventh = 11;
   else if (has7) seventh = isDim && /7/.test(lower) ? 9 : 10;
 
+  // In common lead-sheet / jazz usage, a plain diminished chord symbol (e.g. "Bdim" or "B°")
+  // typically implies a fully diminished 7th chord (1 b3 b5 bb7). Include bb7 by default.
+  if (isDim && seventh == null && !has6) seventh = 9;
+
   const extensions = new Map<number, number>();
   const addExtension = (degree: 9 | 11 | 13, interval: number) => {
     extensions.set(degree, interval);
@@ -649,9 +653,9 @@ export default function Fretboard() {
     const LOOKAHEAD_MS = 25;
     const SCHEDULE_AHEAD_S = 0.12;
 
-    // If starting fresh, reset to beat 0.
-    if (metronomeState === "stopped") {
-      beatIndexRef.current = 0;
+    // If starting from stopped, keep any user-armed playhead (via seek).
+    // If no playhead is armed, stopMetronome() already reset beatIndexRef to 0.
+    if (metronomeState === "stopped" && metronomeBeat == null) {
       setMetronomeBeat(null);
     }
 
@@ -687,7 +691,20 @@ export default function Fretboard() {
     setMetronomeState("running");
     scheduler();
     intervalIdRef.current = window.setInterval(scheduler, LOOKAHEAD_MS);
-  }, [metronomeState, scheduleClick]);
+  }, [metronomeState, metronomeBeat, scheduleClick]);
+
+  const seekMetronomeToBeat = useCallback(
+    (beatIndex: number) => {
+      // Spec: don't auto-start playback.
+      // While running, ignore seeks to avoid desync between scheduled audio and UI.
+      if (metronomeState === "running") return;
+
+      const nextBeat = Math.max(0, Math.floor(beatIndex));
+      beatIndexRef.current = nextBeat;
+      setMetronomeBeat(nextBeat);
+    },
+    [metronomeState],
+  );
 
   const playPauseMetronome = useCallback(() => {
     if (metronomeState === "running") {
@@ -1531,6 +1548,7 @@ export default function Fretboard() {
           if (!Number.isFinite(next)) return;
           setBpm(Math.max(30, Math.min(300, next)));
         }}
+        onSeekToBeat={seekMetronomeToBeat}
         onActiveBeatKeyChange={setActiveBeatKeyText}
         onActiveBeatChordChange={setActiveBeatChordText}
       />
