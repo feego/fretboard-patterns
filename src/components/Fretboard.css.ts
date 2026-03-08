@@ -97,9 +97,44 @@ export const headerTuningSelect = style({
 export const arrowsDock = style({
   width: "min(90rem, 100%)",
   display: "flex",
+  alignItems: "center",
+  gap: spacing.md,
   justifyContent: "center",
   marginTop: spacing.sm,
   marginBottom: 0,
+});
+
+export const arrowsDockButton = style({
+  fontFamily: "var(--font-geist-mono)",
+  height: "2.5rem",
+  padding: `0 ${spacing.md}`,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.875rem",
+  fontWeight: "600",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  lineHeight: 1,
+  transition: "all 0.2s ease",
+  ":hover": {
+    backgroundColor: colors.dark.accent,
+    borderColor: colors.dark.accent,
+  },
+  ":active": {
+    backgroundColor: colors.dark.accentHover,
+  },
+
+  "@media": {
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      height: "2.25rem",
+      padding: `0 ${spacing.sm}`,
+      fontSize: "0.8rem",
+    },
+  },
 });
 
 export const headerCenter = style({
@@ -261,6 +296,12 @@ export const fret = style({
   // No active effect
 });
 
+export const cagedFret = style({
+  backgroundColor: `color-mix(in srgb, ${colors.dark.accent} 18%, transparent)`,
+  border: "none",
+  borderRadius: borderRadius.md,
+});
+
 export const firstFret = style({
   borderLeft: `2px solid ${colors.dark.border}`,
 });
@@ -276,7 +317,7 @@ export const markerFret = style({
       "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "8px",
     height: "8px",
-    backgroundColor: colors.dark.text,
+    backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 60%, transparent)`,
     borderRadius: borderRadius.full,
     zIndex: 1,
   },
@@ -293,7 +334,7 @@ export const doubleMarkerFret = style({
       "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "6px",
     height: "6px",
-    backgroundColor: colors.dark.text,
+    backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 60%, transparent)`,
     borderRadius: borderRadius.full,
     zIndex: 1,
   },
@@ -306,14 +347,13 @@ export const doubleMarkerFret = style({
       "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "6px",
     height: "6px",
-    backgroundColor: colors.dark.text,
+    backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 60%, transparent)`,
     borderRadius: borderRadius.full,
     zIndex: 1,
   },
 });
 
 export const octaveFret = style({
-  backgroundColor: colors.dark.surface,
   fontWeight: "bold",
 });
 

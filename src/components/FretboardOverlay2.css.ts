@@ -23,7 +23,7 @@ export const grid = style({
   gridTemplateRows: "repeat(2, 1fr)", // 5x2 grid
   gap: "0px", // Remove gap to fit exactly
   padding: "0px", // Remove padding
-  backgroundColor: "rgba(0, 255, 0, 0.8)", // Green background for debugging
+  backgroundColor: "rgba(59, 130, 246, 0.28)",
   borderRadius: borderRadius.md,
   // border: `2px solid ${colors.dark.accent}`, // Remove blue border
   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",

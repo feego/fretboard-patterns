@@ -276,14 +276,16 @@ interface FretboardControlsProps {
   onToggleDimmedNotes: () => void;
   showDegrees: boolean;
   onToggleDegrees: () => void;
-  onSelectCagedNotes: () => void;
-  onClearSelectedNotes: () => void;
-  metronomeOn: boolean;
+  showCagedNotes: boolean;
+  onToggleCagedNotes: () => void;
+  metronomeState: "stopped" | "running" | "paused";
   metronomeBeat: number | null;
   bpm: number;
-  onToggleMetronome: () => void;
+  onPlayPauseMetronome: () => void;
+  onStopMetronome: () => void;
   onBpmChange: (bpm: number) => void;
   onActiveBeatKeyChange?: (keyText: string) => void;
+  onActiveBeatChordChange?: (chordText: string) => void;
 }
 
 export default function FretboardControls({
@@ -291,14 +293,16 @@ export default function FretboardControls({
   onToggleDimmedNotes,
   showDegrees,
   onToggleDegrees,
-  onSelectCagedNotes,
-  onClearSelectedNotes,
-  metronomeOn,
+  showCagedNotes,
+  onToggleCagedNotes,
+  metronomeState,
   metronomeBeat,
   bpm,
-  onToggleMetronome,
+  onPlayPauseMetronome,
+  onStopMetronome,
   onBpmChange,
   onActiveBeatKeyChange,
+  onActiveBeatChordChange,
 }: FretboardControlsProps) {
   const [isDesktopGrid, setIsDesktopGrid] = useState(false);
 
@@ -318,8 +322,9 @@ export default function FretboardControls({
   );
 
   const totalBeats = bars.length * 4;
+  const metronomeActive = metronomeState !== "stopped";
   const activeFlatBeat =
-    metronomeOn && metronomeBeat != null && totalBeats > 0
+    metronomeActive && metronomeBeat != null && totalBeats > 0
       ? ((metronomeBeat % totalBeats) + totalBeats) % totalBeats
       : null;
   const activeBarIndex =
@@ -329,7 +334,7 @@ export default function FretboardControls({
   useEffect(() => {
     if (!onActiveBeatKeyChange) return;
 
-    if (!metronomeOn || activeBarIndex == null || activeBeatIndex == null) {
+    if (!metronomeActive || activeBarIndex == null || activeBeatIndex == null) {
       onActiveBeatKeyChange("");
       return;
     }
@@ -337,10 +342,27 @@ export default function FretboardControls({
     onActiveBeatKeyChange(beatKeys[activeBarIndex]?.[activeBeatIndex] ?? "");
   }, [
     onActiveBeatKeyChange,
-    metronomeOn,
+    metronomeActive,
     activeBarIndex,
     activeBeatIndex,
     beatKeys,
+  ]);
+
+  useEffect(() => {
+    if (!onActiveBeatChordChange) return;
+
+    if (!metronomeActive || activeBarIndex == null || activeBeatIndex == null) {
+      onActiveBeatChordChange("");
+      return;
+    }
+
+    onActiveBeatChordChange(bars[activeBarIndex]?.[activeBeatIndex] ?? "");
+  }, [
+    onActiveBeatChordChange,
+    metronomeActive,
+    activeBarIndex,
+    activeBeatIndex,
+    bars,
   ]);
 
   const insertBarRightOf = (barIndex: number) => {
@@ -382,11 +404,34 @@ export default function FretboardControls({
           <button
             type="button"
             className={styles.metronomeButton}
-            onClick={onToggleMetronome}
-            aria-label={metronomeOn ? "Stop metronome" : "Start metronome"}
-            title={metronomeOn ? "Stop" : "Start"}
+            onClick={onPlayPauseMetronome}
+            aria-label={
+              metronomeState === "running"
+                ? "Pause metronome"
+                : metronomeState === "paused"
+                  ? "Resume metronome"
+                  : "Start metronome"
+            }
+            title={
+              metronomeState === "running"
+                ? "Pause"
+                : metronomeState === "paused"
+                  ? "Resume"
+                  : "Start"
+            }
           >
-            {metronomeOn ? "■" : "▶"}
+            {metronomeState === "running" ? "⏸" : "▶"}
+          </button>
+
+          <button
+            type="button"
+            className={styles.metronomeButton}
+            onClick={onStopMetronome}
+            disabled={metronomeState === "stopped"}
+            aria-label="Stop metronome"
+            title="Stop"
+          >
+            ■
           </button>
 
           <label className={styles.metronomeLabel} htmlFor="chords-bpm">
@@ -432,7 +477,7 @@ export default function FretboardControls({
               .join(" ");
 
             const isLastBar = barIndex === bars.length - 1;
-            const isActiveBar = metronomeOn && activeBarIndex === barIndex;
+            const isActiveBar = metronomeActive && activeBarIndex === barIndex;
             const canRemove = bars.length > 1;
 
             return (
@@ -559,37 +604,35 @@ export default function FretboardControls({
       </div>
 
       <div className={styles.row}>
-        <button
-          type="button"
-          className={styles.button}
-          onClick={onToggleDimmedNotes}
-        >
-          {showDimmedNotes ? "Hide" : "Show"} Dimmed Notes
-        </button>
+        <label className={styles.toggleLabel}>
+          <input
+            className={styles.toggleCheckbox}
+            type="checkbox"
+            checked={showDimmedNotes}
+            onChange={onToggleDimmedNotes}
+          />
+          <span className={styles.toggleText}>Show Dimmed Notes</span>
+        </label>
 
-        <button
-          type="button"
-          className={styles.button}
-          onClick={onToggleDegrees}
-        >
-          {showDegrees ? "Show Note Names" : "Show Scale Degrees"}
-        </button>
+        <label className={styles.toggleLabel}>
+          <input
+            className={styles.toggleCheckbox}
+            type="checkbox"
+            checked={showDegrees}
+            onChange={onToggleDegrees}
+          />
+          <span className={styles.toggleText}>Show Scale Degrees</span>
+        </label>
 
-        <button
-          type="button"
-          className={styles.button}
-          onClick={onSelectCagedNotes}
-        >
-          Select CAGED Notes
-        </button>
-
-        <button
-          type="button"
-          className={styles.button}
-          onClick={onClearSelectedNotes}
-        >
-          Clear Selected Notes
-        </button>
+        <label className={styles.toggleLabel}>
+          <input
+            className={styles.toggleCheckbox}
+            type="checkbox"
+            checked={showCagedNotes}
+            onChange={onToggleCagedNotes}
+          />
+          <span className={styles.toggleText}>Show CAGED Notes</span>
+        </label>
       </div>
     </div>
   );

@@ -7,8 +7,6 @@ export const overlay = style({
   zIndex: 1000,
   transform: "translate(-50%, -50%)",
   transition: "opacity 0.2s ease",
-  backdropFilter: "blur(2px)",
-  WebkitBackdropFilter: "blur(2px)",
 });
 
 export const visible = style({

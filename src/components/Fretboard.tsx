@@ -184,6 +184,168 @@ function pickNearestContinuousFret(
   return best;
 }
 
+function noteTokenToRawNote(token: string): string | null {
+  const trimmed = token.trim();
+  if (!trimmed) return null;
+  const m = trimmed.match(/^([A-Ga-g])\s*([#b])?$/);
+  if (!m) return null;
+  const note = m[1].toUpperCase() + (m[2] ?? "");
+
+  // Convert flats / uncommon spellings into our raw sharp-based pitch classes.
+  switch (note) {
+    case "Db":
+      return "C#";
+    case "Eb":
+      return "D#";
+    case "Gb":
+      return "F#";
+    case "Ab":
+      return "G#";
+    case "Bb":
+      return "A#";
+    case "Cb":
+      return "B";
+    case "Fb":
+      return "E";
+    case "B#":
+      return "C";
+    case "E#":
+      return "F";
+    default:
+      return note;
+  }
+}
+
+type ParsedChordTones = {
+  primaryPitchClasses: Set<number>;
+  dimPitchClasses: Set<number>;
+};
+
+function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
+  const raw = chordText.trim();
+  if (!raw) return null;
+
+  // Common "no chord" markers.
+  if (/^(?:N\.?C\.?|NC)$/i.test(raw)) return null;
+  if (raw === "-" || raw === "—") return null;
+
+  const normalized = raw.replace(/\s+/g, "");
+  const [base, slashBass] = normalized.split("/");
+  if (!base) return null;
+
+  const baseMatch = /^([A-G](?:#|b)?)(.*)$/.exec(base);
+  if (!baseMatch) return null;
+  const rootToken = baseMatch[1];
+  const suffix = baseMatch[2] ?? "";
+
+  const rootRaw = noteTokenToRawNote(rootToken);
+  if (!rootRaw) return null;
+  const rootIndex = NOTES.indexOf(rootRaw);
+  if (rootIndex < 0) return null;
+
+  const lower = suffix.toLowerCase();
+
+  const has = (re: RegExp) => re.test(suffix);
+
+  // Triad quality defaults.
+  let third: number | null = 4; // major third
+  let fifth: number | null = 7; // perfect fifth
+
+  // Suspensions override the third.
+  if (/(?:^|[^a-z])sus2(?:$|[^0-9])/.test(lower)) {
+    third = 2;
+  } else if (/(?:^|[^a-z])sus4(?:$|[^0-9])/.test(lower) || /sus(?!2|4)/.test(lower)) {
+    third = 5;
+  } else if (/^(?:m|min)(?!aj)/.test(lower) || /(?:^|[^a-z])m(?!aj)/.test(lower)) {
+    third = 3;
+  } else if (/dim|°/.test(lower)) {
+    third = 3;
+    fifth = 6;
+  } else if (/aug|\+/.test(lower)) {
+    fifth = 8;
+  }
+
+  // Explicit power chord: remove third.
+  if (/(?:^|[^0-9])5(?:$|[^0-9])/.test(lower) && !/13|11|9|7|6|2|4/.test(lower)) {
+    third = null;
+  }
+
+  // Base extensions.
+  let seventh: number | null = null;
+  const isDim = /dim|°/.test(lower);
+  const hasMaj7 = /maj7|ma7|Δ7|\^7/i.test(suffix);
+  const has7 = /7/.test(lower);
+  const has6 = /(?:^|[^0-9])6(?:$|[^0-9])/.test(lower) || /69/.test(lower);
+  if (hasMaj7) seventh = 11;
+  else if (has7) seventh = isDim && /7/.test(lower) ? 9 : 10;
+
+  const extensions = new Map<number, number>();
+  const addExtension = (degree: 9 | 11 | 13, interval: number) => {
+    extensions.set(degree, interval);
+  };
+
+  if (/add9/.test(lower) || /(?:^|[^0-9])9(?:$|[^0-9])/.test(lower)) addExtension(9, 14);
+  if (/add11/.test(lower) || /(?:^|[^0-9])11(?:$|[^0-9])/.test(lower)) addExtension(11, 17);
+  if (/add13/.test(lower) || /(?:^|[^0-9])13(?:$|[^0-9])/.test(lower)) addExtension(13, 21);
+
+  // If 13 is present, imply 9 and 11 only if they were explicitly written as part of 13/11/9.
+  // (We keep it simple: only include what's explicitly present or add*.)
+
+  // Alterations (b/#) for 5/9/11/13.
+  for (const match of suffix.matchAll(/([b#])(5|9|11|13)/g)) {
+    const accidental = match[1];
+    const degree = Number(match[2]) as 5 | 9 | 11 | 13;
+    const delta = accidental === "b" ? -1 : 1;
+    if (degree === 5 && fifth != null) {
+      fifth = fifth + delta;
+      continue;
+    }
+    if (degree === 9) addExtension(9, 14 + delta);
+    if (degree === 11) addExtension(11, 17 + delta);
+    if (degree === 13) addExtension(13, 21 + delta);
+  }
+
+  // Omissions.
+  if (/omit3|no3/.test(lower)) third = null;
+  if (/omit5|no5/.test(lower)) fifth = null;
+
+  const primary = new Set<number>();
+  const dim = new Set<number>();
+
+  const addPrimaryInterval = (semitones: number) => {
+    primary.add((rootIndex + ((semitones % 12) + 12) % 12) % 12);
+  };
+  const addDimInterval = (semitones: number) => {
+    dim.add((rootIndex + ((semitones % 12) + 12) % 12) % 12);
+  };
+
+  // Root always primary.
+  addPrimaryInterval(0);
+  if (third != null) addPrimaryInterval(third);
+  if (fifth != null) addPrimaryInterval(fifth);
+  if (seventh != null) addPrimaryInterval(seventh);
+
+  // 6 is typically a core tone for 6 chords.
+  if (has6 && !/13/.test(lower)) addPrimaryInterval(9);
+
+  // Treat tensions as dim (still selected, just less emphasized).
+  for (const interval of extensions.values()) addDimInterval(interval);
+
+  // Slash bass: select it, but keep it dim so it doesn't overpower the chord tones.
+  if (slashBass) {
+    const bassRaw = noteTokenToRawNote(slashBass);
+    if (bassRaw) {
+      const bassIndex = NOTES.indexOf(bassRaw);
+      if (bassIndex >= 0) dim.add(bassIndex);
+    }
+  }
+
+  // Ensure primary beats dim on overlap.
+  for (const pc of primary) dim.delete(pc);
+
+  return { primaryPitchClasses: primary, dimPitchClasses: dim };
+}
+
 function computeMajorTriadRawNotes(tonicRaw: string): Set<string> {
   const tonicIndex = NOTES.indexOf(tonicRaw);
   if (tonicIndex < 0) return new Set([tonicRaw]);
@@ -376,12 +538,16 @@ export default function Fretboard() {
   const [showDimmedNotes, setShowDimmedNotes] = useState(false);
   const [swapBg, setSwapBg] = useState(false);
   const [showDegrees, setShowDegrees] = useState(false);
+  const [showCagedNotes, setShowCagedNotes] = useState(false);
 
   // Metronome (header, top-right)
   const [bpm, setBpm] = useState(120);
-  const [metronomeOn, setMetronomeOn] = useState(false);
+  const [metronomeState, setMetronomeState] = useState<
+    "stopped" | "running" | "paused"
+  >("stopped");
   const [metronomeBeat, setMetronomeBeat] = useState<number | null>(null);
   const [activeBeatKeyText, setActiveBeatKeyText] = useState("");
+  const [activeBeatChordText, setActiveBeatChordText] = useState("");
   const audioContextRef = useRef<AudioContext | null>(null);
   const intervalIdRef = useRef<number | null>(null);
   const uiTimeoutIdsRef = useRef<number[]>([]);
@@ -393,7 +559,7 @@ export default function Fretboard() {
     bpmRef.current = bpm;
   }, [bpm]);
 
-  const stopMetronome = useCallback(() => {
+  const clearMetronomeTimers = useCallback(() => {
     if (intervalIdRef.current != null) {
       window.clearInterval(intervalIdRef.current);
       intervalIdRef.current = null;
@@ -404,9 +570,36 @@ export default function Fretboard() {
       uiTimeoutIdsRef.current = [];
     }
 
-    setMetronomeBeat(null);
-    setMetronomeOn(false);
   }, []);
+
+  const stopMetronome = useCallback(() => {
+    clearMetronomeTimers();
+
+    setMetronomeBeat(null);
+    setMetronomeState("stopped");
+    beatIndexRef.current = 0;
+    nextClickTimeRef.current = 0;
+
+    const ctx = audioContextRef.current;
+    if (ctx && ctx.state === "running") {
+      // Suspend so any recently scheduled clicks don't keep sounding.
+      ctx.suspend().catch(() => {});
+    }
+  }, [clearMetronomeTimers]);
+
+  const pauseMetronome = useCallback(() => {
+    if (metronomeState !== "running") return;
+
+    clearMetronomeTimers();
+    setMetronomeState("paused");
+    // Resume from the next beat after the last one we showed.
+    beatIndexRef.current = (metronomeBeat ?? 0) + 1;
+
+    const ctx = audioContextRef.current;
+    if (ctx && ctx.state === "running") {
+      ctx.suspend().catch(() => {});
+    }
+  }, [clearMetronomeTimers, metronomeState, metronomeBeat]);
 
   const scheduleClick = useCallback(
     (ctx: AudioContext, time: number, isAccent: boolean) => {
@@ -429,8 +622,8 @@ export default function Fretboard() {
     [],
   );
 
-  const startMetronome = useCallback(async () => {
-    if (metronomeOn) return;
+  const startOrResumeMetronome = useCallback(async () => {
+    if (metronomeState === "running") return;
 
     const AudioContextCtor =
       window.AudioContext || (window as any).webkitAudioContext;
@@ -453,8 +646,14 @@ export default function Fretboard() {
 
     const LOOKAHEAD_MS = 25;
     const SCHEDULE_AHEAD_S = 0.12;
+
+    // If starting fresh, reset to beat 0.
+    if (metronomeState === "stopped") {
+      beatIndexRef.current = 0;
+      setMetronomeBeat(null);
+    }
+
     nextClickTimeRef.current = ctx.currentTime + 0.05;
-    beatIndexRef.current = 0;
 
     // Clear any stale UI timeouts from a previous run.
     if (uiTimeoutIdsRef.current.length) {
@@ -483,27 +682,42 @@ export default function Fretboard() {
       }
     };
 
-    setMetronomeOn(true);
+    setMetronomeState("running");
     scheduler();
     intervalIdRef.current = window.setInterval(scheduler, LOOKAHEAD_MS);
-  }, [metronomeOn, scheduleClick]);
+  }, [metronomeState, scheduleClick]);
+
+  const playPauseMetronome = useCallback(() => {
+    if (metronomeState === "running") {
+      pauseMetronome();
+      return;
+    }
+    startOrResumeMetronome();
+  }, [metronomeState, pauseMetronome, startOrResumeMetronome]);
 
   useEffect(() => {
     return () => {
-      if (intervalIdRef.current != null) {
-        window.clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
-      }
-
-      if (uiTimeoutIdsRef.current.length) {
-        for (const id of uiTimeoutIdsRef.current) window.clearTimeout(id);
-        uiTimeoutIdsRef.current = [];
-      }
+      clearMetronomeTimers();
     };
-  }, []);
+  }, [clearMetronomeTimers]);
   const fretboardRef = useRef<HTMLDivElement>(null);
   const fretboardWrapperRef = useRef<HTMLDivElement>(null);
   const [selectedMarkerPositions, setSelectedMarkerPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+  const [cagedHighlightedCells, setCagedHighlightedCells] = useState<
+    Record<string, boolean>
+  >({});
+  const [activeChordTones, setActiveChordTones] = useState<ParsedChordTones | null>(
+    null,
+  );
+  const [chordSelectedCells, setChordSelectedCells] = useState<
+    Record<string, boolean>
+  >({});
+  const [chordSelectedCellTones, setChordSelectedCellTones] = useState<
+    Record<string, MarkerTone>
+  >({});
+  const [chordMarkerPositions, setChordMarkerPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
   const [fretMetrics, setFretMetrics] = useState<FretMetrics | null>(null);
@@ -585,13 +799,56 @@ export default function Fretboard() {
     setCurrentFret((prev) => ({ ...prev, fret: bestFret }));
   }, [activeBeatKeyText, tuning, currentFret.fret, continuousFret]);
 
+  // Keep the last valid chord tones until a new chord appears.
+  // (Blank/NC/invalid beats should not clear selection.)
+  useEffect(() => {
+    const parsed = parseChordToPitchClasses(activeBeatChordText);
+    if (!parsed) return;
+    setActiveChordTones(parsed);
+  }, [activeBeatChordText]);
+
+  // Auto-select chord tones (separate from manual selections).
+  // Recomputes when tuning changes, using the last valid chord tones.
+  useEffect(() => {
+    if (!activeChordTones) return;
+
+    const nextCells: Record<string, boolean> = {};
+    const nextTones: Record<string, MarkerTone> = {};
+
+    for (let stringIndex = 0; stringIndex < 6; stringIndex++) {
+      for (let fretNumber = 1; fretNumber <= 24; fretNumber++) {
+        const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
+        const pc = NOTES.indexOf(note);
+        if (pc < 0) continue;
+        if (
+          !activeChordTones.primaryPitchClasses.has(pc) &&
+          !activeChordTones.dimPitchClasses.has(pc)
+        )
+          continue;
+
+        const id = `${stringIndex}:${fretNumber}`;
+        nextCells[id] = true;
+        nextTones[id] = activeChordTones.dimPitchClasses.has(pc)
+          ? "dim"
+          : "primary";
+      }
+    }
+
+    setChordSelectedCells(nextCells);
+    setChordSelectedCellTones(nextTones);
+  }, [activeChordTones, tuning]);
+
   const clearSelectedNotes = useCallback(() => {
     setToggledCells({});
     setSelectedCellTones({});
   }, []);
 
-  const selectCagedNotes = useCallback(() => {
-    if (!currentFret) return;
+  // Compute highlighted CAGED cells for the current overlay anchor.
+  useEffect(() => {
+    if (!showCagedNotes || !currentFret) {
+      setCagedHighlightedCells({});
+      return;
+    }
 
     // Mirror the same row configs used by FirstOverlay/SecondOverlay.
     const firstOverlayRows = [
@@ -614,10 +871,7 @@ export default function Fretboard() {
     const overlayShiftFrets = 2;
     const octaveCycleOffsets = Array.from({ length: 11 }, (_, i) => i - 5); // -5..+5
 
-    const next: ToggledCellMap = {};
-    const nextTones: Record<string, MarkerTone> = {};
-
-    // Determine the current tonic (degree 1) using the same "best key" heuristic as overlays.
+    // Infer the current tonic (degree 1) using the same "best key" heuristic.
     const centerNotes: string[] = [];
     const collectCenterNotes = (
       rows: { stringIndex: number; startFret: number; numFrets: number }[],
@@ -630,10 +884,8 @@ export default function Fretboard() {
         const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
         for (let i = 0; i < row.numFrets; i++) {
           if (i % 2 !== 0) continue;
-          const fretNumber =
-            currentFret.fret + row.startFret + totalShiftFrets + i;
-          const note = getNoteAtPosition(row.stringIndex, fretNumber, tuning);
-          centerNotes.push(note);
+          const fretNumber = currentFret.fret + row.startFret + totalShiftFrets + i;
+          centerNotes.push(getNoteAtPosition(row.stringIndex, fretNumber, tuning));
         }
       }
     };
@@ -642,49 +894,86 @@ export default function Fretboard() {
 
     const { displayKey } = computeGlobalDisplayKey(centerNotes);
     const tonicRaw = displayKeyToRawTonic(displayKey);
-    const primaryRawNotes = computeMajorTriadRawNotes(tonicRaw);
+    const primaryRawNotes = computeMajorTriadRawNotes(tonicRaw); // degrees 1/3/5
 
-    const addOverlaySelections = (
+    const next: Record<string, boolean> = {};
+    const addOverlayHighlights = (
       rows: { stringIndex: number; startFret: number; numFrets: number }[],
     ) => {
       for (const row of rows) {
         const tuningShiftFrets =
-          tuning === "allFourths" && (row.stringIndex === 0 || row.stringIndex === 1)
+          tuning === "allFourths" &&
+          (row.stringIndex === 0 || row.stringIndex === 1)
             ? -1
             : 0;
         const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
 
         for (let i = 0; i < row.numFrets; i++) {
-          // Match the overlay's always-visible (highlighted) columns.
+          // Match the overlay's always-visible columns, but only highlight 1/3/5.
           if (i % 2 !== 0) continue;
-          const baseFret =
-            currentFret.fret + row.startFret + totalShiftFrets + i;
+          const baseFret = currentFret.fret + row.startFret + totalShiftFrets + i;
 
           for (const cycleOffset of octaveCycleOffsets) {
             const fretNumber = baseFret + cycleOffset * 12;
             if (fretNumber < 1 || fretNumber > 24) continue;
-            const cellId = `${row.stringIndex}:${fretNumber}`;
-            next[cellId] = true;
 
             const rawNote = getNoteAtPosition(row.stringIndex, fretNumber, tuning);
-            nextTones[cellId] = primaryRawNotes.has(rawNote) ? "primary" : "dim";
+            if (!primaryRawNotes.has(rawNote)) continue;
+
+            const cellId = `${row.stringIndex}:${fretNumber}`;
+            next[cellId] = true;
           }
         }
       }
     };
 
-    addOverlaySelections(firstOverlayRows);
-    addOverlaySelections(secondOverlayRows);
+    addOverlayHighlights(firstOverlayRows);
+    addOverlayHighlights(secondOverlayRows);
 
-    setToggledCells(next);
-    setSelectedCellTones(nextTones);
-  }, [currentFret, tuning]);
+    setCagedHighlightedCells(next);
+  }, [showCagedNotes, currentFret, tuning]);
   const [cellWidth, setCellWidth] = useState(64);
   const [cellHeight, setCellHeight] = useState(48);
   const [fretboardScale, setFretboardScale] = useState(1);
   const [scaledWrapperHeightPx, setScaledWrapperHeightPx] = useState<
     number | null
   >(null);
+
+  // Position chord-selection markers using measured geometry (avoids per-beat DOM queries).
+  useEffect(() => {
+    if (!hasMounted || !fretMetrics) {
+      setChordMarkerPositions({});
+      return;
+    }
+
+    // If basePosition isn't ready yet, skip.
+    if (!Number.isFinite(basePosition.y) || cellHeight <= 0) {
+      setChordMarkerPositions({});
+      return;
+    }
+
+    const next: Record<string, { x: number; y: number }> = {};
+    for (const [cellId, isOn] of Object.entries(chordSelectedCells)) {
+      if (!isOn) continue;
+      const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
+      const stringIndex = Number(stringIndexRaw);
+      const fretNumber = Number(fretNumberRaw);
+      if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
+
+      const x = getFretCenterX(fretMetrics, fretNumber);
+      if (x == null) continue;
+      const y = basePosition.y + (stringIndex - 4) * cellHeight;
+      next[cellId] = { x, y };
+    }
+
+    setChordMarkerPositions(next);
+  }, [
+    hasMounted,
+    fretMetrics,
+    chordSelectedCells,
+    basePosition.y,
+    cellHeight,
+  ]);
 
   const measureBaseFromDom = () => {
     if (!fretboardRef.current) return;
@@ -945,6 +1234,18 @@ export default function Fretboard() {
         if (isFormField || inChordsEditor) return;
       }
 
+      // Spacebar toggles play/pause.
+      if (
+        (e.key === " " || e.key === "Spacebar" || e.code === "Space") &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        playPauseMetronome();
+        return;
+      }
+
       if (
         e.key !== "ArrowUp" &&
         e.key !== "ArrowDown" &&
@@ -960,7 +1261,7 @@ export default function Fretboard() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate]);
+  }, [navigate, playPauseMetronome]);
   // Calculate current position with modulo to keep overlays cycling
   // Use modulo 24 frets (2 full cycles of 12) to keep overlays within range
   let effectiveFret = (continuousFret - 12) % 24;
@@ -1076,6 +1377,11 @@ export default function Fretboard() {
                     fretClasses += ` ${styles.doubleMarkerFret}`;
                   }
 
+                  const cellId = `${stringIndex}:${fretNumber}`;
+                  if (showCagedNotes && cagedHighlightedCells[cellId]) {
+                    fretClasses += ` ${styles.cagedFret}`;
+                  }
+
                   return (
                     <div
                       key={`fret-${fretNumber}`}
@@ -1092,6 +1398,13 @@ export default function Fretboard() {
             ))}
 
             <div className={styles.selectionLayer}>
+              {Object.entries(chordMarkerPositions).map(([cellId, pos]) => (
+                <span
+                  key={`chord-${cellId}`}
+                  className={`${styles.selectionMarker} ${chordSelectedCellTones[cellId] === "dim" ? styles.selectionMarkerDim : ""}`}
+                  style={{ left: pos.x, top: pos.y }}
+                />
+              ))}
               {Object.entries(selectedMarkerPositions).map(([cellId, pos]) => (
                 <span
                   key={`selected-${cellId}`}
@@ -1154,6 +1467,13 @@ export default function Fretboard() {
 
       <div className={styles.arrowsDock}>
         <FretboardArrows onNavigate={navigate} />
+        <button
+          type="button"
+          className={styles.arrowsDockButton}
+          onClick={clearSelectedNotes}
+        >
+          Clear Selected Notes
+        </button>
       </div>
 
       <FretboardControls
@@ -1161,20 +1481,19 @@ export default function Fretboard() {
         onToggleDimmedNotes={() => setShowDimmedNotes(!showDimmedNotes)}
         showDegrees={showDegrees}
         onToggleDegrees={() => setShowDegrees((v) => !v)}
-        onSelectCagedNotes={selectCagedNotes}
-        onClearSelectedNotes={clearSelectedNotes}
-        metronomeOn={metronomeOn}
+        showCagedNotes={showCagedNotes}
+        onToggleCagedNotes={() => setShowCagedNotes((v) => !v)}
+        metronomeState={metronomeState}
         metronomeBeat={metronomeBeat}
         bpm={bpm}
-        onToggleMetronome={() => {
-          if (metronomeOn) stopMetronome();
-          else startMetronome();
-        }}
+        onPlayPauseMetronome={playPauseMetronome}
+        onStopMetronome={stopMetronome}
         onBpmChange={(next) => {
           if (!Number.isFinite(next)) return;
           setBpm(Math.max(30, Math.min(300, next)));
         }}
         onActiveBeatKeyChange={setActiveBeatKeyText}
+        onActiveBeatChordChange={setActiveBeatChordText}
       />
     </div>
   );

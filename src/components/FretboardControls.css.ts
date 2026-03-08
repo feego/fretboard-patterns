@@ -75,6 +75,48 @@ export const button = style({
   },
 });
 
+export const toggleLabel = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+  fontFamily: "var(--font-geist-mono)",
+  padding: `${spacing.sm} ${spacing.md}`,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: borderRadius.md,
+  fontSize: "0.875rem",
+  fontWeight: "600",
+  cursor: "pointer",
+  userSelect: "none",
+  transition: "all 0.2s ease",
+  ":hover": {
+    borderColor: colors.dark.accent,
+  },
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      width: "min(22rem, 100%)",
+      justifyContent: "flex-start",
+    },
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      padding: `${spacing.xs} ${spacing.sm}`,
+      fontSize: "0.8rem",
+    },
+  },
+});
+
+export const toggleCheckbox = style({
+  width: "1.05rem",
+  height: "1.05rem",
+  accentColor: colors.dark.accent,
+  cursor: "pointer",
+});
+
+export const toggleText = style({
+  lineHeight: 1.1,
+});
+
 export const selectWrapper = style({
   display: "flex",
   alignItems: "center",
@@ -259,6 +301,16 @@ export const metronomeButton = style({
   },
   ":active": {
     backgroundColor: colors.dark.accentHover,
+  },
+  ":disabled": {
+    opacity: 0.45,
+    cursor: "not-allowed",
+  },
+  selectors: {
+    "&:disabled:hover": {
+      backgroundColor: colors.dark.surface,
+      borderColor: colors.dark.border,
+    },
   },
 });
 

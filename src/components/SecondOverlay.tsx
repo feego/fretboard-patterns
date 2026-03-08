@@ -205,8 +205,8 @@ export default function SecondOverlay({
 
   // Swap background color based on bgVariant
   const backgroundColor = bgVariant === "A"
-    ? "rgba(55, 60, 60, 0.7)"
-    : "rgba(80, 75, 75, 0.7)";
+    ? "rgba(50, 55, 70, 0.7)"
+    : "rgba(70, 72, 85, 0.7)";
 
   return (
     <>
