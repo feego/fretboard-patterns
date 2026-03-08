@@ -400,6 +400,46 @@ export const metronomeButton = style({
   },
 });
 
+export const metronomeIconButton = style([
+  metronomeButton,
+  {
+    width: "2.5rem",
+    height: "2.5rem",
+    padding: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 1,
+  },
+]);
+
+export const metronomeIcon = style({
+  display: "inline-block",
+  verticalAlign: "middle",
+});
+
+export const metronomeIconPlay = style({
+  width: 0,
+  height: 0,
+  borderTop: "0.45rem solid transparent",
+  borderBottom: "0.45rem solid transparent",
+  borderLeft: "0.75rem solid currentColor",
+});
+
+export const metronomeIconPause = style({
+  width: "0.9rem",
+  height: "0.9rem",
+  background:
+    "linear-gradient(to right, currentColor 0 35%, transparent 35% 65%, currentColor 65% 100%)",
+});
+
+export const metronomeIconStop = style({
+  width: "0.9rem",
+  height: "0.9rem",
+  backgroundColor: "currentColor",
+  borderRadius: borderRadius.sm,
+});
+
 export const metronomeLabel = style({
   fontFamily: "var(--font-geist-mono)",
   color: colors.dark.textMuted,

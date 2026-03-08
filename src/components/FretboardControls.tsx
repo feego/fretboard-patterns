@@ -691,6 +691,23 @@ export default function FretboardControls({
     activeFlatBeat != null ? Math.floor(activeFlatBeat / 4) : null;
   const activeBeatIndex = activeFlatBeat != null ? activeFlatBeat % 4 : null;
 
+  const seekByBars = (deltaBars: -1 | 1) => {
+    if (!onSeekToBeat) return;
+    if (metronomeBeat == null) return;
+    const totalBars = bars.length;
+    if (totalBars <= 0) return;
+
+    const total = totalBars * 4;
+    const flat = ((metronomeBeat % total) + total) % total;
+    const barIndex = Math.floor(flat / 4);
+    const nextBarIndex =
+      deltaBars === 1
+        ? (barIndex + 1) % totalBars
+        : (barIndex - 1 + totalBars) % totalBars;
+
+    onSeekToBeat(nextBarIndex * 4);
+  };
+
   useEffect(() => {
     if (!onSeekToBeat) return;
 
@@ -1022,7 +1039,29 @@ export default function FretboardControls({
         <div className={styles.metronomeControls}>
           <button
             type="button"
-            className={styles.metronomeButton}
+            className={styles.metronomeIconButton}
+            onClick={() => seekByBars(-1)}
+            disabled={!onSeekToBeat || metronomeBeat == null || bars.length <= 0}
+            aria-label="Previous bar"
+            title="Previous bar"
+          >
+            ←
+          </button>
+
+          <button
+            type="button"
+            className={styles.metronomeIconButton}
+            onClick={() => seekByBars(1)}
+            disabled={!onSeekToBeat || metronomeBeat == null || bars.length <= 0}
+            aria-label="Next bar"
+            title="Next bar"
+          >
+            →
+          </button>
+
+          <button
+            type="button"
+            className={styles.metronomeIconButton}
             onClick={onPlayPauseMetronome}
             aria-label={
               metronomeState === "running"
@@ -1039,18 +1078,28 @@ export default function FretboardControls({
                   : "Start"
             }
           >
-            {metronomeState === "running" ? "⏸" : "▶"}
+            <span
+              aria-hidden="true"
+              className={`${styles.metronomeIcon} ${
+                metronomeState === "running"
+                  ? styles.metronomeIconPause
+                  : styles.metronomeIconPlay
+              }`}
+            />
           </button>
 
           <button
             type="button"
-            className={styles.metronomeButton}
+            className={styles.metronomeIconButton}
             onClick={onStopMetronome}
             disabled={metronomeState === "stopped" && metronomeBeat == null}
             aria-label="Stop metronome"
             title="Stop"
           >
-            ■
+            <span
+              aria-hidden="true"
+              className={`${styles.metronomeIcon} ${styles.metronomeIconStop}`}
+            />
           </button>
 
           <label className={styles.metronomeLabel} htmlFor="chords-bpm">
