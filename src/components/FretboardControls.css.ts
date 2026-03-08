@@ -371,6 +371,21 @@ export const barCell = style({
     `1px solid color-mix(in srgb, ${colors.dark.border} 55%, transparent)` as any,
 });
 
+export const barCellActive = style({
+  selectors: {
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      pointerEvents: "none",
+      border: `2px solid color-mix(in srgb, ${colors.dark.accent} 55%, transparent)` as any,
+      borderRadius: borderRadius.md,
+      boxSizing: "border-box",
+      zIndex: 5,
+    },
+  },
+});
+
 export const barCellTopLeft = style({
   borderTopLeftRadius: borderRadius.md,
 });
@@ -517,6 +532,51 @@ export const beatCell = style({
   },
 });
 
+export const beatCellError = style({
+  selectors: {
+    "&:hover": {
+      zIndex: 80,
+    },
+    "&:focus-within": {
+      zIndex: 80,
+    },
+  },
+});
+
+export const chordErrorTooltip = style({
+  position: "absolute",
+  left: spacing.xs,
+  top: "100%",
+  transform: "translateY(4px)",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: spacing.xs,
+  backgroundColor: colors.dark.danger,
+  border: "none",
+  borderRadius: borderRadius.md,
+  padding: "2px 6px",
+  color: colors.dark.text,
+  fontFamily: "var(--font-geist-mono)",
+  fontSize: "0.75rem",
+  fontWeight: "700",
+  whiteSpace: "nowrap",
+  opacity: 0,
+  pointerEvents: "none",
+  zIndex: 90,
+  transition: "opacity 140ms ease, transform 140ms ease",
+
+  selectors: {
+    [`${beatCellError}:hover &`]: {
+      opacity: 1,
+      transform: "translateY(8px)",
+    },
+    [`${beatCellError}:focus-within &`]: {
+      opacity: 1,
+      transform: "translateY(8px)",
+    },
+  },
+});
+
 export const beatKeyInput = style({
   fontFamily: "var(--font-geist-mono)",
   padding: 0,
@@ -573,4 +633,8 @@ export const beatChordInput = style({
   "::placeholder": {
     color: colors.dark.textMuted,
   },
+});
+
+export const beatChordInputInvalid = style({
+  color: colors.dark.danger,
 });

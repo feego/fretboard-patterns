@@ -147,6 +147,43 @@ function displayKeyToRawTonic(displayKey: string): string {
   }
 }
 
+function normalizeBeatKeyToDisplayKey(keyText: string): string | null {
+  const trimmed = keyText.trim();
+  if (!trimmed) return null;
+
+  const m = trimmed.match(/^([A-Ga-g])\s*([#b])?/);
+  if (!m) return null;
+
+  let key = m[1].toUpperCase() + (m[2] ?? "");
+
+  // Keep consistent with overlay display conventions.
+  if (key === "F#" || key === "Gb") key = "Gb";
+  if (key === "C#" || key === "Db") key = "Db";
+
+  return key;
+}
+
+function pickNearestContinuousFret(
+  currentContinuousFret: number,
+  targetWrappedFret: number,
+): number {
+  // Find the closest continuous fret that maps to `targetWrappedFret` under
+  // the same wrapping logic used elsewhere: wrapped = ((continuous-1) % 24) + 1.
+  const baseK = Math.round((currentContinuousFret - targetWrappedFret) / 24);
+  let best = targetWrappedFret + baseK * 24;
+  let bestDist = Math.abs(best - currentContinuousFret);
+
+  for (const k of [baseK - 1, baseK + 1]) {
+    const candidate = targetWrappedFret + k * 24;
+    const dist = Math.abs(candidate - currentContinuousFret);
+    if (dist < bestDist) {
+      best = candidate;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
 function computeMajorTriadRawNotes(tonicRaw: string): Set<string> {
   const tonicIndex = NOTES.indexOf(tonicRaw);
   if (tonicIndex < 0) return new Set([tonicRaw]);
@@ -343,8 +380,11 @@ export default function Fretboard() {
   // Metronome (header, top-right)
   const [bpm, setBpm] = useState(120);
   const [metronomeOn, setMetronomeOn] = useState(false);
+  const [metronomeBeat, setMetronomeBeat] = useState<number | null>(null);
+  const [activeBeatKeyText, setActiveBeatKeyText] = useState("");
   const audioContextRef = useRef<AudioContext | null>(null);
   const intervalIdRef = useRef<number | null>(null);
+  const uiTimeoutIdsRef = useRef<number[]>([]);
   const nextClickTimeRef = useRef(0);
   const beatIndexRef = useRef(0);
   const bpmRef = useRef(bpm);
@@ -358,6 +398,13 @@ export default function Fretboard() {
       window.clearInterval(intervalIdRef.current);
       intervalIdRef.current = null;
     }
+
+    if (uiTimeoutIdsRef.current.length) {
+      for (const id of uiTimeoutIdsRef.current) window.clearTimeout(id);
+      uiTimeoutIdsRef.current = [];
+    }
+
+    setMetronomeBeat(null);
     setMetronomeOn(false);
   }, []);
 
@@ -409,14 +456,30 @@ export default function Fretboard() {
     nextClickTimeRef.current = ctx.currentTime + 0.05;
     beatIndexRef.current = 0;
 
+    // Clear any stale UI timeouts from a previous run.
+    if (uiTimeoutIdsRef.current.length) {
+      for (const id of uiTimeoutIdsRef.current) window.clearTimeout(id);
+      uiTimeoutIdsRef.current = [];
+    }
+
     const scheduler = () => {
       const bpmNow = Math.max(30, Math.min(300, bpmRef.current || 120));
       const secondsPerBeat = 60 / bpmNow;
       while (nextClickTimeRef.current < ctx.currentTime + SCHEDULE_AHEAD_S) {
-        const isAccent = beatIndexRef.current % 4 === 0;
+        const beatNumber = beatIndexRef.current;
+        const isAccent = beatNumber % 4 === 0;
         scheduleClick(ctx, nextClickTimeRef.current, isAccent);
+
+        // Keep the visual playhead in sync with the scheduled click.
+        const fireAt = nextClickTimeRef.current;
+        const delayMs = Math.max(0, (fireAt - ctx.currentTime) * 1000);
+        const timeoutId = window.setTimeout(() => {
+          setMetronomeBeat(beatNumber);
+        }, delayMs);
+        uiTimeoutIdsRef.current.push(timeoutId);
+
         nextClickTimeRef.current += secondsPerBeat;
-        beatIndexRef.current = (beatIndexRef.current + 1) % 4;
+        beatIndexRef.current += 1;
       }
     };
 
@@ -431,6 +494,11 @@ export default function Fretboard() {
         window.clearInterval(intervalIdRef.current);
         intervalIdRef.current = null;
       }
+
+      if (uiTimeoutIdsRef.current.length) {
+        for (const id of uiTimeoutIdsRef.current) window.clearTimeout(id);
+        uiTimeoutIdsRef.current = [];
+      }
     };
   }, []);
   const fretboardRef = useRef<HTMLDivElement>(null);
@@ -439,6 +507,83 @@ export default function Fretboard() {
     Record<string, { x: number; y: number }>
   >({});
   const [fretMetrics, setFretMetrics] = useState<FretMetrics | null>(null);
+
+  // When the chord editor reports an active beat key (e.g. while the metronome
+  // runs), shift the overlay anchor so the overlay key matches.
+  useEffect(() => {
+    const desiredDisplayKey = normalizeBeatKeyToDisplayKey(activeBeatKeyText);
+    if (!desiredDisplayKey) return;
+
+    // Mirror the same row configs used by FirstOverlay/SecondOverlay.
+    const firstOverlayRows = [
+      { stringIndex: 0, startFret: -6, numFrets: 5 },
+      { stringIndex: 1, startFret: -8, numFrets: 7 },
+      { stringIndex: 2, startFret: -9, numFrets: 5 },
+      { stringIndex: 3, startFret: -11, numFrets: 7 },
+      { stringIndex: 4, startFret: -11, numFrets: 5 },
+      { stringIndex: 5, startFret: -1, numFrets: 7 },
+    ];
+    const secondOverlayRows = [
+      { stringIndex: 0, startFret: -1, numFrets: 7 },
+      { stringIndex: 1, startFret: -1, numFrets: 5 },
+      { stringIndex: 2, startFret: -4, numFrets: 7 },
+      { stringIndex: 3, startFret: -4, numFrets: 5 },
+      { stringIndex: 4, startFret: -6, numFrets: 7 },
+      { stringIndex: 5, startFret: -6, numFrets: 5 },
+    ];
+
+    const overlayShiftFrets = 2;
+
+    const computeOverlayDisplayKeyForCenterFret = (centerFret: number) => {
+      const centerNotes: string[] = [];
+      const collectCenterNotes = (
+        rows: { stringIndex: number; startFret: number; numFrets: number }[],
+      ) => {
+        for (const row of rows) {
+          const tuningShiftFrets =
+            tuning === "allFourths" &&
+            (row.stringIndex === 0 || row.stringIndex === 1)
+              ? -1
+              : 0;
+          const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
+          for (let i = 0; i < row.numFrets; i++) {
+            if (i % 2 !== 0) continue;
+            const fretNumber = centerFret + row.startFret + totalShiftFrets + i;
+            const note = getNoteAtPosition(row.stringIndex, fretNumber, tuning);
+            centerNotes.push(note);
+          }
+        }
+      };
+      collectCenterNotes(firstOverlayRows);
+      collectCenterNotes(secondOverlayRows);
+      return computeGlobalDisplayKey(centerNotes).displayKey;
+    };
+
+    const currentWrappedFret = currentFret.fret;
+
+    // Find the nearest center fret (1..24) whose overlay-computed key matches.
+    let bestFret: number | null = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (let candidateFret = 1; candidateFret <= 24; candidateFret++) {
+      if (computeOverlayDisplayKeyForCenterFret(candidateFret) !== desiredDisplayKey)
+        continue;
+
+      const rawDist = Math.abs(candidateFret - currentWrappedFret);
+      const wrapDist = 24 - rawDist;
+      const dist = Math.min(rawDist, wrapDist);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestFret = candidateFret;
+      }
+    }
+
+    if (bestFret == null) return;
+    if (bestFret === currentFret.fret) return;
+
+    const nextContinuous = pickNearestContinuousFret(continuousFret, bestFret);
+    setContinuousFret(nextContinuous);
+    setCurrentFret((prev) => ({ ...prev, fret: bestFret }));
+  }, [activeBeatKeyText, tuning, currentFret.fret, continuousFret]);
 
   const clearSelectedNotes = useCallback(() => {
     setToggledCells({});
@@ -785,6 +930,21 @@ export default function Fretboard() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        const isFormField =
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          (target as any).isContentEditable;
+        const inChordsEditor =
+          typeof target.closest === "function" &&
+          target.closest('[data-chords-editor="true"]');
+
+        if (isFormField || inChordsEditor) return;
+      }
+
       if (
         e.key !== "ArrowUp" &&
         e.key !== "ArrowDown" &&
@@ -1004,6 +1164,7 @@ export default function Fretboard() {
         onSelectCagedNotes={selectCagedNotes}
         onClearSelectedNotes={clearSelectedNotes}
         metronomeOn={metronomeOn}
+        metronomeBeat={metronomeBeat}
         bpm={bpm}
         onToggleMetronome={() => {
           if (metronomeOn) stopMetronome();
@@ -1013,6 +1174,7 @@ export default function Fretboard() {
           if (!Number.isFinite(next)) return;
           setBpm(Math.max(30, Math.min(300, next)));
         }}
+        onActiveBeatKeyChange={setActiveBeatKeyText}
       />
     </div>
   );
