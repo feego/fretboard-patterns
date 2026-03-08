@@ -287,7 +287,7 @@ export const songPicker = style({
   display: "flex",
   alignItems: "center",
   gap: spacing.xs,
-  marginLeft: "auto",
+  marginLeft: 0,
 
   "@media": {
     "screen and (max-width: 600px)": {
@@ -357,10 +357,17 @@ export const metronomeControls = style({
   display: "flex",
   alignItems: "center",
   gap: spacing.sm,
+  marginLeft: "auto",
   padding: 0,
   border: "none",
   borderRadius: 0,
   backgroundColor: "transparent",
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      marginLeft: 0,
+    },
+  },
 });
 
 export const metronomeButton = style({
@@ -478,6 +485,9 @@ export const barsGrid = style({
   boxSizing: "border-box",
 
   "@media": {
+    "screen and (max-width: 600px)": {
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    },
     "screen and (min-width: 900px)": {
       gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     },
@@ -663,7 +673,7 @@ export const barBeatGrid = style({
   display: "grid",
   gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
   width: "100%",
-  overflow: "visible",
+  overflow: "hidden",
 });
 
 export const beatCell = style({
@@ -821,6 +831,12 @@ export const beatChordInput = style({
   },
   "::placeholder": {
     color: colors.dark.textMuted,
+  },
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      paddingRight: spacing.xs,
+    },
   },
 });
 

@@ -321,9 +321,6 @@ function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
   const addPrimaryInterval = (semitones: number) => {
     primary.add((rootIndex + ((semitones % 12) + 12) % 12) % 12);
   };
-  const addDimInterval = (semitones: number) => {
-    dim.add((rootIndex + ((semitones % 12) + 12) % 12) % 12);
-  };
 
   // Root always primary.
   addPrimaryInterval(0);
@@ -334,8 +331,8 @@ function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
   // 6 is typically a core tone for 6 chords.
   if (has6 && !/13/.test(lower)) addPrimaryInterval(9);
 
-  // Treat tensions as dim (still selected, just less emphasized).
-  for (const interval of extensions.values()) addDimInterval(interval);
+  // Treat extensions (9/11/13, add9, etc.) as chord tones (not dimmed).
+  for (const interval of extensions.values()) addPrimaryInterval(interval);
 
   // Slash bass: select it, but keep it dim so it doesn't overpower the chord tones.
   if (slashBass) {
@@ -1041,6 +1038,15 @@ export default function Fretboard() {
         window.innerWidth,
         document.documentElement.clientWidth,
       );
+
+      // Below this breakpoint, keep the fretboard at full size and allow horizontal scrolling
+      // instead of shrinking the entire board.
+      if (viewportWidth < 1280) {
+        setFretboardScale(1);
+        setScaledWrapperHeightPx(null);
+        return;
+      }
+
       // Small gutter so borders/shadows don't clip.
       const availableWidth = Math.max(0, viewportWidth - 16);
       const nextScale = Math.min(1, availableWidth / contentWidth);
@@ -1287,6 +1293,9 @@ export default function Fretboard() {
         return;
       }
 
+      // Reserve modified arrows (e.g. Cmd+Arrow) for other shortcuts.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
       e.preventDefault();
       navigate(e.key);
     };
@@ -1328,12 +1337,13 @@ export default function Fretboard() {
             value={tuning}
             onChange={(e) => setTuning(e.target.value)}
           >
-            <option value="standard">Standard (E-A-D-G-B-E)</option>
-            <option value="allFourths">All Fourths (E-A-D-G-C-F)</option>
+            <option value="standard">Standard</option>
+            <option value="allFourths">All Fourths</option>
           </select>
         </div>
       </div>
       <div
+        className={styles.fretboardScrollContainer}
         style={
           fretboardScale < 1 && scaledWrapperHeightPx
             ? { height: `${scaledWrapperHeightPx}px` }
@@ -1345,7 +1355,7 @@ export default function Fretboard() {
           ref={fretboardWrapperRef}
           style={{
             transform: `scale(${fretboardScale})`,
-            transformOrigin: "top center",
+            transformOrigin: "top left",
           }}
         >
         {/* Fret numbers above the fretboard */}
@@ -1498,16 +1508,18 @@ export default function Fretboard() {
       </div>
 
       <div className={styles.arrowsDock}>
-        <FretboardArrows onNavigate={navigate} />
+        <div className={styles.arrowsDockWideItem}>
+          <FretboardArrows onNavigate={navigate} />
+        </div>
         <button
           type="button"
-          className={styles.arrowsDockButton}
+          className={`${styles.arrowsDockButton} ${styles.arrowsDockItem}`}
           onClick={clearSelectedNotes}
         >
           Clear Selected
         </button>
 
-        <label className={controlStyles.toggleLabel}>
+        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
           <input
             className={controlStyles.toggleCheckbox}
             type="checkbox"
@@ -1517,7 +1529,7 @@ export default function Fretboard() {
           <span className={controlStyles.toggleText}>Dimmed Notes</span>
         </label>
 
-        <label className={controlStyles.toggleLabel}>
+        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
           <input
             className={controlStyles.toggleCheckbox}
             type="checkbox"
@@ -1527,7 +1539,7 @@ export default function Fretboard() {
           <span className={controlStyles.toggleText}>Scale Degrees</span>
         </label>
 
-        <label className={controlStyles.toggleLabel}>
+        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
           <input
             className={controlStyles.toggleCheckbox}
             type="checkbox"

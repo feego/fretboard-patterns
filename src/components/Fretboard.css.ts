@@ -9,7 +9,9 @@ export const container = style({
   ["--fret-height" as any]: "3rem",
   ["--label-width" as any]: "2rem",
   ["--page-title-size" as any]: "2rem",
-  padding: spacing.lg,
+  paddingLeft: spacing.md,
+  paddingRight: spacing.md,
+  paddingBottom: spacing.lg,
   overflowX: "visible", // Allow overlays to extend beyond container
   overflowY: "visible",
   backgroundColor: colors.dark.bg,
@@ -23,6 +25,8 @@ export const container = style({
     // Mobile portrait/narrow screens
     "screen and (max-width: 600px)": {
       ["--page-title-size" as any]: "1.25rem",
+      paddingLeft: spacing.sm,
+      paddingRight: spacing.sm,
     },
     // Small-landscape baseline reduction (in addition to JS scaling)
     "screen and (orientation: landscape) and (max-height: 450px)": {
@@ -45,6 +49,12 @@ export const header = style({
   marginBottom: spacing.sm,
 
   "@media": {
+    "screen and (max-width: 600px)": {
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
     "screen and (max-width: 900px)": {
       gridTemplateColumns: "1fr",
       justifyItems: "center",
@@ -61,6 +71,13 @@ export const headerTuning = style({
   display: "flex",
   alignItems: "center",
   gap: spacing.sm,
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      width: "100%",
+      justifyContent: "center",
+    },
+  },
 });
 
 export const headerTuningLabel = style({
@@ -72,7 +89,8 @@ export const headerTuningLabel = style({
 
 export const headerTuningSelect = style({
   fontFamily: "var(--font-geist-mono)",
-  padding: `${spacing.sm} ${spacing.md}`,
+  height: "2.5rem",
+  padding: `0 ${spacing.md}`,
   backgroundColor: colors.dark.surface,
   color: colors.dark.text,
   border: `2px solid ${colors.dark.border}`,
@@ -92,17 +110,57 @@ export const headerTuningSelect = style({
     outline: "none",
     borderColor: colors.dark.accent,
   },
+
+  "@media": {
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      height: "2.25rem",
+      padding: `0 ${spacing.sm}`,
+      fontSize: "0.8rem",
+    },
+  },
 });
 
 export const arrowsDock = style({
   width: "min(90rem, 100%)",
   display: "flex",
   alignItems: "center",
-  gap: spacing.md,
+  gap: spacing.sm,
   justifyContent: "center",
   flexWrap: "wrap",
   marginTop: spacing.sm,
   marginBottom: 0,
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      alignItems: "stretch",
+      justifyContent: "stretch",
+      justifyItems: "stretch",
+      gap: spacing.xs,
+      marginBottom: spacing.lg,
+      paddingLeft: 0,
+      paddingRight: 0,
+    },
+  },
+});
+
+export const arrowsDockItem = style({
+  "@media": {
+    "screen and (max-width: 600px)": {
+      width: "100%",
+    },
+  },
+});
+
+export const arrowsDockWideItem = style({
+  "@media": {
+    "screen and (max-width: 600px)": {
+      gridColumn: "1 / -1",
+      width: "100%",
+      justifySelf: "stretch",
+    },
+  },
 });
 
 export const arrowsDockButton = style({
@@ -130,6 +188,9 @@ export const arrowsDockButton = style({
   },
 
   "@media": {
+    "screen and (max-width: 600px)": {
+      width: "100%",
+    },
     "screen and (orientation: landscape) and (max-height: 450px)": {
       height: "2.25rem",
       padding: `0 ${spacing.sm}`,
@@ -270,6 +331,29 @@ export const fretboardWrapper = style({
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
+
+  "@media": {
+    // When the fretboard is wider than the viewport (scroll mode), left-align
+    // so the beginning is reachable (centering would push the left edge off-screen).
+    "screen and (max-width: 1279px)": {
+      alignItems: "flex-start",
+    },
+  },
+});
+
+export const fretboardScrollContainer = style({
+  width: "fit-content",
+  maxWidth: "100%",
+  overflowX: "visible",
+  overflowY: "visible",
+
+  "@media": {
+    "screen and (max-width: 1279px)": {
+      width: "100%",
+      overflowX: "auto",
+      WebkitOverflowScrolling: "touch",
+    },
+  },
 });
 
 export const fretboardRow = style({

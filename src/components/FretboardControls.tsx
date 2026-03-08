@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import * as styles from "./FretboardControls.css";
 
 type ChordValidationResult = { valid: true } | { valid: false; error: string };
@@ -297,6 +303,7 @@ export default function FretboardControls({
   onActiveBeatChordChange,
 }: FretboardControlsProps) {
   const [isDesktopGrid, setIsDesktopGrid] = useState(false);
+  const [isMobileGrid, setIsMobileGrid] = useState(false);
 
   type BuiltInSongId = "blank" | "allTheThingsYouAre";
   type SongId = BuiltInSongId | string;
@@ -312,12 +319,15 @@ export default function FretboardControls({
   const SONGS_STORAGE_KEY = "gfv:songs:v1";
   const SELECTED_SONG_ID_STORAGE_KEY = "gfv:selectedSongId:v1";
 
-  const [selectedSongId, setSelectedSongId] = useState<SongId>("blank");
+  const [selectedSongId, setSelectedSongId] = useState<SongId>(
+    "allTheThingsYouAre",
+  );
   const [savedSongs, setSavedSongs] = useState<SavedSong[]>([]);
   const [isSavingSong, setIsSavingSong] = useState(false);
   const [songNameDraft, setSongNameDraft] = useState("");
   const songNameInputRef = useRef<HTMLInputElement | null>(null);
   const hasRestoredSelectedSongRef = useRef(false);
+  const hasRunPersistSelectedSongEffectRef = useRef(false);
 
   const selectedSavedSong = useMemo(() => {
     if (selectedSongId === "blank" || selectedSongId === "allTheThingsYouAre") {
@@ -334,12 +344,87 @@ export default function FretboardControls({
     return () => mq.removeEventListener?.("change", onChange);
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 600px)");
+    const onChange = () => setIsMobileGrid(mq.matches);
+    onChange();
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
+
   const [bars, setBars] = useState<string[][]>(() =>
     Array.from({ length: 12 }, () => ["", "", "", ""]),
   );
   const [beatKeys, setBeatKeys] = useState<string[][]>(() =>
     Array.from({ length: 12 }, () => ["", "", "", ""]),
   );
+
+  const chordBeatInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const keyBeatInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  const focusBeatInput = (
+    flatBeat: number,
+    kind: "chord" | "key",
+    caret: "start" | "end",
+  ) => {
+    const el =
+      kind === "chord"
+        ? chordBeatInputRefs.current[flatBeat]
+        : keyBeatInputRefs.current[flatBeat];
+    if (!el) return;
+
+    el.focus();
+
+    const len = el.value.length;
+    const pos = caret === "start" ? 0 : len;
+    try {
+      el.setSelectionRange(pos, pos);
+    } catch {
+      // Some input types / environments can throw; focusing is still useful.
+    }
+  };
+
+  const handleBeatArrowKeyDown = (
+    e: ReactKeyboardEvent<HTMLInputElement>,
+    flatBeat: number,
+    kind: "chord" | "key",
+  ) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+
+    // Preserve OS/browser shortcuts like Cmd/Opt/Shift+Arrow.
+    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+
+    const target = e.currentTarget;
+    const { selectionStart, selectionEnd } = target;
+    if (selectionStart == null || selectionEnd == null) return;
+    if (selectionStart !== selectionEnd) return;
+
+    const totalBeats = bars.length * 4;
+
+    if (e.key === "ArrowRight") {
+      if (selectionEnd !== target.value.length) return;
+      const nextBeat = flatBeat + 1;
+      if (nextBeat >= totalBeats) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      onSeekToBeat?.(nextBeat);
+      requestAnimationFrame(() => focusBeatInput(nextBeat, kind, "start"));
+      return;
+    }
+
+    // ArrowLeft
+    if (selectionStart !== 0) return;
+    const prevBeat = flatBeat - 1;
+    if (prevBeat < 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    onSeekToBeat?.(prevBeat);
+    requestAnimationFrame(() => focusBeatInput(prevBeat, kind, "end"));
+  };
 
   const resetToEmptyGrid = () => {
     setBars(Array.from({ length: 12 }, () => ["", "", "", ""]));
@@ -511,7 +596,9 @@ export default function FretboardControls({
         stored === "allTheThingsYouAre" ||
         songs.some((s) => s.id === stored));
 
-    const nextId: SongId = exists ? (stored as SongId) : "blank";
+    const nextId: SongId = exists
+      ? (stored as SongId)
+      : "allTheThingsYouAre";
     setSelectedSongId(nextId);
     applySongById(nextId, songs);
 
@@ -521,6 +608,15 @@ export default function FretboardControls({
   // Persist selected song whenever it changes (after initial restore attempt).
   useEffect(() => {
     if (!hasRestoredSelectedSongRef.current) return;
+
+    // On first mount, this effect would otherwise run with the initial
+    // selectedSongId ("blank") and overwrite the restored selection in storage
+    // before state commits. Skip the first run; subsequent changes persist.
+    if (!hasRunPersistSelectedSongEffectRef.current) {
+      hasRunPersistSelectedSongEffectRef.current = true;
+      return;
+    }
+
     persistSelectedSongId(selectedSongId);
   }, [selectedSongId]);
 
@@ -573,8 +669,9 @@ export default function FretboardControls({
 
     // Keep UI consistent: if we deleted the selected song, fall back to Blank.
     if (selectedSongId === songId) {
-      setSelectedSongId("blank");
-      resetToEmptyGrid();
+      setSelectedSongId("allTheThingsYouAre");
+      persistSelectedSongId("allTheThingsYouAre");
+      applySongById("allTheThingsYouAre", next);
     }
   };
 
@@ -593,6 +690,39 @@ export default function FretboardControls({
   const activeBarIndex =
     activeFlatBeat != null ? Math.floor(activeFlatBeat / 4) : null;
   const activeBeatIndex = activeFlatBeat != null ? activeFlatBeat % 4 : null;
+
+  useEffect(() => {
+    if (!onSeekToBeat) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.metaKey) return;
+      if (e.ctrlKey || e.altKey) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+
+      // Intentionally allow this shortcut even when a chord/key input is focused.
+      // (Default browser/input behavior for Cmd+Arrow is "jump to start/end".)
+
+      if (metronomeBeat == null) return;
+      const totalBars = bars.length;
+      if (totalBars <= 0) return;
+
+      const total = totalBars * 4;
+      const flat = ((metronomeBeat % total) + total) % total;
+      const barIndex = Math.floor(flat / 4);
+
+      const nextBarIndex =
+        e.key === "ArrowRight"
+          ? (barIndex + 1) % totalBars
+          : (barIndex - 1 + totalBars) % totalBars;
+
+      e.preventDefault();
+      e.stopPropagation();
+      onSeekToBeat(nextBarIndex * 4);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onSeekToBeat, metronomeBeat, bars.length]);
 
   useEffect(() => {
     if (!onActiveBeatKeyChange) return;
@@ -729,6 +859,166 @@ export default function FretboardControls({
   return (
     <div className={styles.container}>
       <div className={styles.chordsTopRightRow}>
+        <div
+          className={`${styles.songPicker} ${isSavingSong ? styles.songPickerSaving : ""}`}
+        >
+          {isSavingSong ? (
+            <>
+              <div className={styles.songPickerRow}>
+                <input
+                  id="song-name"
+                  ref={songNameInputRef}
+                  className={styles.songNameInput}
+                  type="text"
+                  value={songNameDraft}
+                  placeholder="Song name"
+                  onChange={(e) => setSongNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setIsSavingSong(false);
+                      setSongNameDraft("");
+                      return;
+                    }
+
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const name = songNameDraft.trim();
+                      if (!name) return;
+
+                      const createdAt = Date.now();
+                      const id =
+                        typeof crypto !== "undefined" &&
+                        "randomUUID" in crypto &&
+                        typeof (crypto as any).randomUUID === "function"
+                          ? (crypto as any).randomUUID()
+                          : String(createdAt);
+
+                      const nextSong: SavedSong = {
+                        id,
+                        name,
+                        bars,
+                        beatKeys,
+                        bpm,
+                        createdAt,
+                      };
+
+                      const next = [
+                        nextSong,
+                        ...savedSongs.filter((s) => s.name !== name),
+                      ];
+                      setSavedSongs(next);
+                      persistSavedSongs(next);
+                      setSelectedSongId(id);
+                      persistSelectedSongId(id);
+                      setIsSavingSong(false);
+                      setSongNameDraft("");
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className={styles.metronomeButton}
+                  onClick={() => {
+                    const name = songNameDraft.trim();
+                    if (!name) return;
+
+                    const createdAt = Date.now();
+                    const id =
+                      typeof crypto !== "undefined" &&
+                      "randomUUID" in crypto &&
+                      typeof (crypto as any).randomUUID === "function"
+                        ? (crypto as any).randomUUID()
+                        : String(createdAt);
+
+                    const nextSong: SavedSong = {
+                      id,
+                      name,
+                      bars,
+                      beatKeys,
+                      bpm,
+                      createdAt,
+                    };
+
+                    const next = [
+                      nextSong,
+                      ...savedSongs.filter((s) => s.name !== name),
+                    ];
+                    setSavedSongs(next);
+                    persistSavedSongs(next);
+                    setSelectedSongId(id);
+                    persistSelectedSongId(id);
+                    setIsSavingSong(false);
+                    setSongNameDraft("");
+                  }}
+                  aria-label="Confirm save song"
+                  title="Save"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className={styles.metronomeButton}
+                  onClick={() => {
+                    setIsSavingSong(false);
+                    setSongNameDraft("");
+                  }}
+                  aria-label="Cancel save song"
+                  title="Cancel"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className={styles.metronomeLabel} htmlFor="song-preset">
+                Song
+              </label>
+              <select
+                id="song-preset"
+                className={styles.songSelect}
+                value={selectedSongId}
+                onChange={(e) => {
+                  const next = e.target.value as SongId;
+                  setSelectedSongId(next);
+                  persistSelectedSongId(next);
+                  applySongById(next);
+                }}
+              >
+                <option value="blank">Blank</option>
+                <option value="allTheThingsYouAre">All the Things You Are</option>
+                {savedSongs.map((song) => (
+                  <option key={song.id} value={song.id}>
+                    {song.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={styles.metronomeButton}
+                onClick={() => setIsSavingSong(true)}
+                aria-label="Save song preset"
+                title="Save"
+              >
+                Save
+              </button>
+
+              {selectedSavedSong ? (
+                <button
+                  type="button"
+                  className={styles.metronomeButton}
+                  onClick={() => deleteSavedSongById(selectedSavedSong.id)}
+                  aria-label={`Delete song ${selectedSavedSong.name}`}
+                  title="Delete"
+                >
+                  Delete
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
+
         <div className={styles.metronomeControls}>
           <button
             type="button"
@@ -781,169 +1071,12 @@ export default function FretboardControls({
             }}
           />
         </div>
-
-        <div
-          className={`${styles.songPicker} ${isSavingSong ? styles.songPickerSaving : ""}`}
-        >
-          {isSavingSong ? (
-            <>
-              <div className={styles.songPickerRow}>
-                <input
-                  id="song-name"
-                  ref={songNameInputRef}
-                  className={styles.songNameInput}
-                  type="text"
-                  value={songNameDraft}
-                  placeholder="Song name"
-                  onChange={(e) => setSongNameDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      setIsSavingSong(false);
-                      setSongNameDraft("");
-                      return;
-                    }
-
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const name = songNameDraft.trim();
-                      if (!name) return;
-
-                      const createdAt = Date.now();
-                      const id =
-                        typeof crypto !== "undefined" &&
-                        "randomUUID" in crypto &&
-                        typeof (crypto as any).randomUUID === "function"
-                          ? (crypto as any).randomUUID()
-                          : String(createdAt);
-
-                      const nextSong: SavedSong = {
-                        id,
-                        name,
-                        bars,
-                        beatKeys,
-                        bpm,
-                        createdAt,
-                      };
-
-                      const next = [
-                        nextSong,
-                        ...savedSongs.filter((s) => s.name !== name),
-                      ];
-                      setSavedSongs(next);
-                      persistSavedSongs(next);
-                      setSelectedSongId(id);
-                      setIsSavingSong(false);
-                      setSongNameDraft("");
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className={styles.metronomeButton}
-                  onClick={() => {
-                    const name = songNameDraft.trim();
-                    if (!name) return;
-
-                    const createdAt = Date.now();
-                    const id =
-                      typeof crypto !== "undefined" &&
-                      "randomUUID" in crypto &&
-                      typeof (crypto as any).randomUUID === "function"
-                        ? (crypto as any).randomUUID()
-                        : String(createdAt);
-
-                    const nextSong: SavedSong = {
-                      id,
-                      name,
-                      bars,
-                      beatKeys,
-                      bpm,
-                      createdAt,
-                    };
-
-                    const next = [
-                      nextSong,
-                      ...savedSongs.filter((s) => s.name !== name),
-                    ];
-                    setSavedSongs(next);
-                    persistSavedSongs(next);
-                    setSelectedSongId(id);
-                    setIsSavingSong(false);
-                    setSongNameDraft("");
-                  }}
-                  aria-label="Confirm save song"
-                  title="Save"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className={styles.metronomeButton}
-                  onClick={() => {
-                    setIsSavingSong(false);
-                    setSongNameDraft("");
-                  }}
-                  aria-label="Cancel save song"
-                  title="Cancel"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <label className={styles.metronomeLabel} htmlFor="song-preset">
-                Song
-              </label>
-              <select
-                id="song-preset"
-                className={styles.songSelect}
-                value={selectedSongId}
-                onChange={(e) => {
-                  const next = e.target.value as SongId;
-                  setSelectedSongId(next);
-                  applySongById(next);
-                }}
-              >
-                <option value="blank">Blank</option>
-                <option value="allTheThingsYouAre">All the Things You Are</option>
-                {savedSongs.map((song) => (
-                  <option key={song.id} value={song.id}>
-                    {song.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className={styles.metronomeButton}
-                onClick={() => setIsSavingSong(true)}
-                aria-label="Save song preset"
-                title="Save"
-              >
-                Save
-              </button>
-
-              {selectedSavedSong ? (
-                <button
-                  type="button"
-                  className={styles.metronomeButton}
-                  onClick={() => deleteSavedSongById(selectedSavedSong.id)}
-                  aria-label={`Delete song ${selectedSavedSong.name}`}
-                  title="Delete"
-                >
-                  Delete
-                </button>
-              ) : null}
-            </>
-          )}
-        </div>
       </div>
 
       <div className={styles.section} data-chords-editor="true">
         <div className={styles.barsGrid}>
           {bars.map((barBeats, barIndex) => {
-            const columns = isDesktopGrid ? 4 : 1;
+            const columns = isDesktopGrid ? 4 : isMobileGrid ? 2 : 1;
             const firstRowLastIndex = Math.min(columns, bars.length) - 1;
             const totalRows = Math.ceil(bars.length / columns);
             const lastRowStartIndex = Math.max(0, (totalRows - 1) * columns);
@@ -962,9 +1095,22 @@ export default function FretboardControls({
               barIndex === bars.length - 1;
 
             const gridTemplateColumns = barBeats
-              .map(
-                (beatChord) => `minmax(4.25rem, ${getBeatWeight(beatChord)}fr)`,
-              )
+              .map((beatChord) => {
+                const trimmed = (beatChord ?? "").trim();
+                const isEmpty = trimmed.length === 0;
+
+                // Empty beats shouldn't reserve as much space; otherwise chords get clipped
+                // even when there is visually "room" in the bar.
+                const minRem = isMobileGrid
+                  ? isEmpty
+                    ? 2.25
+                    : 4.25
+                  : isEmpty
+                    ? 3.0
+                    : 4.25;
+
+                return `minmax(${minRem}rem, ${getBeatWeight(beatChord)}fr)`;
+              })
               .join(" ");
 
             const isLastBar = barIndex === bars.length - 1;
@@ -1043,6 +1189,7 @@ export default function FretboardControls({
                   style={{ gridTemplateColumns }}
                 >
                   {barBeats.map((beatChord, beatIndex) => {
+                    const flatBeat = barIndex * 4 + beatIndex;
                     const validation = validateChordSymbol(beatChord);
                     const isInvalid = !validation.valid;
                     const error = isInvalid ? validation.error : undefined;
@@ -1070,8 +1217,14 @@ export default function FretboardControls({
                               aria-label={`Bar ${barIndex + 1} Beat ${beatIndex + 1} Key`}
                               className={styles.beatKeyInputWithLabel}
                               type="text"
+                              ref={(el) => {
+                                keyBeatInputRefs.current[flatBeat] = el;
+                              }}
                               value={beatKeys[barIndex]?.[beatIndex] ?? ""}
                               placeholder={barIndex === 0 ? "C" : ""}
+                              onKeyDown={(e) =>
+                                handleBeatArrowKeyDown(e, flatBeat, "key")
+                              }
                               onChange={(e) => {
                                 const nextKey = e.target.value;
                                 setBeatKeys((prev) => {
@@ -1091,8 +1244,14 @@ export default function FretboardControls({
                             aria-label={`Bar ${barIndex + 1} Beat ${beatIndex + 1} Key`}
                             className={styles.beatKeyInput}
                             type="text"
+                            ref={(el) => {
+                              keyBeatInputRefs.current[flatBeat] = el;
+                            }}
                             value={beatKeys[barIndex]?.[beatIndex] ?? ""}
                             placeholder=""
+                            onKeyDown={(e) =>
+                              handleBeatArrowKeyDown(e, flatBeat, "key")
+                            }
                             onChange={(e) => {
                               const nextKey = e.target.value;
                               setBeatKeys((prev) => {
@@ -1113,12 +1272,18 @@ export default function FretboardControls({
                             isInvalid ? styles.beatChordInputInvalid : ""
                           }`}
                           type="text"
+                          ref={(el) => {
+                            chordBeatInputRefs.current[flatBeat] = el;
+                          }}
                           value={beatChord}
                           placeholder={
                             barIndex === 0 && beatIndex === 0 ? "Cmaj7" : ""
                           }
                           aria-invalid={isInvalid}
                           aria-describedby={errorId}
+                          onKeyDown={(e) =>
+                            handleBeatArrowKeyDown(e, flatBeat, "chord")
+                          }
                           onChange={(e) => {
                             const nextChord = e.target.value;
                             setBars((prev) => {
