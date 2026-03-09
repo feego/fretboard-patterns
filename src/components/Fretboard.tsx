@@ -562,14 +562,61 @@ export default function Fretboard() {
   const countInBeatIndexRef = useRef(0);
   const bpmRef = useRef(bpm);
   const metronomeVolumeRef = useRef(metronomeVolume);
+  const skipNextMetronomeVolumePersistRef = useRef(true);
+  const metronomeNoiseBufferRef = useRef<AudioBuffer | null>(null);
+
+  const METRONOME_VOLUME_STORAGE_KEY = "fretboard-metronome-volume";
 
   useEffect(() => {
     bpmRef.current = bpm;
   }, [bpm]);
 
+  // Restore metronome volume after mount (and only after hasMounted is true)
+  // so we don't risk hydration mismatches.
+  useEffect(() => {
+    if (!hasMounted) return;
+    try {
+      const raw = window.localStorage.getItem(METRONOME_VOLUME_STORAGE_KEY);
+      if (!raw) return;
+
+      let parsed = Number(raw);
+      if (!Number.isFinite(parsed)) {
+        try {
+          const json = JSON.parse(raw);
+          if (typeof json === "number") parsed = json;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!Number.isFinite(parsed)) return;
+      const clamped = Math.max(0, Math.min(1, parsed));
+      setMetronomeVolume(clamped);
+      // Ensure we don't immediately overwrite a restored value with defaults.
+      skipNextMetronomeVolumePersistRef.current = true;
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMounted]);
+
   useEffect(() => {
     metronomeVolumeRef.current = metronomeVolume;
   }, [metronomeVolume]);
+
+  // Persist metronome volume between sessions.
+  useEffect(() => {
+    if (!hasMounted) return;
+    if (skipNextMetronomeVolumePersistRef.current) {
+      skipNextMetronomeVolumePersistRef.current = false;
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        METRONOME_VOLUME_STORAGE_KEY,
+        String(Math.max(0, Math.min(1, metronomeVolume))),
+      );
+    } catch {}
+  }, [metronomeVolume, hasMounted]);
 
   const clearMetronomeTimers = useCallback(() => {
     if (intervalIdRef.current != null) {
@@ -622,24 +669,86 @@ export default function Fretboard() {
 
   const scheduleClick = useCallback(
     (ctx: AudioContext, time: number, isAccent: boolean) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
       const volume = Math.max(0, Math.min(1, metronomeVolumeRef.current ?? 1));
-      const peak = 0.35 * volume;
+      if (volume <= 0) return;
 
-      osc.type = "square";
-      osc.frequency.value = isAccent ? 1200 : 900;
+      const EPS = 0.0001;
+      const pitchShiftSemitones = 5;
+      const pitchFactor = Math.pow(2, pitchShiftSemitones / 12);
+      // Bigger downbeat accent and a more "wood + click" timbre.
+      const accentMultiplier = isAccent ? 1.85 : 1;
+      const peak = 0.36 * volume * accentMultiplier;
 
-      gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime(peak, time + 0.001);
-      gain.gain.linearRampToValueAtTime(0, time + 0.03);
+      // Create a short, percussive click closer to Logic's feel:
+      // - filtered noise burst for transient (woodblock-like snap)
+      // - tiny tonal body so it reads as "tick" / "tock" (accent/non-accent)
+      const out = ctx.createGain();
+      out.gain.setValueAtTime(EPS, time);
+      out.gain.linearRampToValueAtTime(Math.max(EPS, peak), time + 0.001);
+      out.gain.exponentialRampToValueAtTime(EPS, time + 0.04);
+      out.connect(ctx.destination);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      // Lazy-create a reusable noise buffer.
+      if (!metronomeNoiseBufferRef.current) {
+        const durationS = 0.05;
+        const length = Math.max(1, Math.floor(ctx.sampleRate * durationS));
+        const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+          // White noise with a gentle built-in decay so it doesn't sound like hiss.
+          const t = i / length;
+          const decay = Math.pow(1 - t, 3);
+          data[i] = (Math.random() * 2 - 1) * decay;
+        }
+        metronomeNoiseBufferRef.current = buffer;
+      }
 
-      osc.start(time);
-      osc.stop(time + 0.035);
+      const noise = ctx.createBufferSource();
+      noise.buffer = metronomeNoiseBufferRef.current;
+
+      // Transient "snap": narrow band a bit higher.
+      const snapBand = ctx.createBiquadFilter();
+      snapBand.type = "bandpass";
+      snapBand.frequency.value = (isAccent ? 2800 : 2300) * pitchFactor;
+      snapBand.Q.value = 8;
+      const snapGain = ctx.createGain();
+      snapGain.gain.setValueAtTime(isAccent ? 1.0 : 0.85, time);
+
+      // "Wood" body: lower resonant band.
+      const woodBand = ctx.createBiquadFilter();
+      woodBand.type = "bandpass";
+      woodBand.frequency.value = (isAccent ? 1000 : 820) * pitchFactor;
+      woodBand.Q.value = 10;
+      const woodGain = ctx.createGain();
+      woodGain.gain.setValueAtTime(isAccent ? 0.8 : 0.65, time);
+
+      noise.connect(snapBand);
+      snapBand.connect(snapGain);
+      snapGain.connect(out);
+
+      noise.connect(woodBand);
+      woodBand.connect(woodGain);
+      woodGain.connect(out);
+
+      // Add a short tonal body underneath the transient.
+      const tone = ctx.createOscillator();
+      const toneGain = ctx.createGain();
+      tone.type = "triangle";
+      tone.frequency.value = (isAccent ? 740 : 560) * pitchFactor;
+      toneGain.gain.setValueAtTime(EPS, time);
+      toneGain.gain.linearRampToValueAtTime(
+        Math.max(EPS, (isAccent ? 0.24 : 0.12) * peak),
+        time + 0.001,
+      );
+      toneGain.gain.exponentialRampToValueAtTime(EPS, time + 0.03);
+      tone.connect(toneGain);
+      toneGain.connect(out);
+
+      noise.start(time);
+      noise.stop(time + 0.04);
+
+      tone.start(time);
+      tone.stop(time + 0.045);
     },
     [],
   );

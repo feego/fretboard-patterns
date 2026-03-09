@@ -6,7 +6,17 @@ export const overlay = style({
   // pointerEvents: "none", // Allow pointer events for cell click
   zIndex: 1000,
   transform: "translate(-50%, -50%)",
-  transition: "opacity 0.2s ease",
+  // Animate repositioning so overlay shifts are easier to track.
+  // (Overlays are positioned via inline left/top in OverlayRow.)
+  transition: "opacity 120ms ease-out, left 120ms ease-out, top 120ms ease-out",
+  willChange: "left, top",
+
+  "@media": {
+    "(prefers-reduced-motion: reduce)": {
+      transition: "none",
+      willChange: "auto",
+    },
+  },
 });
 
 export const visible = style({
@@ -186,8 +196,16 @@ export const overlayBottom = style({
   pointerEvents: "none",
   zIndex: 999,
   transform: "translate(-50%, -50%)",
-  transition: "opacity 0.2s ease",
+  transition: "opacity 120ms ease-out, left 120ms ease-out, top 120ms ease-out",
+  willChange: "left, top",
   filter: "none",
+
+  "@media": {
+    "(prefers-reduced-motion: reduce)": {
+      transition: "none",
+      willChange: "auto",
+    },
+  },
 });
 
 // Theme variants to toggle backgrounds
