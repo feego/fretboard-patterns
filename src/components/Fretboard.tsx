@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import FirstOverlay from "./FirstOverlay";
 import * as styles from "./Fretboard.css";
 import FretboardArrows, { type ArrowKey } from "./FretboardArrows";
@@ -868,6 +875,47 @@ export default function Fretboard() {
   }, [clearMetronomeTimers]);
   const fretboardRef = useRef<HTMLDivElement>(null);
   const fretboardWrapperRef = useRef<HTMLDivElement>(null);
+  const [overlayTransitionAxis, setOverlayTransitionAxis] = useState<
+    "both" | "vertical"
+  >("both");
+  const [overlayLayerNudgeYPx, setOverlayLayerNudgeYPx] = useState(0);
+  const [overlayLayerTransitionMs, setOverlayLayerTransitionMs] = useState(0);
+  const overlayTransitionResetRef = useRef<number | null>(null);
+  const overlayLayerRafRef = useRef<number | null>(null);
+
+  const runVerticalOverlayStep = useCallback(
+    (nudgeYPx: number, apply: () => void) => {
+      if (overlayLayerRafRef.current != null) {
+        window.cancelAnimationFrame(overlayLayerRafRef.current);
+        overlayLayerRafRef.current = null;
+      }
+      if (overlayTransitionResetRef.current != null) {
+        window.clearTimeout(overlayTransitionResetRef.current);
+        overlayTransitionResetRef.current = null;
+      }
+
+      // In vertical mode, row-level left/top updates snap.
+      // The overlay wrapper itself performs the smooth vertical motion.
+      setOverlayTransitionAxis("vertical");
+      setOverlayLayerTransitionMs(0);
+      setOverlayLayerNudgeYPx(nudgeYPx);
+      apply();
+
+      overlayLayerRafRef.current = window.requestAnimationFrame(() => {
+        overlayLayerRafRef.current = null;
+        setOverlayLayerTransitionMs(140);
+        setOverlayLayerNudgeYPx(0);
+
+        overlayTransitionResetRef.current = window.setTimeout(() => {
+          setOverlayTransitionAxis("both");
+          setOverlayLayerTransitionMs(0);
+          setOverlayLayerNudgeYPx(0);
+          overlayTransitionResetRef.current = null;
+        }, 170);
+      });
+    },
+    [],
+  );
   const [selectedMarkerPositions, setSelectedMarkerPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
@@ -942,31 +990,119 @@ export default function Fretboard() {
       return computeGlobalDisplayKey(centerNotes).displayKey;
     };
 
-    const currentWrappedFret = currentFret.fret;
+    const currentDisplayKey = computeOverlayDisplayKeyForCenterFret(currentFret.fret);
+    if (currentDisplayKey === desiredDisplayKey) return;
 
-    // Find the nearest center fret (1..24) whose overlay-computed key matches.
-    let bestFret: number | null = null;
-    let bestDist = Number.POSITIVE_INFINITY;
+    // If the key change is a 4th/5th, prefer a single "diagonal" move
+    // (same behavior as ArrowUp/ArrowDown) so the overlays step up/down
+    // instead of doing a big horizontal jump.
+    const toPitchClass = (displayKey: string): number | null => {
+      const raw = displayKeyToRawTonic(displayKey);
+      const idx = NOTES.indexOf(raw);
+      return idx >= 0 ? idx : null;
+    };
+    const computeSignedSemitoneDelta = (fromPc: number, toPc: number): number => {
+      const up = (toPc - fromPc + 12) % 12; // 0..11
+      return up > 6 ? up - 12 : up; // -5..+6
+    };
+    const wrapFretFromContinuous = (nextContinuous: number): number => {
+      let wrapped = ((nextContinuous - 1) % 24) + 1;
+      if (wrapped <= 0) wrapped += 24;
+      return wrapped;
+    };
+
+    const currentPc = toPitchClass(currentDisplayKey);
+    const desiredPc = toPitchClass(desiredDisplayKey);
+    if (currentPc != null && desiredPc != null) {
+      const signedDelta = computeSignedSemitoneDelta(currentPc, desiredPc);
+
+      // 4th/5th => ±5 semitones in the smallest signed representation.
+      if (Math.abs(signedDelta) === 5) {
+        const nextContinuous = continuousFret + signedDelta;
+        const wrappedFret = wrapFretFromContinuous(nextContinuous);
+
+        // Match the desired overlay key at the new fret.
+        if (computeOverlayDisplayKeyForCenterFret(wrappedFret) === desiredDisplayKey) {
+          const stringDelta = signedDelta > 0 ? -1 : 1;
+          const nextString = Math.max(0, Math.min(5, currentFret.string + stringDelta));
+
+          // Visually this should read as a vertical step (up/down one cell).
+          // We'll keep the board aligned (basePosition updates) but animate the
+          // overlay layer into place.
+          const actualStringDelta = nextString - currentFret.string;
+          const nudgeY = -actualStringDelta * cellHeight;
+          runVerticalOverlayStep(nudgeY, () => {
+            setSwapBg((s) => !s);
+            setContinuousFret(nextContinuous);
+            setCurrentFret({ string: nextString, fret: wrappedFret });
+
+            // Keep base position aligned to the new string.
+            // Do this synchronously (in state space) to avoid a second "settle"
+            // from DOM re-measure that reads as a bounce.
+            if (actualStringDelta !== 0) {
+              setBasePosition((prev) => ({
+                ...prev,
+                y: prev.y + actualStringDelta * cellHeight,
+              }));
+            }
+          });
+
+          return;
+        }
+      }
+    }
+
+    // Pick the matching wrapped fret (1..24) that results in the *smallest*
+    // movement in continuous fret space. This avoids "teleport" jumps when
+    // multiple anchor frets can represent the same overlay display key.
+    let best: { wrappedFret: number; continuousTarget: number; dist: number } | null =
+      null;
+
     for (let candidateFret = 1; candidateFret <= 24; candidateFret++) {
       if (computeOverlayDisplayKeyForCenterFret(candidateFret) !== desiredDisplayKey)
         continue;
 
-      const rawDist = Math.abs(candidateFret - currentWrappedFret);
-      const wrapDist = 24 - rawDist;
-      const dist = Math.min(rawDist, wrapDist);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestFret = candidateFret;
+      const candidateContinuous = pickNearestContinuousFret(
+        continuousFret,
+        candidateFret,
+      );
+      const dist = Math.abs(candidateContinuous - continuousFret);
+
+      if (!best || dist < best.dist) {
+        best = {
+          wrappedFret: candidateFret,
+          continuousTarget: candidateContinuous,
+          dist,
+        };
       }
     }
 
-    if (bestFret == null) return;
-    if (bestFret === currentFret.fret) return;
+    if (!best) return;
+    if (best.wrappedFret === currentFret.fret) return;
 
-    const nextContinuous = pickNearestContinuousFret(continuousFret, bestFret);
-    setContinuousFret(nextContinuous);
-    setCurrentFret((prev) => ({ ...prev, fret: bestFret }));
-  }, [activeBeatKeyText, tuning, currentFret.fret, continuousFret]);
+    setContinuousFret(best.continuousTarget);
+    setCurrentFret((prev) => ({ ...prev, fret: best.wrappedFret }));
+  }, [
+    activeBeatKeyText,
+    tuning,
+    currentFret.fret,
+    currentFret.string,
+    continuousFret,
+    runVerticalOverlayStep,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (overlayTransitionResetRef.current != null) {
+        window.clearTimeout(overlayTransitionResetRef.current);
+        overlayTransitionResetRef.current = null;
+      }
+      if (overlayLayerRafRef.current != null) {
+        window.cancelAnimationFrame(overlayLayerRafRef.current);
+        overlayLayerRafRef.current = null;
+      }
+    };
+  }, []);
 
   // Keep the last valid chord tones until a new chord appears.
   // (Blank/NC/invalid beats should not clear selection.)
@@ -1134,46 +1270,52 @@ export default function Fretboard() {
     number | null
   >(null);
 
-  // Position chord-selection markers using measured geometry (avoids per-beat DOM queries).
-  useEffect(() => {
-    if (!hasMounted || !fretMetrics) {
-      setChordMarkerPositions({});
-      return;
-    }
+  // Position chord-selection markers by measuring actual cell DOM centers.
+  // This keeps markers fixed to the fretboard (they should NOT move with overlay anchoring).
+  useLayoutEffect(() => {
+    if (!hasMounted) return;
+    const fretboardEl = fretboardRef.current;
+    if (!fretboardEl) return;
 
-    // If basePosition isn't ready yet, skip.
-    if (!Number.isFinite(basePosition.y) || cellHeight <= 0) {
-      setChordMarkerPositions({});
-      return;
-    }
+    const raf = window.requestAnimationFrame(() => {
+      const next: Record<string, { x: number; y: number }> = {};
+      const fretboardRect = fretboardEl.getBoundingClientRect();
+      const scale = fretboardScale || 1;
 
-    const next: Record<string, { x: number; y: number }> = {};
-    for (const [cellId, isOn] of Object.entries(chordSelectedCells)) {
-      if (!isOn) continue;
-      const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
-      const stringIndex = Number(stringIndexRaw);
-      const fretNumber = Number(fretNumberRaw);
-      if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
+      for (const [cellId, isOn] of Object.entries(chordSelectedCells)) {
+        if (!isOn) continue;
+        const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
+        const stringIndex = Number(stringIndexRaw);
+        const fretNumber = Number(fretNumberRaw);
+        if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
 
-      const x = getFretCenterX(fretMetrics, fretNumber);
-      if (x == null) continue;
-      const y = basePosition.y + (stringIndex - 4) * cellHeight;
-      next[cellId] = { x, y };
-    }
+        const cellEl = fretboardEl.querySelector(
+          `[data-string="${stringIndex}"][data-fret-number="${fretNumber}"]`,
+        ) as HTMLElement | null;
+        if (!cellEl) continue;
 
-    setChordMarkerPositions(next);
-  }, [
-    hasMounted,
-    fretMetrics,
-    chordSelectedCells,
-    basePosition.y,
-    cellHeight,
-  ]);
+        const cellRect = cellEl.getBoundingClientRect();
+        next[cellId] = {
+          x: (cellRect.left - fretboardRect.left + cellRect.width / 2) / scale,
+          y: (cellRect.top - fretboardRect.top + cellRect.height / 2) / scale,
+        };
+      }
+
+      setChordMarkerPositions(next);
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [hasMounted, chordSelectedCells, fretboardScale]);
 
   const measureBaseFromDom = () => {
     if (!fretboardRef.current) return;
+
+    // Base X is anchored to fret 12 (used for continuous-fret positioning).
+    // Base Y should follow the currently-selected string so vertical moves
+    // don't require DOM re-measure per step.
+    const stringToMeasure = currentFret?.string ?? 4;
     const fretElement = fretboardRef.current.querySelector(
-      '[data-string="4"][data-fret-number="12"]',
+      `[data-string="${stringToMeasure}"][data-fret-number="12"]`,
     ) as HTMLElement | null;
     if (!fretElement) return;
 
@@ -1331,16 +1473,14 @@ export default function Fretboard() {
 
       switch (key) {
         case "ArrowUp":
-          // Move diagonally: up one string and forward 5 frets (keeps overlays moving).
+          // Move diagonally: up one string and forward 5 frets.
           nextContinuousFret = continuousFret + 5;
           desiredStringDelta = -1;
-          setSwapBg((s) => !s);
           break;
         case "ArrowDown":
-          // Move diagonally: down one string and back 5 frets (keeps overlays moving).
+          // Move diagonally: down one string and back 5 frets.
           nextContinuousFret = continuousFret - 5;
           desiredStringDelta = 1;
-          setSwapBg((s) => !s);
           break;
         case "ArrowLeft":
           nextContinuousFret = continuousFret - 1;
@@ -1362,62 +1502,44 @@ export default function Fretboard() {
       let wrappedFret = ((nextContinuousFret - 1) % 24) + 1;
       if (wrappedFret <= 0) wrappedFret += 24;
 
-      // Move toggled cells by the same navigation deltas.
-      // Up/Down move strings; Left/Right move frets.
-      if (actualStringDelta !== 0 || fretDelta !== 0) {
-        const moved: Record<string, boolean> = {};
-        const movedTones: Record<string, MarkerTone> = {};
-
-        for (const [cellId, isOn] of Object.entries(toggledCells)) {
-          if (!isOn) continue;
-          const [strIdx, fretNum] = cellId.split(":").map(Number);
-          const newStrIdx = strIdx + actualStringDelta;
-          let newFretNum = fretNum + fretDelta;
-          if (newFretNum < 1) newFretNum = 24;
-          if (newFretNum > 24) newFretNum = 1;
-          if (newStrIdx < 0 || newStrIdx > 5) continue;
-
-          const nextId = `${newStrIdx}:${newFretNum}`;
-          moved[nextId] = true;
-          movedTones[nextId] = selectedCellTones[cellId] ?? "primary";
+      const applyNav = () => {
+        if (key === "ArrowUp" || key === "ArrowDown") {
+          setSwapBg((s) => !s);
         }
 
-        setToggledCells(moved);
-        setSelectedCellTones(movedTones);
-      }
+        if (
+          nextString !== currentFret.string ||
+          nextContinuousFret !== continuousFret
+        ) {
+          setContinuousFret(nextContinuousFret);
+          setCurrentFret({ string: nextString, fret: wrappedFret });
 
-      if (
-        nextString !== currentFret.string ||
-        nextContinuousFret !== continuousFret
-      ) {
-        setContinuousFret(nextContinuousFret);
-        setCurrentFret({ string: nextString, fret: wrappedFret });
-
-        // Update base position for string changes only
-        if (actualStringDelta !== 0 && fretboardRef.current) {
-          const fretElement = fretboardRef.current.querySelector(
-            `[data-string="${nextString}"][data-fret-number="${wrappedFret}"]`,
-          ) as HTMLElement | null;
-          if (fretElement) {
-            const fretRect = fretElement.getBoundingClientRect();
-            const fretboardRect = fretboardRef.current.getBoundingClientRect();
-            setBasePosition({
-              x: basePosition.x, // Keep x the same
-              y:
-                (fretRect.top - fretboardRect.top + fretRect.height / 2) /
-                (fretboardScale || 1),
-            });
+          // Keep base position aligned to the new string.
+          if (actualStringDelta !== 0) {
+            setBasePosition((prev) => ({
+              ...prev,
+              y: prev.y + actualStringDelta * cellHeight,
+            }));
           }
         }
+      };
+
+      // For up/down steps, animate overlays vertically without animating sideways.
+      if ((key === "ArrowUp" || key === "ArrowDown") && actualStringDelta !== 0) {
+        const nudgeY = -actualStringDelta * cellHeight;
+        runVerticalOverlayStep(nudgeY, applyNav);
+        return;
       }
+
+      // Default behavior for left/right.
+      applyNav();
     },
     [
       currentFret,
       continuousFret,
-      basePosition.x,
       fretboardScale,
-      toggledCells,
-      selectedCellTones,
+      cellHeight,
+      runVerticalOverlayStep,
     ],
   );
 
@@ -1622,52 +1744,64 @@ export default function Fretboard() {
               ))}
             </div>
 
-            {/* Render multiple overlays in alternating pattern based on continuous fret position */}
-            {Array.from({ length: 21 }, (_, i) => {
-              const cycleOffset = Math.floor(i / 2) - 5;
-              const isFirst = i % 2 === 0;
-              const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
-              const bgVariant = isFirst
-                ? swapBg
-                  ? "B"
-                  : "A"
-                : swapBg
-                  ? "A"
-                  : "B";
-              const zIndex = isFirst ? 999 : 1001;
+            <div
+              className={styles.overlayLayer}
+              style={{
+                ["--overlay-layer-nudge-y" as any]: `${overlayLayerNudgeYPx}px`,
+                ["--overlay-layer-transition" as any]:
+                  overlayLayerTransitionMs > 0
+                    ? `transform ${overlayLayerTransitionMs}ms cubic-bezier(0.22, 1, 0.36, 1)`
+                    : "transform 0ms linear",
+              } as CSSProperties}
+            >
+              {/* Render multiple overlays in alternating pattern based on continuous fret position */}
+              {Array.from({ length: 21 }, (_, i) => {
+                const cycleOffset = Math.floor(i / 2) - 5;
+                const isFirst = i % 2 === 0;
+                const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
+                const bgVariant = isFirst
+                  ? swapBg
+                    ? "B"
+                    : "A"
+                  : swapBg
+                    ? "A"
+                    : "B";
+                const zIndex = isFirst ? 999 : 1001;
 
-              // OverlayRow already accounts for `overlayFretOffset` when computing
-              // its horizontal placement (including tapered frets via fretMetrics).
-              // If we also shift X here, copies get double-shifted and only the
-              // middle tile stays on-screen.
-              const shiftedX = currentPosition.x;
-              return (
-                <OverlayComponent
-                  key={`overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}
-                  isVisible={isOverlayVisible}
-                  mousePosition={{
-                    x: shiftedX,
-                    y: currentPosition.y,
-                  }}
-                  snappedPosition={{
-                    x: shiftedX,
-                    y: currentPosition.y,
-                  }}
-                  cellWidth={cellWidth}
-                  cellHeight={cellHeight}
-                  currentFret={currentFret}
-                  showDimmedNotes={showDimmedNotes}
-                  tuning={tuning}
-                  bgVariant={bgVariant}
-                  zIndex={zIndex}
-                  showDegrees={showDegrees}
-                  toggledCells={toggledCells}
-                  onCellToggle={handleCellToggle}
-                  fretMetrics={fretMetrics ?? undefined}
-                  overlayFretOffset={cycleOffset * 12}
-                />
-              );
-            })}
+                // OverlayRow already accounts for `overlayFretOffset` when computing
+                // its horizontal placement (including tapered frets via fretMetrics).
+                // If we also shift X here, copies get double-shifted and only the
+                // middle tile stays on-screen.
+                const shiftedX = currentPosition.x;
+                return (
+                  <OverlayComponent
+                    key={`overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}
+                    isVisible={isOverlayVisible}
+                    mousePosition={{
+                      x: shiftedX,
+                      y: currentPosition.y,
+                    }}
+                    snappedPosition={{
+                      x: shiftedX,
+                      y: currentPosition.y,
+                    }}
+                    cellWidth={cellWidth}
+                    cellHeight={cellHeight}
+                    currentFret={currentFret}
+                    showDimmedNotes={showDimmedNotes}
+                    tuning={tuning}
+                    bgVariant={bgVariant}
+                    zIndex={zIndex}
+                    showDegrees={showDegrees}
+                    toggledCells={toggledCells}
+                    onCellToggle={handleCellToggle}
+                    fretMetrics={fretMetrics ?? undefined}
+                    overlayFretOffset={cycleOffset * 12}
+                    transitionAxis={overlayTransitionAxis}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
         </div>

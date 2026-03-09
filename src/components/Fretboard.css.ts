@@ -289,6 +289,15 @@ export const selectionLayer = style({
   zIndex: 2000,
 });
 
+export const overlayLayer = style({
+  position: "absolute",
+  inset: 0,
+  transform: "translateY(var(--overlay-layer-nudge-y, 0px))",
+  transition: "var(--overlay-layer-transition, transform 0ms linear)",
+  willChange: "transform",
+  zIndex: 900,
+});
+
 export const selectionMarker = style({
   position: "absolute",
   left: 0,

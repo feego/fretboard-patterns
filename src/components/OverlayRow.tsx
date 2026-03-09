@@ -1,5 +1,7 @@
 
 
+import type { CSSProperties } from "react";
+
 const flatMap: Record<string, string> = {
   "C#": "Db",
   "D#": "Eb",
@@ -58,6 +60,8 @@ interface OverlayRowProps {
     widthByFret: Record<number, number>;
     octaveWidth: number;
   };
+  transitionAxis?: "both" | "vertical";
+  transitionNudgeYPx?: number;
 }
 
 const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -136,6 +140,8 @@ export default function OverlayRow({
   onCellToggle,
   overlayFretOffset = 0,
   fretMetrics,
+  transitionAxis = "both",
+  transitionNudgeYPx = 0,
 }: OverlayRowProps) {
   if (!currentFret) return null;
 
@@ -341,6 +347,14 @@ export default function OverlayRow({
         top: position.y + verticalOffset,
         ...(typeof zIndex === "number" ? { zIndex } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
+        ...(transitionAxis === "vertical"
+          ? ({
+              ["--overlay-transition" as any]:
+                "opacity 120ms ease-out, left 0ms linear, top 0ms linear",
+            } as CSSProperties)
+          : ({
+              ["--overlay-nudge-y" as any]: `${transitionNudgeYPx}px`,
+            } as CSSProperties)),
       }}
     >
       <div
