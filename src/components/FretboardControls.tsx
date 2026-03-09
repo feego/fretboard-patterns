@@ -316,7 +316,11 @@ export default function FretboardControls({
   const [isDesktopGrid, setIsDesktopGrid] = useState(false);
   const [isMobileGrid, setIsMobileGrid] = useState(false);
 
-  type BuiltInSongId = "blank" | "allTheThingsYouAre" | "myFunnyValentine";
+  type BuiltInSongId =
+    | "blank"
+    | "allTheThingsYouAre"
+    | "myFunnyValentine"
+    | "stellaByStarlight";
   type SongId = BuiltInSongId | string;
   type SavedSong = {
     id: string;
@@ -344,7 +348,8 @@ export default function FretboardControls({
     if (
       selectedSongId === "blank" ||
       selectedSongId === "allTheThingsYouAre" ||
-      selectedSongId === "myFunnyValentine"
+      selectedSongId === "myFunnyValentine" ||
+      selectedSongId === "stellaByStarlight"
     ) {
       return null;
     }
@@ -687,6 +692,86 @@ export default function FretboardControls({
     [],
   );
 
+  const stellaByStarlightSpec = useMemo(
+    () =>
+      [
+        // Stella by Starlight (from provided chart)
+        "Em7b5",
+        "A7b9",
+        "Cm7",
+        "F7",
+        "Fm7",
+        "Bb7",
+        "Ebmaj7",
+        "Ab7",
+        "Bbmaj7",
+        "Em7b5 A7b9",
+        "Dm7",
+        "G7b9",
+        "Fmaj7",
+        "Em7b5 A7",
+        "Am7b5",
+        "D7b9",
+        "G+7",
+        "%",
+        "Cm7",
+        "%",
+        "Ab7",
+        "%",
+        "Bbmaj7",
+        "%",
+        "Em7b5",
+        "A7b9",
+        "Dm7b5",
+        "G7b9",
+        "Cm7b5",
+        "F7b9",
+        "Bbmaj7",
+        "%",
+      ] as const,
+    [],
+  );
+
+  const stellaByStarlightKeysSpec = useMemo(
+    () =>
+      [
+        // Keep sparse; chart is mostly functional harmony.
+        "Bb",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Eb",
+        "",
+        "Bb",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Bb",
+        "",
+      ] as const,
+    [],
+  );
+
   const loadSavedSongs = () => {
     try {
       const raw = window.localStorage.getItem(SONGS_STORAGE_KEY);
@@ -764,6 +849,7 @@ export default function FretboardControls({
       (stored === "blank" ||
         stored === "allTheThingsYouAre" ||
         stored === "myFunnyValentine" ||
+        stored === "stellaByStarlight" ||
         songs.some((s) => s.id === stored));
 
     const nextId: SongId = exists
@@ -816,6 +902,17 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(70);
+      return;
+    }
+
+    if (songId === "stellaByStarlight") {
+      const nextBars: string[][] = stellaByStarlightSpec.map(barTextToBeats);
+      setBars(nextBars);
+      const nextKeys: string[][] = nextBars.map((_, barIndex) => {
+        const key = stellaByStarlightKeysSpec[barIndex] ?? "";
+        return [key, "", "", ""];
+      });
+      setBeatKeys(nextKeys);
       return;
     }
 
@@ -1181,6 +1278,7 @@ export default function FretboardControls({
                 <option value="blank">Blank</option>
                 <option value="allTheThingsYouAre">All the Things You Are</option>
                 <option value="myFunnyValentine">My Funny Valentine</option>
+                <option value="stellaByStarlight">Stella by Starlight</option>
                 {savedSongs.map((song) => (
                   <option key={song.id} value={song.id}>
                     {song.name}
