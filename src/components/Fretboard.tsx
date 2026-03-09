@@ -275,7 +275,7 @@ function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
   // Base extensions.
   let seventh: number | null = null;
   const isDim = /dim|°/.test(lower);
-  const hasMaj7 = /maj7|ma7|Δ7|\^7/i.test(suffix);
+  const hasMaj7 = /maj7|ma7|Δ7|Δ|\^7/i.test(suffix);
   const has7 = /7/.test(lower);
   const has6 = /(?:^|[^0-9])6(?:$|[^0-9])/.test(lower) || /69/.test(lower);
   if (hasMaj7) seventh = 11;
@@ -541,10 +541,12 @@ export default function Fretboard() {
   const [showDimmedNotes, setShowDimmedNotes] = useState(false);
   const [swapBg, setSwapBg] = useState(false);
   const [showDegrees, setShowDegrees] = useState(false);
+  const [followChords, setFollowChords] = useState(true);
   const [showCagedNotes, setShowCagedNotes] = useState(false);
 
   // Metronome (header, top-right)
   const [bpm, setBpm] = useState(120);
+  const [metronomeVolume, setMetronomeVolume] = useState(1);
   const [metronomeState, setMetronomeState] = useState<
     "stopped" | "running" | "paused"
   >("stopped");
@@ -556,11 +558,18 @@ export default function Fretboard() {
   const uiTimeoutIdsRef = useRef<number[]>([]);
   const nextClickTimeRef = useRef(0);
   const beatIndexRef = useRef(0);
+  const countInBeatsRemainingRef = useRef(0);
+  const countInBeatIndexRef = useRef(0);
   const bpmRef = useRef(bpm);
+  const metronomeVolumeRef = useRef(metronomeVolume);
 
   useEffect(() => {
     bpmRef.current = bpm;
   }, [bpm]);
+
+  useEffect(() => {
+    metronomeVolumeRef.current = metronomeVolume;
+  }, [metronomeVolume]);
 
   const clearMetronomeTimers = useCallback(() => {
     if (intervalIdRef.current != null) {
@@ -582,6 +591,8 @@ export default function Fretboard() {
     setMetronomeState("stopped");
     beatIndexRef.current = 0;
     nextClickTimeRef.current = 0;
+    countInBeatsRemainingRef.current = 0;
+    countInBeatIndexRef.current = 0;
 
     const ctx = audioContextRef.current;
     if (ctx && ctx.state === "running") {
@@ -596,7 +607,12 @@ export default function Fretboard() {
     clearMetronomeTimers();
     setMetronomeState("paused");
     // Resume from the next beat after the last one we showed.
-    beatIndexRef.current = (metronomeBeat ?? 0) + 1;
+    // During count-in, the playhead is intentionally fixed, so don't advance it.
+    if (countInBeatsRemainingRef.current > 0) {
+      beatIndexRef.current = metronomeBeat ?? beatIndexRef.current;
+    } else {
+      beatIndexRef.current = (metronomeBeat ?? 0) + 1;
+    }
 
     const ctx = audioContextRef.current;
     if (ctx && ctx.state === "running") {
@@ -609,12 +625,15 @@ export default function Fretboard() {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
+      const volume = Math.max(0, Math.min(1, metronomeVolumeRef.current ?? 1));
+      const peak = 0.35 * volume;
+
       osc.type = "square";
       osc.frequency.value = isAccent ? 1200 : 900;
 
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime(0.35, time + 0.001);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(peak, time + 0.001);
+      gain.gain.linearRampToValueAtTime(0, time + 0.03);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -668,19 +687,31 @@ export default function Fretboard() {
       const bpmNow = Math.max(30, Math.min(300, bpmRef.current || 120));
       const secondsPerBeat = 60 / bpmNow;
       while (nextClickTimeRef.current < ctx.currentTime + SCHEDULE_AHEAD_S) {
-        const beatNumber = beatIndexRef.current;
-        const isAccent = beatNumber % 4 === 0;
+        const isCountIn = countInBeatsRemainingRef.current > 0;
+        const playheadBeatNumber = beatIndexRef.current;
+        const clickBeatNumber = isCountIn ? countInBeatIndexRef.current : playheadBeatNumber;
+
+        const isAccent = clickBeatNumber % 4 === 0;
         scheduleClick(ctx, nextClickTimeRef.current, isAccent);
 
         // Keep the visual playhead in sync with the scheduled click.
         const fireAt = nextClickTimeRef.current;
         const delayMs = Math.max(0, (fireAt - ctx.currentTime) * 1000);
         const timeoutId = window.setTimeout(() => {
-          setMetronomeBeat(beatNumber);
+          // During count-in, keep the playhead fixed at the armed start beat.
+          // (We still schedule clicks, but we don't advance the chord grid yet.)
+          setMetronomeBeat(playheadBeatNumber);
         }, delayMs);
         uiTimeoutIdsRef.current.push(timeoutId);
 
         nextClickTimeRef.current += secondsPerBeat;
+
+        if (isCountIn) {
+          countInBeatsRemainingRef.current -= 1;
+          countInBeatIndexRef.current += 1;
+          continue;
+        }
+
         beatIndexRef.current += 1;
       }
     };
@@ -708,8 +739,18 @@ export default function Fretboard() {
       pauseMetronome();
       return;
     }
+
+    // Count-in only when starting from stopped (not on resume).
+    if (metronomeState === "stopped") {
+      const armed = metronomeBeat ?? 0;
+      beatIndexRef.current = armed;
+      setMetronomeBeat(armed);
+      countInBeatsRemainingRef.current = 4;
+      countInBeatIndexRef.current = 0;
+    }
+
     startOrResumeMetronome();
-  }, [metronomeState, pauseMetronome, startOrResumeMetronome]);
+  }, [metronomeState, metronomeBeat, pauseMetronome, startOrResumeMetronome]);
 
   useEffect(() => {
     return () => {
@@ -821,14 +862,30 @@ export default function Fretboard() {
   // Keep the last valid chord tones until a new chord appears.
   // (Blank/NC/invalid beats should not clear selection.)
   useEffect(() => {
+    if (!followChords) return;
     const parsed = parseChordToPitchClasses(activeBeatChordText);
     if (!parsed) return;
     setActiveChordTones(parsed);
-  }, [activeBeatChordText]);
+  }, [activeBeatChordText, followChords]);
+
+  useEffect(() => {
+    if (followChords) return;
+    setActiveChordTones(null);
+    setChordSelectedCells({});
+    setChordSelectedCellTones({});
+    setChordSelectedCellIsRoot({});
+    setChordMarkerPositions({});
+  }, [followChords]);
 
   // Auto-select chord tones (separate from manual selections).
   // Recomputes when tuning changes, using the last valid chord tones.
   useEffect(() => {
+    if (!followChords) {
+      setChordSelectedCells({});
+      setChordSelectedCellTones({});
+      setChordSelectedCellIsRoot({});
+      return;
+    }
     if (!activeChordTones) return;
 
     const nextCells: Record<string, boolean> = {};
@@ -858,7 +915,7 @@ export default function Fretboard() {
     setChordSelectedCells(nextCells);
     setChordSelectedCellTones(nextTones);
     setChordSelectedCellIsRoot(nextIsRoot);
-  }, [activeChordTones, tuning]);
+  }, [followChords, activeChordTones, tuning]);
 
   const clearSelectedNotes = useCallback(() => {
     setToggledCells({});
@@ -1325,7 +1382,7 @@ export default function Fretboard() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>Guitar Fretboard Visualizer</h1>
+        <h1 className={styles.pageTitle}>Fretboard Visualizer</h1>
 
         <div className={styles.headerTuning}>
           <label className={styles.headerTuningLabel} htmlFor="tuning-select">
@@ -1543,6 +1600,16 @@ export default function Fretboard() {
           <input
             className={controlStyles.toggleCheckbox}
             type="checkbox"
+            checked={followChords}
+            onChange={() => setFollowChords((v) => !v)}
+          />
+          <span className={controlStyles.toggleText}>Follow Chords</span>
+        </label>
+
+        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
+          <input
+            className={controlStyles.toggleCheckbox}
+            type="checkbox"
             checked={showCagedNotes}
             onChange={() => setShowCagedNotes((v) => !v)}
           />
@@ -1554,11 +1621,16 @@ export default function Fretboard() {
         metronomeState={metronomeState}
         metronomeBeat={metronomeBeat}
         bpm={bpm}
+        metronomeVolume={metronomeVolume}
         onPlayPauseMetronome={playPauseMetronome}
         onStopMetronome={stopMetronome}
         onBpmChange={(next) => {
           if (!Number.isFinite(next)) return;
           setBpm(Math.max(30, Math.min(300, next)));
+        }}
+        onMetronomeVolumeChange={(next) => {
+          if (!Number.isFinite(next)) return;
+          setMetronomeVolume(Math.max(0, Math.min(1, next)));
         }}
         onSeekToBeat={seekMetronomeToBeat}
         onActiveBeatKeyChange={setActiveBeatKeyText}

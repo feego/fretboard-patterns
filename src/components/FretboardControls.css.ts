@@ -247,6 +247,116 @@ export const input = style({
   },
 });
 
+export const metronomeVolumeWrapper = style({
+  display: "flex",
+  alignItems: "center",
+});
+
+export const metronomeBpmVolumeArea = style({
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+  height: "2.5rem",
+});
+
+export const metronomeVolumeExpanded = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+  height: "2.5rem",
+  padding: `0 ${spacing.sm}`,
+  backgroundColor: colors.dark.surface,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: "999px",
+});
+
+export const metronomeVolumeOverlay = style({
+  position: "absolute",
+  top: 0,
+  right: 0,
+  zIndex: 80,
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+  height: "2.5rem",
+  padding: `0 calc(2.5rem + ${spacing.sm}) 0 ${spacing.sm}`,
+  backgroundColor: colors.dark.surface,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: "999px",
+  boxSizing: "border-box",
+  minWidth: "100%",
+  width: "max-content",
+  maxWidth: "min(18rem, calc(100vw - 1rem))",
+});
+
+export const metronomeVolumeButton = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "2.5rem",
+  width: "2.5rem",
+  padding: 0,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  borderRadius: "999px",
+  position: "relative",
+  zIndex: 90,
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  ":hover": {
+    borderColor: colors.dark.accent,
+  },
+  ":active": {
+    backgroundColor: colors.dark.accentHover,
+  },
+});
+
+export const metronomeVolumeSlider = style({
+  flex: 1,
+  minWidth: "6rem",
+  width: "8.5rem",
+  accentColor: colors.dark.accent,
+  cursor: "pointer",
+  margin: 0,
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      minWidth: "5.25rem",
+      width: "7.25rem",
+    },
+  },
+});
+
+export const metronomeVolumeIcon = style({
+  position: "relative",
+  width: "1.25rem",
+  height: "1.25rem",
+  display: "inline-block",
+  selectors: {
+    "&::before": {
+      content: "\"\"",
+      position: "absolute",
+      left: "0.08rem",
+      top: "0.18rem",
+      width: "0.72rem",
+      height: "0.9rem",
+      backgroundColor: colors.dark.text,
+      clipPath: "polygon(0 35%, 35% 35%, 60% 12%, 60% 88%, 35% 65%, 0 65%)",
+    },
+    "&::after": {
+      content: "\"\"",
+      position: "absolute",
+      left: "0.68rem",
+      top: "0.18rem",
+      width: "0.55rem",
+      height: "0.9rem",
+      backgroundImage: `radial-gradient(circle at 0 50%, transparent 36%, ${colors.dark.text} 38% 42%, transparent 44%), radial-gradient(circle at 0 50%, transparent 56%, ${colors.dark.text} 58% 62%, transparent 64%)`,
+    },
+  },
+});
+
 export const section = style({
   width: "100%",
   maxWidth: "90rem",

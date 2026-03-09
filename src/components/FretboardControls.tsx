@@ -32,7 +32,7 @@ function validateChordSymbol(raw: string): ChordValidationResult {
 
   // Only allow a limited, musician-friendly character set.
   // (Still parsed below; this is just an early reject for typos.)
-  if (!/^[A-Za-z0-9#b()\-+°øΔ.,\/]+$/.test(chord)) {
+  if (!/^[A-Za-z0-9#b()\-+°øØΔ.,\/]+$/.test(chord)) {
     return { valid: false, error: "Invalid characters" };
   }
 
@@ -191,6 +191,13 @@ function validateChordSymbol(raw: string): ChordValidationResult {
   tryQuality();
 
   while (i < s.length) {
+    // Single-char quality tokens can appear after other modifiers (e.g. "mΔ").
+    // Accept them here so inputs like "CmΔ" validate.
+    if (s[i] === "Δ" || s[i] === "°" || s[i] === "ø" || s[i] === "Ø") {
+      i += 1;
+      continue;
+    }
+
     // Parenthetical tensions like (b9,#11)
     const paren = parseParenGroupAt(s, i);
     if (paren) {
@@ -283,9 +290,11 @@ interface FretboardControlsProps {
   metronomeState: "stopped" | "running" | "paused";
   metronomeBeat: number | null;
   bpm: number;
+  metronomeVolume?: number;
   onPlayPauseMetronome: () => void;
   onStopMetronome: () => void;
   onBpmChange: (bpm: number) => void;
+  onMetronomeVolumeChange?: (volume: number) => void;
   onSeekToBeat?: (beatIndex: number) => void;
   onActiveBeatKeyChange?: (keyText: string) => void;
   onActiveBeatChordChange?: (chordText: string) => void;
@@ -295,9 +304,11 @@ export default function FretboardControls({
   metronomeState,
   metronomeBeat,
   bpm,
+  metronomeVolume = 1,
   onPlayPauseMetronome,
   onStopMetronome,
   onBpmChange,
+  onMetronomeVolumeChange,
   onSeekToBeat,
   onActiveBeatKeyChange,
   onActiveBeatChordChange,
@@ -305,7 +316,7 @@ export default function FretboardControls({
   const [isDesktopGrid, setIsDesktopGrid] = useState(false);
   const [isMobileGrid, setIsMobileGrid] = useState(false);
 
-  type BuiltInSongId = "blank" | "allTheThingsYouAre";
+  type BuiltInSongId = "blank" | "allTheThingsYouAre" | "myFunnyValentine";
   type SongId = BuiltInSongId | string;
   type SavedSong = {
     id: string;
@@ -330,7 +341,11 @@ export default function FretboardControls({
   const hasRunPersistSelectedSongEffectRef = useRef(false);
 
   const selectedSavedSong = useMemo(() => {
-    if (selectedSongId === "blank" || selectedSongId === "allTheThingsYouAre") {
+    if (
+      selectedSongId === "blank" ||
+      selectedSongId === "allTheThingsYouAre" ||
+      selectedSongId === "myFunnyValentine"
+    ) {
       return null;
     }
     return savedSongs.find((s) => s.id === selectedSongId) ?? null;
@@ -361,6 +376,60 @@ export default function FretboardControls({
 
   const chordBeatInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const keyBeatInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  const [bpmDraft, setBpmDraft] = useState(() => String(bpm));
+  const [isBpmFocused, setIsBpmFocused] = useState(false);
+  const [isVolumeExpanded, setIsVolumeExpanded] = useState(false);
+  const bpmVolumeAreaRef = useRef<HTMLDivElement | null>(null);
+  const volumeAutoCloseTimeoutRef = useRef<number | null>(null);
+  const isDraggingVolumeRef = useRef(false);
+
+  useEffect(() => {
+    if (isBpmFocused) return;
+    setBpmDraft(String(bpm));
+  }, [bpm, isBpmFocused]);
+
+  const clearVolumeAutoClose = () => {
+    if (volumeAutoCloseTimeoutRef.current != null) {
+      window.clearTimeout(volumeAutoCloseTimeoutRef.current);
+      volumeAutoCloseTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleVolumeAutoClose = () => {
+    if (!isVolumeExpanded) return;
+    if (isDraggingVolumeRef.current) return;
+    clearVolumeAutoClose();
+    volumeAutoCloseTimeoutRef.current = window.setTimeout(() => {
+      setIsVolumeExpanded(false);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    if (!isVolumeExpanded) {
+      clearVolumeAutoClose();
+      return;
+    }
+
+    const onDocPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      const root = bpmVolumeAreaRef.current;
+      if (!target || !root) return;
+      if (root.contains(target)) return;
+      setIsVolumeExpanded(false);
+    };
+
+    const onWindowPointerUp = () => {
+      isDraggingVolumeRef.current = false;
+    };
+
+    document.addEventListener("pointerdown", onDocPointerDown);
+    window.addEventListener("pointerup", onWindowPointerUp);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointerDown);
+      window.removeEventListener("pointerup", onWindowPointerUp);
+    };
+  }, [isVolumeExpanded]);
 
   const focusBeatInput = (
     flatBeat: number,
@@ -429,6 +498,17 @@ export default function FretboardControls({
   const resetToEmptyGrid = () => {
     setBars(Array.from({ length: 12 }, () => ["", "", "", ""]));
     setBeatKeys(Array.from({ length: 12 }, () => ["", "", "", ""]));
+  };
+
+  const barTextToBeats = (barText: string): [string, string, string, string] => {
+    const trimmed = barText.trim();
+    if (!trimmed) return ["", "", "", ""];
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+
+    if (parts.length <= 1) return [parts[0] ?? "", "", "", ""];
+    if (parts.length === 2) return [parts[0] ?? "", "", parts[1] ?? "", ""];
+    if (parts.length === 3) return [parts[0] ?? "", "", parts[1] ?? "", parts[2] ?? ""];
+    return [parts[0] ?? "", parts[1] ?? "", parts[2] ?? "", parts[3] ?? ""];
   };
 
   const allTheThingsSpec = useMemo(
@@ -518,6 +598,95 @@ export default function FretboardControls({
     [],
   );
 
+  const myFunnyValentineSpec = useMemo(
+    () =>
+      [
+        // My Funny Valentine (from screenshot)
+        "Cm",
+        "CmΔ",
+        "Cm7",
+        "Cm6",
+        "AbΔ",
+        "Fm7",
+        "Dm7b5",
+        "G7",
+        "Cm",
+        "CmΔ",
+        "Cm7",
+        "Cm6",
+        "AbΔ",
+        "Fm7",
+        "Fm7b5",
+        "Bb7",
+        "EbΔ Fm7",
+        "Gm7 Fm7",
+        "EbΔ Fm7",
+        "Gm7 Fm7",
+        "EbΔ G7",
+        "Cm7",
+        "AbΔ",
+        "Dm7b5 G7",
+        "Cm",
+        "CmΔ",
+        "Cm7",
+        "Cm6",
+        "AbΔ",
+        "Dm7b5 G7",
+        "Cm7",
+        "Bbm7 Eb7",
+        "AbΔ",
+        "Fm7 Bb7",
+        "Eb",
+        "Dm7b5 G7",
+      ] as const,
+    [],
+  );
+
+  const myFunnyValentineKeysSpec = useMemo(
+    () =>
+      [
+        // Bar-level key centers (rendered on beat 1). Empty string = none.
+        // Updated to match the screenshot.
+        "Eb",
+        "",
+        "",
+        "Bb",
+        "Eb",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Bb",
+        "Eb",
+        "",
+        "Gb",
+        "",
+        "Eb",
+        "",
+        "",
+        "",
+        "Eb",
+        "",
+        "",
+        "Bb",
+        "Eb",
+        "",
+        "",
+        "Bb",
+        "Eb",
+        "",
+        "",
+        "Ab",
+        "",
+        "Eb",
+        "Eb",
+        "",
+      ] as const,
+    [],
+  );
+
   const loadSavedSongs = () => {
     try {
       const raw = window.localStorage.getItem(SONGS_STORAGE_KEY);
@@ -594,6 +763,7 @@ export default function FretboardControls({
       stored != null &&
       (stored === "blank" ||
         stored === "allTheThingsYouAre" ||
+        stored === "myFunnyValentine" ||
         songs.some((s) => s.id === stored));
 
     const nextId: SongId = exists
@@ -627,20 +797,25 @@ export default function FretboardControls({
     }
 
     if (songId === "allTheThingsYouAre") {
-      const nextBars: string[][] = allTheThingsSpec.map((barText) => {
-        const trimmed = barText.trim();
-        if (!trimmed) return ["", "", "", ""];
-
-        const parts = trimmed.split(/\s+/).filter(Boolean);
-        if (parts.length <= 1) return [parts[0] ?? "", "", "", ""];
-        return [parts[0] ?? "", "", parts[1] ?? "", ""];
-      });
+      const nextBars: string[][] = allTheThingsSpec.map(barTextToBeats);
       setBars(nextBars);
       const nextKeys: string[][] = nextBars.map((_, barIndex) => {
         const key = allTheThingsKeysSpec[barIndex] ?? "";
         return [key, "", "", ""];
       });
       setBeatKeys(nextKeys);
+      return;
+    }
+
+    if (songId === "myFunnyValentine") {
+      const nextBars: string[][] = myFunnyValentineSpec.map(barTextToBeats);
+      setBars(nextBars);
+      const nextKeys: string[][] = nextBars.map((_, barIndex) => {
+        const key = myFunnyValentineKeysSpec[barIndex] ?? "";
+        return [key, "", "", ""];
+      });
+      setBeatKeys(nextKeys);
+      onBpmChange(70);
       return;
     }
 
@@ -1005,6 +1180,7 @@ export default function FretboardControls({
               >
                 <option value="blank">Blank</option>
                 <option value="allTheThingsYouAre">All the Things You Are</option>
+                <option value="myFunnyValentine">My Funny Valentine</option>
                 {savedSongs.map((song) => (
                   <option key={song.id} value={song.id}>
                     {song.name}
@@ -1102,23 +1278,106 @@ export default function FretboardControls({
             />
           </button>
 
-          <label className={styles.metronomeLabel} htmlFor="chords-bpm">
-            BPM
-          </label>
-          <input
-            id="chords-bpm"
-            className={styles.metronomeInput}
-            type="number"
-            min={30}
-            max={300}
-            step={1}
-            value={bpm}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              if (!Number.isFinite(next)) return;
-              onBpmChange(next);
+          <div
+            ref={bpmVolumeAreaRef}
+            className={styles.metronomeBpmVolumeArea}
+            onPointerEnter={() => {
+              clearVolumeAutoClose();
             }}
-          />
+            onPointerLeave={() => {
+              scheduleVolumeAutoClose();
+            }}
+          >
+            <label className={styles.metronomeLabel} htmlFor="chords-bpm">
+              BPM
+            </label>
+            <input
+              id="chords-bpm"
+              className={styles.metronomeInput}
+              type="number"
+              min={30}
+              max={300}
+              step={1}
+              value={bpmDraft}
+              onFocus={() => setIsBpmFocused(true)}
+              onChange={(e) => {
+                const nextRaw = e.target.value;
+                setBpmDraft(nextRaw);
+                if (nextRaw.trim() === "") return;
+                const next = Number(nextRaw);
+                if (!Number.isFinite(next)) return;
+
+                // Only commit once it's in-range so typing "70" doesn't snap to 30
+                // when the user briefly has "7" in the box.
+                if (next < 30 || next > 300) return;
+                onBpmChange(next);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                const raw = bpmDraft.trim();
+                if (!raw) {
+                  setBpmDraft(String(bpm));
+                  (e.currentTarget as HTMLInputElement).blur();
+                  return;
+                }
+                const next = Number(raw);
+                if (!Number.isFinite(next)) return;
+                onBpmChange(Math.max(30, Math.min(300, next)));
+                (e.currentTarget as HTMLInputElement).blur();
+              }}
+              onBlur={() => {
+                setIsBpmFocused(false);
+                const raw = bpmDraft.trim();
+                if (!raw) {
+                  setBpmDraft(String(bpm));
+                  return;
+                }
+                const next = Number(raw);
+                if (!Number.isFinite(next)) {
+                  setBpmDraft(String(bpm));
+                  return;
+                }
+                const clamped = Math.max(30, Math.min(300, next));
+                setBpmDraft(String(clamped));
+                onBpmChange(clamped);
+              }}
+            />
+
+            <button
+              type="button"
+              className={styles.metronomeVolumeButton}
+              onClick={() => setIsVolumeExpanded((v) => !v)}
+              aria-label={
+                isVolumeExpanded ? "Collapse metronome volume" : "Expand metronome volume"
+              }
+              title="Volume"
+            >
+              <span aria-hidden="true" className={styles.metronomeVolumeIcon} />
+            </button>
+
+            {isVolumeExpanded ? (
+              <div className={styles.metronomeVolumeOverlay}>
+                <input
+                  className={styles.metronomeVolumeSlider}
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={metronomeVolume}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (!Number.isFinite(next)) return;
+                    onMetronomeVolumeChange?.(Math.max(0, Math.min(1, next)));
+                  }}
+                  onPointerDown={() => {
+                    isDraggingVolumeRef.current = true;
+                    clearVolumeAutoClose();
+                  }}
+                  aria-label="Metronome volume"
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
