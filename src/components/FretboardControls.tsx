@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import * as styles from "./FretboardControls.css";
+import YoutubePlayer from "./YoutubePlayer";
 
 type ChordValidationResult = { valid: true } | { valid: false; error: string };
 
@@ -342,6 +343,7 @@ export default function FretboardControls({
   const [savedSongs, setSavedSongs] = useState<SavedSong[]>([]);
   const [isSavingSong, setIsSavingSong] = useState(false);
   const [songNameDraft, setSongNameDraft] = useState("");
+  const [ytSuggestion, setYtSuggestion] = useState<{ id: string; offset: number } | undefined>(undefined);
   const songNameInputRef = useRef<HTMLInputElement | null>(null);
   const hasRestoredSelectedSongRef = useRef(false);
   const hasRunPersistSelectedSongEffectRef = useRef(false);
@@ -980,6 +982,8 @@ export default function FretboardControls({
         stored === "allTheThingsYouAre" ||
         stored === "myFunnyValentine" ||
         stored === "stellaByStarlight" ||
+        stored === "autumnLeaves" ||
+        stored === "blueBossa" ||
         songs.some((s) => s.id === stored));
 
     const nextId: SongId = exists
@@ -1069,6 +1073,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(150);
+      setYtSuggestion({ id: "7H7Xg6U7P5g", offset: 4.43 });
       return;
     }
 
@@ -1467,6 +1472,8 @@ export default function FretboardControls({
             </>
           )}
         </div>
+
+        <YoutubePlayer metronomeState={metronomeState} onStopMetronome={onStopMetronome} bpm={bpm} suggestion={ytSuggestion} />
 
         <div className={styles.metronomeControls}>
           <button

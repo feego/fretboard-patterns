@@ -376,6 +376,7 @@ export const section = style({
 
 export const chordsTopRightRow = style({
   display: "flex",
+  flexWrap: "wrap",
   justifyContent: "flex-start",
   alignItems: "center",
   gap: spacing.sm,
@@ -387,7 +388,6 @@ export const chordsTopRightRow = style({
 
   "@media": {
     "screen and (max-width: 600px)": {
-      flexWrap: "wrap",
       justifyContent: "center",
     },
   },
