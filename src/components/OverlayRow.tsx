@@ -150,10 +150,16 @@ export default function OverlayRow({
   // Start with +2 as requested to align the visual placement without
   // altering upstream positioning logic.
   const overlayShiftFrets = 2;
+  // Buffer rows use stringIndex -1 (above top) or 6 (below bottom). Map them to
+  // the real string whose notes and tuning shift they should mirror:
+  //   -1  →  0  (buffer top mirrors string 0 — slides in when pressing ArrowUp)
+  //    6  →  5  (buffer bottom mirrors string 5 — slides in when pressing ArrowDown)
+  const effectiveStringIndex =
+    stringIndex === -1 ? 0 : stringIndex === 6 ? 5 : stringIndex;
   // If all-fourths tuning is selected, move ONLY the top two strings (0=high E, 1=B)
   // one fret to the left. Other strings remain unchanged.
   const tuningShiftFrets =
-    tuning === "allFourths" && (stringIndex === 0 || stringIndex === 1)
+    tuning === "allFourths" && (effectiveStringIndex === 0 || effectiveStringIndex === 1)
       ? -1
       : 0;
   const totalShiftFrets = overlayShiftFrets + tuningShiftFrets;
@@ -181,14 +187,14 @@ export default function OverlayRow({
    const centerNotes: string[] = [];
    for (let i = 0; i < numFrets; i++) {
      const isHighlighted = i % 2 === 0;
-     if (isHighlighted && stringIndex >= 0 && stringIndex < 6) {
+     if (isHighlighted) {
        const fretNumber =
          currentFret.fret +
          startFret +
          totalShiftFrets +
          overlayFretOffset +
          i;
-       const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
+       const note = getNoteAtPosition(effectiveStringIndex, fretNumber, tuning);
        centerNotes.push(note);
      }
    }
@@ -212,8 +218,8 @@ export default function OverlayRow({
        currentFret.fret + startFret + totalShiftFrets + overlayFretOffset + i;
      const isHighlighted = i % 2 === 0; // Highlight every other column (0, 2, 4, 6)
 
-     if (stringIndex >= 0 && stringIndex < 6) {
-       const note = getNoteAtPosition(stringIndex, fretNumber, tuning);
+     {
+       const note = getNoteAtPosition(effectiveStringIndex, fretNumber, tuning);
        let displayText = note;
        // Compute the displayed note name as it would appear for this cell
        if (displayKey === "Gb") {
@@ -245,8 +251,6 @@ export default function OverlayRow({
          displayText = idx !== -1 ? String(idx + 1) : "";
        }
        cells.push({ note: displayText, visible: true, isCenter: isHighlighted, fretNumber });
-     } else {
-       cells.push({ note: "", visible: false, isCenter: false, fretNumber });
      }
    }
 

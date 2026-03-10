@@ -181,6 +181,7 @@ export default function FirstOverlay({
   // String indices: 0=high E (top), 5=low E (bottom)
   // startFret is offset from currentFret (e.g., -11 means 11 frets to the left)
   const rowConfigs = [
+    { stringIndex: -1, startFret: -6, numFrets: 5, gridStyle: styles.thirdGrid }, // Buffer above top string (mirrors string 0 config)
     { stringIndex: 0, startFret: -6, numFrets: 5, gridStyle: styles.thirdGrid }, // Top string (high E): shifted 1 right
     {
       stringIndex: 1,
@@ -207,6 +208,7 @@ export default function FirstOverlay({
       numFrets: 7,
       gridStyle: styles.fourthGrid,
     }, // Bottom string (low E): 7 columns
+    { stringIndex: 6, startFret: -1, numFrets: 7, gridStyle: styles.fourthGrid }, // Buffer below bottom string (mirrors string 5 config)
   ];
 
   // Compute global bestKey/accidentalStyle/displayKey

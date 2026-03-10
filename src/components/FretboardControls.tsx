@@ -320,7 +320,9 @@ export default function FretboardControls({
     | "blank"
     | "allTheThingsYouAre"
     | "myFunnyValentine"
-    | "stellaByStarlight";
+    | "stellaByStarlight"
+    | "autumnLeaves"
+    | "blueBossa";
   type SongId = BuiltInSongId | string;
   type SavedSong = {
     id: string;
@@ -349,7 +351,9 @@ export default function FretboardControls({
       selectedSongId === "blank" ||
       selectedSongId === "allTheThingsYouAre" ||
       selectedSongId === "myFunnyValentine" ||
-      selectedSongId === "stellaByStarlight"
+      selectedSongId === "stellaByStarlight" ||
+      selectedSongId === "autumnLeaves" ||
+      selectedSongId === "blueBossa"
     ) {
       return null;
     }
@@ -692,6 +696,132 @@ export default function FretboardControls({
     [],
   );
 
+  const autumnLeavesSpec = useMemo(
+    () =>
+      [
+        // Autumn Leaves (Gm)
+        "Cm7",
+        "F7",
+        "BbΔ",
+        "EbΔ",
+        "AØ",
+        "D7",
+        "Gm6",
+        "%",
+        "Cm7",
+        "F7",
+        "BbΔ",
+        "EbΔ",
+        "AØ",
+        "D7",
+        "Gm6",
+        "%",
+        "AØ",
+        "D7",
+        "Gm6",
+        "%",
+        "Cm7",
+        "F7",
+        "BbΔ",
+        "%",
+        "AØ",
+        "D7",
+        "Gm7 Gb7",
+        "Fm7 E7",
+        "EbΔ",
+        "D7",
+        "Gm6",
+        "%",
+      ] as const,
+    [],
+  );
+
+  const autumnLeavesKeysSpec = useMemo(
+    () =>
+      [
+        "Bb",
+        "",
+        "",
+        "",
+        "g",
+        "",
+        "",
+        "",
+        "Bb",
+        "",
+        "",
+        "",
+        "g",
+        "",
+        "",
+        "",
+        "g",
+        "",
+        "",
+        "",
+        "Bb",
+        "",
+        "",
+        "",
+        "g",
+        "",
+        "",
+        "",
+        "Bb",
+        "g",
+        "",
+        "",
+      ] as const,
+    [],
+  );
+
+  const blueBossaSpec = useMemo(
+    () =>
+      [
+        // Blue Bossa
+        "Cm7",
+        "%",
+        "Fm6",
+        "%",
+        "DØ",
+        "G7",
+        "Cm6",
+        "%",
+        "Ebm7",
+        "Ab7",
+        "DbΔ",
+        "%",
+        "DØ",
+        "G7",
+        "Cm6",
+        "DØ G7",
+      ] as const,
+    [],
+  );
+
+  const blueBossaKeysSpec = useMemo(
+    () =>
+      [
+        "Eb",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Db",
+        "",
+        "",
+        "",
+        "Eb",
+        "",
+        "",
+        "",
+      ] as const,
+    [],
+  );
+
   const stellaByStarlightSpec = useMemo(
     () =>
       [
@@ -890,6 +1020,7 @@ export default function FretboardControls({
         return [key, "", "", ""];
       });
       setBeatKeys(nextKeys);
+      onBpmChange(120);
       return;
     }
 
@@ -913,6 +1044,31 @@ export default function FretboardControls({
         return [key, "", "", ""];
       });
       setBeatKeys(nextKeys);
+      onBpmChange(120);
+      return;
+    }
+
+    if (songId === "autumnLeaves") {
+      const nextBars: string[][] = autumnLeavesSpec.map(barTextToBeats);
+      setBars(nextBars);
+      const nextKeys: string[][] = nextBars.map((_, barIndex) => {
+        const key = autumnLeavesKeysSpec[barIndex] ?? "";
+        return [key, "", "", ""];
+      });
+      setBeatKeys(nextKeys);
+      onBpmChange(130);
+      return;
+    }
+
+    if (songId === "blueBossa") {
+      const nextBars: string[][] = blueBossaSpec.map(barTextToBeats);
+      setBars(nextBars);
+      const nextKeys: string[][] = nextBars.map((_, barIndex) => {
+        const key = blueBossaKeysSpec[barIndex] ?? "";
+        return [key, "", "", ""];
+      });
+      setBeatKeys(nextKeys);
+      onBpmChange(150);
       return;
     }
 
@@ -1279,6 +1435,8 @@ export default function FretboardControls({
                 <option value="allTheThingsYouAre">All the Things You Are</option>
                 <option value="myFunnyValentine">My Funny Valentine</option>
                 <option value="stellaByStarlight">Stella by Starlight</option>
+                <option value="autumnLeaves">Autumn Leaves</option>
+                <option value="blueBossa">Blue Bossa</option>
                 {savedSongs.map((song) => (
                   <option key={song.id} value={song.id}>
                     {song.name}

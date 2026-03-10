@@ -941,6 +941,7 @@ export default function Fretboard() {
         if (currentVerticalAnimRef.current === anim) {
           currentVerticalAnimRef.current = null;
         }
+        // Restore overflow clipping once the animation has settled.
         window.requestAnimationFrame(() => {
           setOverlayRowSuppressTransitions(false);
         });
@@ -1739,6 +1740,27 @@ export default function Fretboard() {
         <div className={styles.fretboardRow}>
           <StringLabels strings={strings} stringKeys={stringRowKeys} />
           <div className={styles.fretboard} ref={fretboardRef}>
+            {/* Buffer string row above the fretboard — hidden at rest by overflow:hidden,
+                slides into view during ArrowUp animation */}
+            <div
+              className={styles.stringRow}
+              style={{ position: "absolute", top: -cellHeight, left: 0, right: 0, pointerEvents: "none" }}
+            >
+              {[...Array(frets)].map((_, fretIndex) => {
+                const fretNumber = fretIndex + 1;
+                let fretClasses = styles.fret;
+                if (fretIndex === 0) fretClasses += ` ${styles.firstFret}`;
+                if (fretNumber === 12) fretClasses += ` ${styles.octaveFret}`;
+                return (
+                  <div
+                    key={`buf-top-fret-${fretNumber}`}
+                    className={fretClasses}
+                    style={{ width: fretWidthCss(fretNumber) }}
+                  />
+                );
+              })}
+            </div>
+
             {strings.map((_string, stringIndex) => (
               <div
                 key={stringRowKeys[stringIndex]}
@@ -1782,6 +1804,27 @@ export default function Fretboard() {
                 })}
               </div>
             ))}
+
+            {/* Buffer string row below the fretboard — hidden at rest by overflow:hidden,
+                slides into view during ArrowDown animation */}
+            <div
+              className={styles.stringRow}
+              style={{ position: "absolute", top: strings.length * cellHeight, left: 0, right: 0, pointerEvents: "none" }}
+            >
+              {[...Array(frets)].map((_, fretIndex) => {
+                const fretNumber = fretIndex + 1;
+                let fretClasses = styles.fret;
+                if (fretIndex === 0) fretClasses += ` ${styles.firstFret}`;
+                if (fretNumber === 12) fretClasses += ` ${styles.octaveFret}`;
+                return (
+                  <div
+                    key={`buf-bot-fret-${fretNumber}`}
+                    className={fretClasses}
+                    style={{ width: fretWidthCss(fretNumber) }}
+                  />
+                );
+              })}
+            </div>
 
             <div className={styles.selectionLayer}>
               {Object.entries(chordMarkerPositions).map(([cellId, pos]) => (

@@ -179,6 +179,7 @@ export default function SecondOverlay({
   // String indices: 0=high E (top), 5=low E (bottom)
   // startFret is offset from currentFret
   const rowConfigs = [
+    { stringIndex: -1, startFret: -1, numFrets: 7, gridStyle: styles.topGrid }, // Buffer above top string (mirrors string 0 config)
     { stringIndex: 0, startFret: -1, numFrets: 7, gridStyle: styles.topGrid }, // Top string (high E): 7 columns
     {
       stringIndex: 1,
@@ -200,6 +201,7 @@ export default function SecondOverlay({
       numFrets: 5,
       gridStyle: styles.singleRowGrid5,
     }, // Bottom string (low E): unchanged
+    { stringIndex: 6, startFret: -6, numFrets: 5, gridStyle: styles.singleRowGrid5 }, // Buffer below bottom string (mirrors string 5 config)
   ];
 
   // Compute global bestKey/accidentalStyle/displayKey
