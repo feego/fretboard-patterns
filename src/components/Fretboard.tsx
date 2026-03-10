@@ -880,96 +880,73 @@ export default function Fretboard() {
   // needing to close over it.
   const currentPositionXRef = useRef(0);
 
-  // ─── Virtual overlay scroll (react-window style) ────────────────────────────
-  // overlayStringOffset is the "virtual scroll index". Each integer step moves
-  // the overlay band one string-row up or down. It is never clamped — the render
-  // loop wraps it modulo the number of strings so overlays loop infinitely.
-  const [overlayStringOffset, setOverlayStringOffset] = useState(0);
+  // ─── Vertical animation ─────────────────────────────────────────────────────
 
-  // CSS nudge on the overlay layer wrapper for smooth vertical animation.
-  // nudge is set to ±cellHeight before the transition, then animated to 0.
-  const [overlayNudgeY, setOverlayNudgeY] = useState(0);
-  const [overlayTransitionMs, setOverlayTransitionMs] = useState(0);
-  const overlayLayerRafRef = useRef<number | null>(null);
-  const overlayTransitionFallbackRef = useRef<number | null>(null);
   // While animating vertically, suppress individual row left/top CSS transitions
-  // so that any horizontal fret shift snaps instantly instead of sliding diagonally.
+  // so the horizontal fret shift snaps instantly instead of sliding diagonally.
   const [overlayRowSuppressTransitions, setOverlayRowSuppressTransitions] = useState(false);
-  // Live cellHeight ref so animateOverlayVertical doesn't need cellHeight in scope at declaration time.
+  // Live cellHeight ref so animateOverlayVertical doesn't need cellHeight in scope.
   const cellHeightRef = useRef(48);
-  // Kept for potential future use; NOT set during vertical animation so X always tracks currentPosition.x.
+  // Ref to the overlay layer DOM element for Web Animations API.
+  const overlayLayerRef = useRef<HTMLDivElement>(null);
+  // Currently running WAAPI animation (so we can cancel on rapid presses).
+  const currentVerticalAnimRef = useRef<Animation | null>(null);
+  // Kept for potential future use; NOT set during vertical animation.
   const overlayXLockRef = useRef<number | null>(null);
 
-  const finishVerticalStep = useCallback(() => {
-    if (overlayTransitionFallbackRef.current != null) {
-      window.clearTimeout(overlayTransitionFallbackRef.current);
-      overlayTransitionFallbackRef.current = null;
-    }
-    setOverlayTransitionMs(0);
-    setOverlayNudgeY(0);
-    // Re-enable row transitions one frame later. At this point rows are already
-    // at their final positions, so no unwanted slide fires.
-    window.requestAnimationFrame(() => {
-      setOverlayRowSuppressTransitions(false);
-    });
-  }, []);
-
-  const handleOverlayLayerTransitionEnd = useCallback(
-    (e: React.TransitionEvent<HTMLDivElement>) => {
-      if (e.target !== e.currentTarget) return;
-      if (e.propertyName !== "transform") return;
-      finishVerticalStep();
-    },
-    [finishVerticalStep],
-  );
-
   /**
-   * Animate the overlay band by one string-row in the given direction.
-   * delta = -1 → move overlays up one row (ArrowUp)
-   * delta = +1 → move overlays down one row (ArrowDown)
+   * Animate the overlay band by one string-row in the given direction using the
+   * Web Animations API.  Starting the animation via WAAPI (rather than toggling
+   * React state + rAF) means the keyframe begins on the SAME frame as the
+   * content update — there is no "pre-animation blank frame" where the edge row
+   * is momentarily off-screen.
    *
-   * Strategy (react-window-like):
-   *  1. Immediately update overlayStringOffset so rows are already at the
-   *     destination.
-   *  2. Set nudgeY = -delta * cellHeight so the layer appears to still be at
-   *     the origin (the rows are pre-shifted back visually by the nudge).
-   *  3. On the next rAF, start the CSS transition and animate nudgeY → 0.
-   *     The layer smoothly slides to show the new offset. No snap.
+   * delta = -1 → slide overlays up one row (ArrowUp)
+   * delta = +1 → slide overlays down one row (ArrowDown)
    */
   const animateOverlayVertical = useCallback(
     (delta: number) => {
-      if (overlayLayerRafRef.current != null) {
-        window.cancelAnimationFrame(overlayLayerRafRef.current);
-        overlayLayerRafRef.current = null;
-      }
-      if (overlayTransitionFallbackRef.current != null) {
-        window.clearTimeout(overlayTransitionFallbackRef.current);
-        overlayTransitionFallbackRef.current = null;
+      // Cancel / snap any in-progress animation immediately.
+      if (currentVerticalAnimRef.current) {
+        currentVerticalAnimRef.current.cancel();
+        currentVerticalAnimRef.current = null;
       }
 
-      // Suppress row-level left/top CSS transitions so the horizontal fret shift
-      // (which happens in the same state batch) snaps instantly instead of sliding.
+      const el = overlayLayerRef.current;
+      if (!el) return;
+
+      // Suppress individual row left/top CSS transitions so the simultaneous
+      // horizontal fret shift snaps rather than sliding diagonally.
       setOverlayRowSuppressTransitions(true);
-      // Snap any in-progress transition immediately before starting the new one.
-      setOverlayTransitionMs(0);
 
-      // Step 1 + 2: commit new scroll index AND pre-shift nudge in same render.
-      setOverlayStringOffset((prev) => prev + delta);
-      setOverlayNudgeY(-delta * cellHeightRef.current);
+      const ch = cellHeightRef.current;
+      // The animation slides from the pre-shifted position (one row behind) to
+      // the natural resting position (translateY 0).  Because WAAPI starts
+      // immediately, there is no visible "before animation" state.
+      const anim = el.animate(
+        [
+          { transform: `translateY(${-delta * ch}px)` },
+          { transform: "translateY(0px)" },
+        ],
+        {
+          duration: 160,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          fill: "none",
+        },
+      );
 
-      // Step 3: on next frame, enable transition and animate nudge → 0.
-      overlayLayerRafRef.current = window.requestAnimationFrame(() => {
-        overlayLayerRafRef.current = null;
-        setOverlayTransitionMs(160);
-        setOverlayNudgeY(0);
+      currentVerticalAnimRef.current = anim;
 
-        overlayTransitionFallbackRef.current = window.setTimeout(() => {
-          overlayTransitionFallbackRef.current = null;
-          finishVerticalStep();
-        }, 260);
-      });
+      anim.onfinish = () => {
+        if (currentVerticalAnimRef.current === anim) {
+          currentVerticalAnimRef.current = null;
+        }
+        window.requestAnimationFrame(() => {
+          setOverlayRowSuppressTransitions(false);
+        });
+      };
     },
-    [finishVerticalStep],
+    [],
   );
   const [selectedMarkerPositions, setSelectedMarkerPositions] = useState<
     Record<string, { x: number; y: number }>
@@ -1137,13 +1114,10 @@ export default function Fretboard() {
 
   useEffect(() => {
     return () => {
-      if (overlayLayerRafRef.current != null) {
-        window.cancelAnimationFrame(overlayLayerRafRef.current);
-        overlayLayerRafRef.current = null;
-      }
-      if (overlayTransitionFallbackRef.current != null) {
-        window.clearTimeout(overlayTransitionFallbackRef.current);
-        overlayTransitionFallbackRef.current = null;
+      // Cancel any in-progress vertical animation on unmount.
+      if (currentVerticalAnimRef.current) {
+        currentVerticalAnimRef.current.cancel();
+        currentVerticalAnimRef.current = null;
       }
     };
   }, []);
@@ -1355,11 +1329,11 @@ export default function Fretboard() {
     if (!fretboardRef.current) return;
 
     // Base X is anchored to fret 12 (used for continuous-fret positioning).
-    // Base Y should follow the currently-selected string so vertical moves
-    // don't require DOM re-measure per step.
-    const stringToMeasure = currentFret?.string ?? 4;
+    // Base Y is ALWAYS anchored to string 0 (the top string). Vertical row
+    // positioning is handled purely by (stringIndex - currentFret.string)*cellHeight
+    // inside OverlayRow, so this must never jump when the current string changes.
     const fretElement = fretboardRef.current.querySelector(
-      `[data-string="${stringToMeasure}"][data-fret-number="12"]`,
+      `[data-string="0"][data-fret-number="12"]`,
     ) as HTMLElement | null;
     if (!fretElement) return;
 
@@ -1538,23 +1512,52 @@ export default function Fretboard() {
           break;
       }
 
-      const nextString = Math.min(
-        5,
-        Math.max(0, currentFret.string + desiredStringDelta),
-      );
-      const actualStringDelta = nextString - currentFret.string;
+      // For ArrowUp/Down we allow infinite virtual scrolling: the virtual string
+      // index is unclamped (can go negative or above 5). We wrap it modulo 6
+      // when we need the actual physical string.
+      const virtualNextString = currentFret.string + desiredStringDelta;
+      const physicalNextString = ((virtualNextString % 6) + 6) % 6;
+      const nextString = physicalNextString;
+      const actualStringDelta = desiredStringDelta; // always ±1 or 0
 
       // For ArrowUp/Down: shift the fret anchor by the semitone interval between
-      // the two strings. This keeps the overlay pattern aligned (same shape, next
-      // position in the cycle), matching the All Fourths / standard tuning geometry.
+      // the two physical strings, so the overlay pattern stays aligned.
       if ((key === "ArrowUp" || key === "ArrowDown") && actualStringDelta !== 0) {
         const tuningConfig = TUNING_CONFIGS[tuning] || TUNING_CONFIGS.standard;
-        const fromIdx = NOTES.indexOf(tuningConfig[currentFret.string].note);
-        const toIdx = NOTES.indexOf(tuningConfig[nextString].note);
-        // Signed semitone shift, normalised to [-6, +6].
-        let rawDiff = toIdx - fromIdx;
-        if (rawDiff > 6) rawDiff -= 12;
-        if (rawDiff < -6) rawDiff += 12;
+        const fromPhysical = ((currentFret.string % 6) + 6) % 6;
+        const toPhysical = physicalNextString;
+
+        // Detect modular wrap (string 0→5 for ArrowUp, 5→0 for ArrowDown).
+        // At the wrap boundary the open-string note interval jumps the wrong
+        // way (e.g. F→E = -1 in All Fourths instead of the expected +5).
+        // Use the interval from the nearest non-wrapping step instead, which
+        // keeps the fret moving in the same direction as every other press.
+        const isWrap =
+          (fromPhysical === 0 && toPhysical === 5) ||
+          (fromPhysical === 5 && toPhysical === 0);
+
+        let rawDiff: number;
+        if (isWrap) {
+          // Borrow the interval magnitude from the adjacent non-wrapping pair.
+          const sampleFrom = key === "ArrowUp" ? 1 : 4;
+          const sampleTo   = key === "ArrowUp" ? 0 : 5;
+          const sFromIdx = NOTES.indexOf(tuningConfig[sampleFrom].note);
+          const sToIdx   = NOTES.indexOf(tuningConfig[sampleTo].note);
+          rawDiff = sToIdx - sFromIdx;
+          if (rawDiff > 6)  rawDiff -= 12;
+          if (rawDiff < -6) rawDiff += 12;
+          // Ensure the direction matches the key (positive for Up, negative for Down).
+          if (key === "ArrowUp"   && rawDiff <= 0) rawDiff += 12;
+          if (key === "ArrowDown" && rawDiff >= 0) rawDiff -= 12;
+        } else {
+          const fromIdx = NOTES.indexOf(tuningConfig[fromPhysical].note);
+          const toIdx   = NOTES.indexOf(tuningConfig[toPhysical].note);
+          rawDiff = toIdx - fromIdx;
+          // Signed semitone shift, normalised to [-6, +6].
+          if (rawDiff > 6)  rawDiff -= 12;
+          if (rawDiff < -6) rawDiff += 12;
+        }
+
         nextContinuousFret = continuousFret + rawDiff;
       }
 
@@ -1798,15 +1801,8 @@ export default function Fretboard() {
             </div>
 
             <div
+              ref={overlayLayerRef}
               className={styles.overlayLayer}
-              onTransitionEnd={handleOverlayLayerTransitionEnd}
-              style={{
-                ["--overlay-layer-nudge-y" as any]: `${overlayNudgeY}px`,
-                ["--overlay-layer-transition" as any]:
-                  overlayTransitionMs > 0
-                    ? `transform ${overlayTransitionMs}ms cubic-bezier(0.22, 1, 0.36, 1)`
-                    : "transform 0ms linear",
-              } as CSSProperties}
             >
               {/* Render multiple overlays in alternating pattern based on continuous fret position */}
               {Array.from({ length: 21 }, (_, i) => {
@@ -1822,13 +1818,8 @@ export default function Fretboard() {
                       : "B";
                   const zIndex = isFirst ? 999 : 1001;
 
-                  const shiftedX =
-                    overlayXLockRef.current != null
-                      ? overlayXLockRef.current
-                      : currentPosition.x;
-                  // overlayStringOffset shifts the whole overlay band vertically
-                  // (react-window style: integer row scroll index).
-                  const shiftedY = currentPosition.y + overlayStringOffset * cellHeight;
+                  const shiftedX = currentPosition.x;
+                  const shiftedY = currentPosition.y;
                   return (
                     <OverlayComponent
                       key={`overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}

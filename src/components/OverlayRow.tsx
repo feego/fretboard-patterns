@@ -326,7 +326,11 @@ export default function OverlayRow({
     const gridCenterX = firstCellLeftEdgeX + totalGridWidth / 2;
     horizontalOffset = gridCenterX - currentCenterX;
   }
-  const verticalOffset = (stringIndex - currentFret.string) * cellHeight;
+  // position.y is anchored to the centre of string 0 (top string).
+  // Each row is positioned absolutely at its own string's Y by adding
+  // stringIndex * cellHeight.  currentFret.string is used only for note
+  // highlighting, not for vertical placement.
+  const verticalOffset = stringIndex * cellHeight;
 
   const gridTemplateColumns = fretMetrics
     ? Array.from({ length: numFrets }, (_, i) => {

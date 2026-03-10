@@ -292,8 +292,6 @@ export const selectionLayer = style({
 export const overlayLayer = style({
   position: "absolute",
   inset: 0,
-  transform: "translateY(var(--overlay-layer-nudge-y, 0px))",
-  transition: "var(--overlay-layer-transition, transform 0ms linear)",
   willChange: "transform",
   zIndex: 900,
 });
