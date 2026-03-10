@@ -290,6 +290,7 @@ function getBeatWeight(chordText: string): number {
 interface FretboardControlsProps {
   metronomeState: "stopped" | "running" | "paused";
   metronomeBeat: number | null;
+  isCountIn?: boolean;
   bpm: number;
   metronomeVolume?: number;
   onPlayPauseMetronome: () => void;
@@ -304,6 +305,7 @@ interface FretboardControlsProps {
 export default function FretboardControls({
   metronomeState,
   metronomeBeat,
+  isCountIn = false,
   bpm,
   metronomeVolume = 1,
   onPlayPauseMetronome,
@@ -1695,7 +1697,7 @@ export default function FretboardControls({
                   `${styles.barCell} ` +
                   `${isRightEdge ? styles.barCellRightEdge : ""} ` +
                   `${isLastBar ? styles.barCellLast : ""} ` +
-                  `${isActiveBar ? styles.barCellActive : ""} ` +
+                  `${isActiveBar ? (isCountIn ? styles.barCellActiveCountIn : styles.barCellActive) : ""} ` +
                   `${isTopLeft ? styles.barCellTopLeft : ""} ` +
                   `${isTopRight ? styles.barCellTopRight : ""} ` +
                   `${isBottomLeft ? styles.barCellBottomLeft : ""} ` +
@@ -1780,6 +1782,7 @@ export default function FretboardControls({
                                 ? styles.beatCell2
                                 : styles.beatCell3
                         } ${isInvalid ? styles.beatCellError : ""}`}
+                        onFocus={() => onSeekToBeat?.(flatBeat)}
                       >
                         {barIndex === 0 && beatIndex === 0 ? (
                           <div className={styles.beatKeyRow}>

@@ -558,6 +558,7 @@ export default function Fretboard() {
     "stopped" | "running" | "paused"
   >("stopped");
   const [metronomeBeat, setMetronomeBeat] = useState<number | null>(null);
+  const [isCountIn, setIsCountIn] = useState(false);
   const [activeBeatKeyText, setActiveBeatKeyText] = useState("");
   const [activeBeatChordText, setActiveBeatChordText] = useState("");
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -640,6 +641,7 @@ export default function Fretboard() {
 
   const stopMetronome = useCallback(() => {
     clearMetronomeTimers();
+    setIsCountIn(false);
 
     setMetronomeBeat(null);
     setMetronomeState("stopped");
@@ -659,6 +661,7 @@ export default function Fretboard() {
     if (metronomeState !== "running") return;
 
     clearMetronomeTimers();
+    setIsCountIn(false);
     setMetronomeState("paused");
     // Resume from the next beat after the last one we showed.
     // During count-in, the playhead is intentionally fixed, so don't advance it.
@@ -799,6 +802,15 @@ export default function Fretboard() {
       uiTimeoutIdsRef.current = [];
     }
 
+    // Schedule count-in end marker so UI can switch from grey → active at beat 1.
+    if (countInBeatsRemainingRef.current > 0) {
+      const countInMs = countInBeatsRemainingRef.current * (60 / bpmRef.current) * 1000;
+      const countInDoneId = window.setTimeout(() => {
+        setIsCountIn(false);
+      }, countInMs);
+      uiTimeoutIdsRef.current.push(countInDoneId);
+    }
+
     const scheduler = () => {
       const bpmNow = Math.max(30, Math.min(300, bpmRef.current || 120));
       const secondsPerBeat = 60 / bpmNow;
@@ -863,6 +875,7 @@ export default function Fretboard() {
       setMetronomeBeat(armed);
       countInBeatsRemainingRef.current = 4;
       countInBeatIndexRef.current = 0;
+      setIsCountIn(true);
     }
 
     startOrResumeMetronome();
@@ -1954,6 +1967,7 @@ export default function Fretboard() {
       <FretboardControls
         metronomeState={metronomeState}
         metronomeBeat={metronomeBeat}
+        isCountIn={isCountIn}
         bpm={bpm}
         metronomeVolume={metronomeVolume}
         onPlayPauseMetronome={playPauseMetronome}

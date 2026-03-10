@@ -1,4 +1,4 @@
-import { style } from "@vanilla-extract/css";
+import { keyframes, style } from "@vanilla-extract/css";
 import { borderRadius, colors, spacing } from "../styles/theme";
 
 const dimmedFretboardBg =
@@ -694,6 +694,27 @@ export const barCellActive = style({
       inset: 0,
       pointerEvents: "none",
       border: `2px solid color-mix(in srgb, ${colors.dark.accent} 55%, transparent)` as any,
+      borderRadius: borderRadius.md,
+      boxSizing: "border-box",
+      zIndex: 5,
+    },
+  },
+});
+
+const blinkAnimation = keyframes({
+  "0%, 100%": { opacity: 1 },
+  "50%": { opacity: 0.55 },
+});
+
+export const barCellActiveCountIn = style({
+  animation: `${blinkAnimation} 0.8s ease-in-out infinite`,
+  selectors: {
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      pointerEvents: "none",
+      border: `2px solid color-mix(in srgb, ${colors.dark.textMuted} 45%, transparent)` as any,
       borderRadius: borderRadius.md,
       boxSizing: "border-box",
       zIndex: 5,
