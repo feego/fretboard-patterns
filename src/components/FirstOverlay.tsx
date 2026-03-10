@@ -149,6 +149,8 @@ interface FirstOverlayProps {
     widthByFret: Record<number, number>;
     octaveWidth: number;
   };
+  transitionAxis?: "both" | "vertical";
+  transitionNudgeYPx?: number;
 }
 
 export default function FirstOverlay({
@@ -167,6 +169,8 @@ export default function FirstOverlay({
   onCellToggle,
   overlayFretOffset = 0,
   fretMetrics,
+  transitionAxis = "both",
+  transitionNudgeYPx = 0,
 }: FirstOverlayProps) {
   const position = snappedPosition || mousePosition;
 
@@ -247,6 +251,8 @@ export default function FirstOverlay({
           onCellToggle={onCellToggle}
           overlayFretOffset={overlayFretOffset}
           fretMetrics={fretMetrics}
+          transitionAxis={transitionAxis}
+          transitionNudgeYPx={transitionNudgeYPx}
         />
       ))}
     </>

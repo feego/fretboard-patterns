@@ -7,8 +7,9 @@ export const overlay = style({
   zIndex: 1000,
   transform: "translate(-50%, -50%)",
   // Animate repositioning so overlay shifts are easier to track.
-  // (Overlays are positioned via inline left/top in OverlayRow.)
-  transition: "opacity 120ms ease-out, left 120ms ease-out, top 120ms ease-out",
+  // Use a CSS variable so vertical mode can disable left/top tweening.
+  transition:
+    "var(--overlay-transition, opacity 120ms ease-out, left 120ms ease-out, top 120ms ease-out)",
   willChange: "left, top",
 
   "@media": {
