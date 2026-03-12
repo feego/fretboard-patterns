@@ -129,6 +129,30 @@ function computeGlobalBestKey(centerNotes: string[]) {
 }
 // --- End: Global bestKey/accidental logic ---
 
+const SCALE_SEMITONES: Record<string, number[]> = {
+  "Diatonic scale":  [0,2,4,5,7,9,11],
+  "Harmonic minor":  [0,2,4,5,8,9,11],
+  "Melodic minor":   [0,2,4,6,8,9,11],
+  "Harmonic major":  [0,2,4,5,7,8,11],
+  "Whole Tone":      [0,2,4,6,8,10],
+  "Diminished":      [0,2,3,5,6,8,9,11],
+  "Pentatonic":      [0,2,4,7,9],
+  "Blues":           [0,2,3,4,7,9],
+};
+
+const flatToSharp: Record<string, string> = {
+  Bb: "A#", Eb: "D#", Ab: "G#", Db: "C#", Gb: "F#", Cb: "B", Fb: "E",
+};
+
+function getScalePitchClasses(scaleFamily: string, bestKey: string): ReadonlySet<number> | null {
+  const offsets = SCALE_SEMITONES[scaleFamily];
+  if (!offsets) return null;
+  const rawKey = flatToSharp[bestKey] ?? bestKey;
+  const tonicIdx = notes.indexOf(rawKey);
+  if (tonicIdx < 0) return null;
+  return new Set(offsets.map(d => (tonicIdx + d) % 12));
+}
+
 interface FirstOverlayProps {
   isVisible: boolean;
   mousePosition: { x: number; y: number };
@@ -151,6 +175,7 @@ interface FirstOverlayProps {
   };
   transitionAxis?: "both" | "vertical";
   transitionNudgeYPx?: number;
+  scaleFamily?: string;
 }
 
 export default function FirstOverlay({
@@ -171,6 +196,7 @@ export default function FirstOverlay({
   fretMetrics,
   transitionAxis = "both",
   transitionNudgeYPx = 0,
+  scaleFamily,
 }: FirstOverlayProps) {
   const position = snappedPosition || mousePosition;
 
@@ -214,7 +240,7 @@ export default function FirstOverlay({
   // Compute global bestKey/accidentalStyle/displayKey
   const centerNotes = getAllOverlayCenterNotes(rowConfigs, currentFret, tuning);
   const { bestKey, displayKey, accidentalStyle } = computeGlobalBestKey(centerNotes);
-  // console.log("FirstOverlay global bestKey:", bestKey, "displayKey:", displayKey);
+  const scalePitchClasses = scaleFamily ? getScalePitchClasses(scaleFamily, bestKey) : null;
 
   // Swap background color based on bgVariant
   const backgroundColor = bgVariant === "A"
@@ -255,6 +281,7 @@ export default function FirstOverlay({
           fretMetrics={fretMetrics}
           transitionAxis={transitionAxis}
           transitionNudgeYPx={transitionNudgeYPx}
+          scalePitchClasses={scalePitchClasses}
         />
       ))}
     </>

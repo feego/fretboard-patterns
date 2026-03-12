@@ -349,7 +349,7 @@ export const overlayLayerVisible = style({
 });
 
 const trailFadeOut = keyframes({
-  from: { opacity: 0.85 },
+  from: { opacity: 0.75 },
   to: { opacity: 0 },
 });
 
@@ -365,10 +365,10 @@ export const trailOverlayWrapper = style({
 
 // Different vivid colours for FirstOverlay vs SecondOverlay trail rows
 globalStyle(`${trailOverlayWrapper} .${firstOverlayRow}`, {
-  backgroundColor: "rgba(96, 165, 250, 0.65) !important" as any, // blue
+  backgroundColor: "rgba(167, 139, 250, 0.6) !important" as any, // violet
 });
 globalStyle(`${trailOverlayWrapper} .${secondOverlayRow}`, {
-  backgroundColor: "rgba(251, 146, 60, 0.65) !important" as any, // orange
+  backgroundColor: "rgba(52, 211, 153, 0.6) !important" as any, // teal
 });
 
 // Hide all text / inner borders inside trail ghosts — only the band shapes remain

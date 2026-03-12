@@ -62,6 +62,7 @@ interface OverlayRowProps {
   };
   transitionAxis?: "both" | "vertical";
   transitionNudgeYPx?: number;
+  scalePitchClasses?: ReadonlySet<number> | null;
 }
 
 const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -142,6 +143,7 @@ export default function OverlayRow({
   fretMetrics,
   transitionAxis = "both",
   transitionNudgeYPx = 0,
+  scalePitchClasses,
 }: OverlayRowProps) {
   if (!currentFret) return null;
 
@@ -209,6 +211,7 @@ export default function OverlayRow({
      note: string;
      visible: boolean;
      isCenter: boolean;
+     scaleDimmed?: boolean;
      fretNumber: number;
    }[] = [];
 
@@ -250,7 +253,21 @@ export default function OverlayRow({
          const idx = scale.indexOf(displayText);
          displayText = idx !== -1 ? String(idx + 1) : "";
        }
-       cells.push({ note: displayText, visible: true, isCenter: isHighlighted, fretNumber });
+       // Determine scale membership and adjust center/dimmed accordingly
+       let scaleDimmed = false;
+       let effectiveIsCenter = isHighlighted;
+       if (scalePitchClasses != null) {
+         const pitchClassIdx = notes.indexOf(note);
+         const inScale = pitchClassIdx >= 0 && scalePitchClasses.has(pitchClassIdx);
+         if (isHighlighted && !inScale) {
+           // Center cell but outside the scale → demote to dimmed
+           scaleDimmed = true;
+         } else if (!isHighlighted && inScale) {
+           // Non-center cell but inside the scale → promote to highlighted
+           effectiveIsCenter = true;
+         }
+       }
+       cells.push({ note: displayText, visible: true, isCenter: effectiveIsCenter, scaleDimmed, fretNumber });
      }
    }
 
@@ -370,9 +387,10 @@ export default function OverlayRow({
         style={gridTemplateColumns ? { gridTemplateColumns } : undefined}
       >
         {cells.map((cell, idx) => {
-          const showText = cell.visible && (cell.isCenter || showDimmedNotes);
+          const isEffectiveCenter = cell.isCenter && !cell.scaleDimmed;
+          const showText = cell.visible && (isEffectiveCenter || showDimmedNotes);
           const textClass = showText
-            ? cell.isCenter
+            ? isEffectiveCenter
               ? highlightedNoteClassName
               : dimmedNoteClassName
             : "";

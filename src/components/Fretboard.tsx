@@ -551,6 +551,18 @@ export default function Fretboard() {
   const [followChords, setFollowChords] = useState(true);
   const [showCagedNotes, setShowCagedNotes] = useState(false);
 
+  const SCALE_FAMILIES = [
+    "Diatonic scale",
+    "Harmonic minor",
+    "Melodic minor",
+    "Harmonic major",
+    "Whole Tone",
+    "Diminished",
+    "Pentatonic",
+    "Blues",
+  ];
+  const [scaleFamily, setScaleFamily] = useState(SCALE_FAMILIES[0]);
+
   type TrailPos = { x: number; y: number; fret: { string: number; fret: number } };
   const [showSettings, setShowSettings] = useState(false);
   const [showTrails, setShowTrails] = useState(false);
@@ -1270,7 +1282,21 @@ export default function Fretboard() {
 
     const { displayKey } = computeGlobalDisplayKey(centerNotes);
     const tonicRaw = displayKeyToRawTonic(displayKey);
-    const primaryRawNotes = computeMajorTriadRawNotes(tonicRaw); // degrees 1/3/5
+    let primaryRawNotes: Set<string>;
+    const tonicIndex = NOTES.indexOf(tonicRaw);
+    if (scaleFamily === "Harmonic minor") {
+      // Harmonic minor: 1,2,3,4,5#,6,7
+      // Semitones: 0,2,3,5,8,9,11
+      const scaleDegrees = [0,2,3,5,8,9,11];
+      primaryRawNotes = new Set(scaleDegrees.map(d => NOTES[(tonicIndex + d) % 12]));
+    } else if (scaleFamily === "Diatonic scale") {
+      // Diatonic: 1,2,3,4,5,6,7
+      // Semitones: 0,2,4,5,7,9,11
+      const scaleDegrees = [0,2,4,5,7,9,11];
+      primaryRawNotes = new Set(scaleDegrees.map(d => NOTES[(tonicIndex + d) % 12]));
+    } else {
+      primaryRawNotes = computeMajorTriadRawNotes(tonicRaw); // fallback: triad
+    }
 
     const next: Record<string, boolean> = {};
     const addOverlayHighlights = (
@@ -1307,7 +1333,7 @@ export default function Fretboard() {
     addOverlayHighlights(secondOverlayRows);
 
     setCagedHighlightedCells(next);
-  }, [showCagedNotes, currentFret, tuning]);
+  }, [showCagedNotes, currentFret, tuning, scaleFamily]);
   const [cellWidth, setCellWidth] = useState(64);
   const [cellHeight, setCellHeight] = useState(48);
   const [fretboardScale, setFretboardScale] = useState(1);
@@ -1707,13 +1733,12 @@ export default function Fretboard() {
   currentPositionYRef.current = currentPosition.y;
 
   // ─── Trail effects (must be before the hydration gate) ────────────────────
+
   // Keep trail config refs in sync
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     showTrailsRef.current = showTrails;
     if (!showTrails) setTrailPos(null);
   }, [showTrails]);
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => { trailDurationSecondsRef.current = trailDurationSeconds; }, [trailDurationSeconds]);
 
   // Effect 1: capture previous position as a trail entry when the fret changes.
@@ -1767,6 +1792,22 @@ export default function Fretboard() {
           >
             <option value="standard">Standard</option>
             <option value="allFourths">All Fourths</option>
+          </select>
+        </div>
+
+        <div className={styles.headerTuning}>
+          <label className={styles.headerTuningLabel} htmlFor="scale-family-select">
+            Scale family:
+          </label>
+          <select
+            id="scale-family-select"
+            className={styles.headerTuningSelect}
+            value={scaleFamily}
+            onChange={e => setScaleFamily(e.target.value)}
+          >
+            {SCALE_FAMILIES.map(fam => (
+              <option key={fam} value={fam}>{fam}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -1972,6 +2013,7 @@ export default function Fretboard() {
                         overlayFretOffset={cycleOffset * 12}
                         transitionAxis="vertical"
                         transitionNudgeYPx={0}
+                        scaleFamily={scaleFamily}
                       />
                     );
                   })}
@@ -2020,6 +2062,7 @@ export default function Fretboard() {
                       overlayFretOffset={cycleOffset * 12}
                       transitionAxis={overlayRowSuppressTransitions ? "vertical" : "both"}
                       transitionNudgeYPx={0}
+                      scaleFamily={scaleFamily}
                     />
                   );
                 })}
