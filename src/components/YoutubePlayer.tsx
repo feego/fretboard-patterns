@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import * as styles from "./YoutubePlayer.css";
 
+// How many ms before metronome beat 1 to unmute. Accounts for the ~1 frame of
+// audio decode that still happens after unMute() is called.
+const VIDEO_LEAD_MS = 280;
+
 function extractVideoId(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -34,16 +38,23 @@ interface YoutubePlayerProps {
   onStopMetronome: () => void;
   bpm: number;
   suggestion?: { id: string; offset: number };
+  /** When the panel opens leftward, align its left edge with this element. */
+  panelAlignRef?: React.RefObject<HTMLElement | null>;
+  /** When the panel opens rightward, align its right edge with this element. */
+  rightAlignRef?: React.RefObject<HTMLElement | null>;
 }
 
-export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, suggestion }: YoutubePlayerProps) {
+export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, suggestion, panelAlignRef, rightAlignRef }: YoutubePlayerProps) {
   const [expanded, setExpanded] = useState(false);
+  const [openLeft, setOpenLeft] = useState(true);
+  const [panelWidthPx, setPanelWidthPx] = useState<number | null>(null);
   const [urlDraft, setUrlDraft] = useState("");
   const [offsetSeconds, setOffsetSeconds] = useState(0);
   const [volume, setVolume] = useState(80);
   const [isVolumeExpanded, setIsVolumeExpanded] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
   const volumeAreaRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +66,7 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
   const prevMetronomeStateRef = useRef(metronomeState);
   const pendingPlayRef = useRef(false);
   const shouldPlayOnReadyRef = useRef(false);
+  const mutePlayOnReadyRef = useRef(false);
   const preBufferingRef = useRef(false);
   const countInTimerRef = useRef<number | null>(null);
   const prePlayTimerRef = useRef<number | null>(null);
@@ -64,6 +76,12 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
   const isPanelFocusedRef = useRef(false);
   const prevSuggestionRef = useRef(suggestion);
   const isPreloadedRef = useRef(false);
+  // Tracks the wall-clock moment the count-in began and its total duration.
+  // Used by onStateChange(PLAYING) to compute the precise unmute delay.
+  const countInStartTimeRef = useRef(0);
+  const countInMsRef = useRef(0);
+  // True while the video is playing muted during the count-in (not pre-buffering).
+  const isCountInMutedPlayRef = useRef(false);
   const metronomeStateRef = useRef(metronomeState);
   const urlDraftRef = useRef(urlDraft);
 
@@ -80,6 +98,7 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
     isPreloadedRef.current = false;
     preBufferingRef.current = false;
     shouldPlayOnReadyRef.current = false;
+    mutePlayOnReadyRef.current = false;
     if (playerRef.current) {
       try { playerRef.current.destroy(); } catch {}
       playerRef.current = null;
@@ -173,12 +192,21 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
         onReady: (e: any) => {
           e.target.setVolume(volumeRef.current);
           if (playImmediately || shouldPlayOnReadyRef.current) {
-            // Either play was requested at creation time, or all timers already fired
-            // during loading — play immediately with audio.
+            // Timers already fired before onReady — play immediately with audio.
             shouldPlayOnReadyRef.current = false;
+            mutePlayOnReadyRef.current = false;
             preBufferingRef.current = false;
             e.target.unMute();
             e.target.setVolume(volumeRef.current);
+            e.target.seekTo(offsetRef.current, true);
+            e.target.playVideo();
+          } else if (mutePlayOnReadyRef.current) {
+            // Count-in is running — start playing muted; onStateChange(PLAYING)
+            // will measure the actual startup latency and schedule unMute() precisely.
+            mutePlayOnReadyRef.current = false;
+            preBufferingRef.current = false;
+            isCountInMutedPlayRef.current = true;
+            e.target.mute();
             e.target.seekTo(offsetRef.current, true);
             e.target.playVideo();
           } else {
@@ -198,13 +226,29 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
               preBufferingRef.current = false;
               e.target.unMute();
               e.target.setVolume(volumeRef.current);
+            } else if (isCountInMutedPlayRef.current) {
+              // Audio is now flowing. Measure actual startup latency and schedule
+              // unMute() for exactly VIDEO_LEAD_MS before beat 1.
+              isCountInMutedPlayRef.current = false;
+              const elapsed = performance.now() - countInStartTimeRef.current;
+              const remainingMs = Math.max(0, countInMsRef.current - elapsed - VIDEO_LEAD_MS);
+              countInTimerRef.current = window.setTimeout(() => {
+                countInTimerRef.current = null;
+                const p = playerRef.current;
+                if (p) {
+                  p.unMute();
+                  p.setVolume(volumeRef.current);
+                } else {
+                  shouldPlayOnReadyRef.current = true;
+                  mutePlayOnReadyRef.current = false;
+                }
+              }, remainingMs);
             } else if (preBufferingRef.current) {
               // Silent pre-buffer phase: pause as soon as the video starts playing
               preBufferingRef.current = false;
               isPreloadedRef.current = true; // buffered at offset, ready for instant play
               e.target.pauseVideo();
             }
-            // Otherwise: normal muted-play phase (STARTUP_LATENCY_MS window) — let it run
           } else if (e.data === YT.PlayerState.ENDED) {
             onStopRef.current();
           }
@@ -222,6 +266,7 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
       window.clearTimeout(prePlayTimerRef.current);
       prePlayTimerRef.current = null;
     }
+    isCountInMutedPlayRef.current = false;
   };
 
   // Create a player in silent pre-buffer mode so it's buffered at the offset
@@ -233,6 +278,7 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
     clearCountInTimer();
     isPreloadedRef.current = false;
     shouldPlayOnReadyRef.current = false;
+    mutePlayOnReadyRef.current = false;
     preBufferingRef.current = false;
     if (playerRef.current) {
       try { playerRef.current.destroy(); } catch {}
@@ -268,6 +314,7 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
         // Otherwise: create player now (will pre-buffer during count-in as fallback).
         clearCountInTimer();
         shouldPlayOnReadyRef.current = false;
+        mutePlayOnReadyRef.current = false;
         preBufferingRef.current = false;
 
         if (!apiReadyRef.current) {
@@ -275,43 +322,31 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
           return;
         }
 
-        if (!isPreloadedRef.current) {
-          createPlayer(id);
-        }
-        // Reset so subsequent stop+play cycles go through the preload path again
-        isPreloadedRef.current = false;
-
-        // How much earlier to call playVideo() to compensate for startup latency.
-        // Tune this if audio still lags (increase) or plays too early (decrease).
-        const STARTUP_LATENCY_MS = 300;
+        // Record count-in start time before kicking off muted play.
+        // onStateChange(PLAYING) will use this to compute the actual startup
+        // latency and schedule unMute() with a precise remaining delay.
         const countInMs = 4 * (60 / bpmRef.current) * 1000;
-        const playEarlyMs = Math.max(0, countInMs - STARTUP_LATENCY_MS);
+        countInStartTimeRef.current = performance.now();
+        countInMsRef.current = countInMs;
 
-        // Fire playVideo() a bit before beat 1, still muted
-        prePlayTimerRef.current = window.setTimeout(() => {
-          prePlayTimerRef.current = null;
-          preBufferingRef.current = false;
+        if (!isPreloadedRef.current) {
+          // Player not ready yet — create it; onReady will start playing muted
+          // and set isCountInMutedPlayRef so onStateChange can schedule unmute.
+          mutePlayOnReadyRef.current = true;
+          createPlayer(id);
+        } else {
+          // Already buffered and paused at offset — start playing muted immediately.
           const p = playerRef.current;
           if (p) {
-            p.playVideo(); // muted — no audible sound yet
+            isCountInMutedPlayRef.current = true;
+            try { p.playVideo(); } catch {}
           } else {
-            // onReady hasn't fired yet; flag to play+unmute immediately in onReady
-            shouldPlayOnReadyRef.current = true;
+            mutePlayOnReadyRef.current = true;
           }
-        }, playEarlyMs);
-
-        // Unmute exactly at beat 1
-        countInTimerRef.current = window.setTimeout(() => {
-          countInTimerRef.current = null;
-          const p = playerRef.current;
-          if (p) {
-            p.unMute();
-            p.setVolume(volumeRef.current);
-          } else {
-            // Player not ready yet; onReady will handle play+unmute
-            shouldPlayOnReadyRef.current = true;
-          }
-        }, countInMs);
+        }
+        isPreloadedRef.current = false;
+        // No setTimeout here — unMute() is scheduled inside onStateChange(PLAYING)
+        // once we know the video's actual startup latency.
       }
     } else if (metronomeState === "paused") {
       clearCountInTimer();
@@ -392,10 +427,41 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
       <div ref={iframeContainerRef} className={styles.iframeContainer} />
 
       <div className={styles.controls}>
+        <div className={`${styles.ytPanelWrapper}${expanded ? ` ${styles.ytPanelWrapperExpanded}` : ""}`}>
         <button
+          ref={toggleButtonRef}
           type="button"
           className={styles.toggleButton}
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => {
+            const next = !expanded;
+            if (next && toggleButtonRef.current) {
+              const rect = toggleButtonRef.current.getBoundingClientRect();
+              // Open toward whichever side has more space.
+              const spaceRight = window.innerWidth - rect.right;
+              const spaceLeft = rect.left;
+              const goLeft = spaceLeft > spaceRight;
+              setOpenLeft(goLeft);
+              // Stretch to align left edge with the song picker (or fall back to button left)
+              if (goLeft) {
+                const alignLeft = panelAlignRef?.current
+                  ? panelAlignRef.current.getBoundingClientRect().left
+                  : rect.left;
+                // Panel right edge sits ~8px left of the button; width fills back to alignLeft
+                setPanelWidthPx(Math.max(0, Math.round(rect.left - 8 - alignLeft)));
+              } else {
+                if (rightAlignRef?.current) {
+                  const rightRect = rightAlignRef.current.getBoundingClientRect();
+                  // panel left edge = button.right + 8px (0.5rem); fill to rightRect.right
+                  setPanelWidthPx(Math.max(0, Math.round(rightRect.right - rect.right - 8)));
+                } else {
+                  setPanelWidthPx(null);
+                }
+              }
+            } else if (!next) {
+              setPanelWidthPx(null);
+            }
+            setExpanded(next);
+          }}
           title={expanded ? "Hide YouTube player" : "Play YouTube audio"}
           aria-label="Toggle YouTube player"
         >
@@ -404,7 +470,8 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
 
         {expanded && (
           <div
-            className={styles.panel}
+            className={openLeft ? styles.panelLeft : styles.panelRight}
+            style={panelWidthPx != null ? { width: panelWidthPx } : undefined}
             onPointerEnter={() => {
               isPanelHoveredRef.current = true;
               clearAutoCollapse();
@@ -443,28 +510,31 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
                 if (e.key === "Escape") setExpanded(false);
               }}
             />
-            <input
-              type="number"
-              className={styles.offsetInput}
-              min={0}
-              step={1}
-              value={offsetSeconds}
-              onChange={(e) => {
-                const v = Math.max(0, Number(e.target.value));
-                if (!Number.isFinite(v)) return;
-                setOffsetSeconds(v);
-              }}
-              onFocus={() => {
-                isPanelFocusedRef.current = true;
-                clearAutoCollapse();
-              }}
-              onBlur={() => {
-                isPanelFocusedRef.current = false;
-                scheduleAutoCollapse();
-              }}
-              title={`Start at ${offsetSeconds}s`}
-              aria-label="Video start offset in seconds"
-            />
+            <div className={styles.offsetInputWrapper}>
+              <input
+                type="number"
+                className={styles.offsetInput}
+                min={0}
+                step={1}
+                value={offsetSeconds}
+                onChange={(e) => {
+                  const v = Math.max(0, Number(e.target.value));
+                  if (!Number.isFinite(v)) return;
+                  setOffsetSeconds(v);
+                }}
+                onFocus={() => {
+                  isPanelFocusedRef.current = true;
+                  clearAutoCollapse();
+                }}
+                onBlur={() => {
+                  isPanelFocusedRef.current = false;
+                  scheduleAutoCollapse();
+                }}
+                title={`Start at ${offsetSeconds}s`}
+                aria-label="Video start offset in seconds"
+              />
+              <span>s</span>
+            </div>
 
             <div ref={volumeAreaRef} className={styles.ytVolumeWrapper}>
               <button
@@ -493,6 +563,7 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -222,9 +222,18 @@ export const settingsRow = style({
 
   "@media": {
     "screen and (max-width: 600px)": {
-      justifyContent: "flex-start",
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
       gap: spacing.xs,
       marginBottom: spacing.xs,
+    },
+  },
+});
+
+export const settingsRowFullSpan = style({
+  "@media": {
+    "screen and (max-width: 600px)": {
+      gridColumn: "1 / -1",
     },
   },
 });

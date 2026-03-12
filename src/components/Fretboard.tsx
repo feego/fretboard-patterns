@@ -2117,7 +2117,8 @@ export default function Fretboard() {
                 }}
                 aria-label="Trail duration in seconds"
                 style={{
-                  width: "2.6rem",
+                  flex: 1,
+                  minWidth: 0,
                   background: "transparent",
                   border: "none",
                   color: "inherit",

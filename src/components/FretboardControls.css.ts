@@ -101,7 +101,7 @@ export const toggleLabel = style({
 
   "@media": {
     "screen and (max-width: 600px)": {
-      width: "min(22rem, 100%)",
+      width: "100%",
       justifyContent: "flex-start",
     },
     "screen and (orientation: landscape) and (max-height: 450px)": {
@@ -258,6 +258,11 @@ export const metronomeBpmVolumeArea = style({
   alignItems: "center",
   gap: spacing.sm,
   height: "2.5rem",
+  "@media": {
+    "screen and (max-width: 600px)": {
+      marginLeft: "auto",
+    },
+  },
 });
 
 export const metronomeVolumeExpanded = style({

@@ -318,6 +318,7 @@ export default function FretboardControls({
 }: FretboardControlsProps) {
   const [isDesktopGrid, setIsDesktopGrid] = useState(false);
   const [isMobileGrid, setIsMobileGrid] = useState(false);
+  const songPickerRef = useRef<HTMLDivElement>(null);
 
   type BuiltInSongId =
     | "blank"
@@ -1027,7 +1028,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(140);
-      setYtSuggestion({ id: "iyHDHYrdWPs", offset: 1.7 });
+      setYtSuggestion({ id: "iyHDHYrdWPs", offset: 0.35 });
       return;
     }
 
@@ -1040,7 +1041,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(70);
-      setYtSuggestion({ id: "dSfF0bV8Pxk", offset: 8.2 });
+      setYtSuggestion({ id: "dSfF0bV8Pxk", offset: 5.2 });
       return;
     }
 
@@ -1066,7 +1067,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(130);
-      setYtSuggestion({ id: "s48LlgTGDUo", offset: 0 });
+      setYtSuggestion({ id: "s48LlgTGDUo", offset: 5.3 });
       return;
     }
 
@@ -1079,7 +1080,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(150);
-      setYtSuggestion({ id: "7H7Xg6U7P5g", offset: 4.43 });
+      setYtSuggestion({ id: "7H7Xg6U7P5g", offset: 3.15 });
       return;
     }
 
@@ -1316,6 +1317,7 @@ export default function FretboardControls({
     <div className={styles.container}>
       <div className={styles.chordsTopRightRow}>
         <div
+          ref={songPickerRef}
           className={`${styles.songPicker} ${isSavingSong ? styles.songPickerSaving : ""}`}
         >
           {isSavingSong ? (
@@ -1480,7 +1482,7 @@ export default function FretboardControls({
         </div>
 
         <div className={styles.metronomeControls}>
-          <YoutubePlayer metronomeState={metronomeState} onStopMetronome={onStopMetronome} bpm={bpm} suggestion={ytSuggestion} />
+          <YoutubePlayer metronomeState={metronomeState} onStopMetronome={onStopMetronome} bpm={bpm} suggestion={ytSuggestion} panelAlignRef={songPickerRef} rightAlignRef={bpmVolumeAreaRef} />
 
           <div className={styles.metronomeNavButtons}>
             <button

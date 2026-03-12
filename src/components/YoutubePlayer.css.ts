@@ -23,6 +23,23 @@ export const controls = style({
   gap: spacing.xs,
 });
 
+export const ytPanelWrapper = style({
+  position: "relative",
+  display: "inline-flex",
+  alignItems: "center",
+  height: "2.5rem",
+});
+
+// Applied on mobile when the panel is expanded — makes the wrapper take a full row
+// so the YT controls never overlap the metronome row.
+export const ytPanelWrapperExpanded = style({
+  "@media": {
+    "screen and (max-width: 600px)": {
+      width: "100%",
+    },
+  },
+});
+
 export const toggleButton = style({
   fontFamily: "var(--font-geist-mono)",
   padding: `${spacing.xs} ${spacing.sm}`,
@@ -34,17 +51,45 @@ export const toggleButton = style({
   fontWeight: "700",
   cursor: "pointer",
   whiteSpace: "nowrap",
+  position: "relative",
+  zIndex: 101,
   transition: "border-color 0.15s ease",
   ":hover": {
     borderColor: colors.dark.accent,
   },
 });
 
-export const panel = style({
+const panelBase = {
+  position: "absolute" as const,
+  top: 0,
+  zIndex: 100,
   display: "flex",
   alignItems: "center",
   gap: spacing.xs,
+  whiteSpace: "nowrap" as const,
+};
+
+export const panelLeft = style({
+  ...panelBase,
+  right: "calc(100% + 0.5rem)",
 });
+
+export const panelRight = style({
+  ...panelBase,
+  left: "calc(100% + 0.5rem)",
+  maxWidth: "calc(100vw - 5.5rem)",
+  "@media": {
+    "screen and (max-width: 600px)": {
+      // When wrapper is full-width, fill from after the button all the way to the right edge.
+      left: "4.5rem",
+      right: 0,
+      maxWidth: "none",
+    },
+  },
+});
+
+// Keep the old export as an alias for panelLeft for any stale references
+export const panel = panelLeft;
 
 export const urlInput = style({
   fontFamily: "var(--font-geist-mono)",
@@ -55,6 +100,9 @@ export const urlInput = style({
   borderRadius: borderRadius.md,
   fontSize: "0.8rem",
   fontWeight: "600",
+  // flex:1 so it expands to fill the panel when panel has an explicit width
+  flex: 1,
+  minWidth: "6rem",
   width: "13rem",
   transition: "border-color 0.15s ease",
   ":focus": {
@@ -64,25 +112,51 @@ export const urlInput = style({
   "::placeholder": {
     color: colors.dark.textMuted,
   },
+  "@media": {
+    "screen and (max-width: 600px)": {
+      minWidth: 0,
+      width: "auto",
+    },
+  },
 });
 
-export const offsetInput = style({
+export const offsetInputWrapper = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.xs,
   fontFamily: "var(--font-geist-mono)",
   padding: `${spacing.xs} ${spacing.sm}`,
-  backgroundColor: colors.dark.surface,
+  backgroundColor: colors.dark.fretboard,
   color: colors.dark.text,
   border: `2px solid ${colors.dark.border}`,
   borderRadius: borderRadius.md,
   fontSize: "0.8rem",
-  fontWeight: "600",
+  fontWeight: "700",
   width: "5.5rem",
   transition: "border-color 0.15s ease",
-  ":focus": {
-    outline: "none",
+  ":focus-within": {
     borderColor: colors.dark.accent,
   },
+});
+
+export const offsetInput = style({
+  flex: 1,
+  minWidth: 0,
+  background: "transparent",
+  border: "none",
+  outline: "none",
+  color: "inherit",
+  fontFamily: "inherit",
+  fontSize: "inherit",
+  fontWeight: "inherit",
+  textAlign: "right",
+  "::-webkit-outer-spin-button": {
+    WebkitAppearance: "none",
+    margin: 0,
+  },
   "::-webkit-inner-spin-button": {
-    opacity: 0.4,
+    WebkitAppearance: "none",
+    margin: 0,
   },
 });
 
@@ -91,6 +165,7 @@ export const ytVolumeWrapper = style({
   display: "inline-flex",
   alignItems: "center",
   height: "2.5rem",
+  marginLeft: spacing.xs,
 });
 
 export const ytVolumeButton = style({
