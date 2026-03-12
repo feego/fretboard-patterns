@@ -58,8 +58,9 @@ export const header = style({
       gap: spacing.sm,
     },
     "screen and (max-width: 900px)": {
-      gridTemplateColumns: "1fr",
-      justifyItems: "center",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
       gap: spacing.sm,
     },
     "screen and (orientation: landscape) and (max-height: 450px)": {
@@ -75,6 +76,10 @@ export const headerTuning = style({
   gap: spacing.sm,
 
   "@media": {
+    "screen and (max-width: 900px)": {
+      width: "100%",
+      justifyContent: "center",
+    },
     "screen and (max-width: 600px)": {
       width: "100%",
       justifyContent: "center",
@@ -248,6 +253,9 @@ export const headerRight = style({
   "@media": {
     "screen and (max-width: 900px)": {
       justifySelf: "center",
+      width: "100%",
+      display: "flex",
+      justifyContent: "center",
     },
   },
 });
