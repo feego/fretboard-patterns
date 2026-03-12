@@ -63,6 +63,9 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
   const isPanelHoveredRef = useRef(false);
   const isPanelFocusedRef = useRef(false);
   const prevSuggestionRef = useRef(suggestion);
+  const isPreloadedRef = useRef(false);
+  const metronomeStateRef = useRef(metronomeState);
+  const urlDraftRef = useRef(urlDraft);
 
   // Apply song suggestion when it changes
   useEffect(() => {
@@ -71,8 +74,10 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
     if (!suggestion) return;
     if (prev?.id === suggestion.id && prev?.offset === suggestion.offset) return;
     setUrlDraft(suggestion.id);
+    offsetRef.current = suggestion.offset; // update ref immediately for preload
     setOffsetSeconds(suggestion.offset);
     videoIdRef.current = null;
+    isPreloadedRef.current = false;
     preBufferingRef.current = false;
     shouldPlayOnReadyRef.current = false;
     if (playerRef.current) {
@@ -80,20 +85,40 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
       playerRef.current = null;
       if (iframeContainerRef.current) iframeContainerRef.current.innerHTML = "";
     }
+    // triggerPreload will fire via the urlDraft effect on next render
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestion]);
 
   // Keep refs in sync with state/props
-  useEffect(() => { offsetRef.current = offsetSeconds; }, [offsetSeconds]);
+  useEffect(() => {
+    offsetRef.current = offsetSeconds;
+    // If already preloaded, reposition silently to the new offset
+    if (isPreloadedRef.current && playerRef.current) {
+      try { playerRef.current.seekTo(offsetSeconds, true); } catch {}
+    }
+  }, [offsetSeconds]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
   useEffect(() => { onStopRef.current = onStopMetronome; }, [onStopMetronome]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { metronomeStateRef.current = metronomeState; }, [metronomeState]);
+  useEffect(() => { urlDraftRef.current = urlDraft; }, [urlDraft]);
+
+  // Preload whenever the URL changes to a valid ID (and API is ready)
+  useEffect(() => {
+    const id = extractVideoId(urlDraft);
+    if (!id) return;
+    triggerPreload(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlDraft]);
 
   // Load YouTube IFrame API once
   useEffect(() => {
     if (typeof window === "undefined") return;
     if ((window as any).YT?.Player) {
       apiReadyRef.current = true;
+      // API was already loaded — preload immediately if a URL is set
+      const id = extractVideoId(urlDraftRef.current);
+      if (id) triggerPreload(id);
       return;
     }
     const existing = document.querySelector('script[src*="youtube.com/iframe_api"]');
@@ -111,6 +136,10 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
         // API wasn't ready during count-in; play immediately now (best-effort)
         shouldPlayOnReadyRef.current = true;
         createPlayer(videoIdRef.current);
+      } else {
+        // No pending play — preload so first press plays instantly
+        const id = extractVideoId(urlDraftRef.current);
+        if (id) triggerPreload(id);
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,6 +201,7 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
             } else if (preBufferingRef.current) {
               // Silent pre-buffer phase: pause as soon as the video starts playing
               preBufferingRef.current = false;
+              isPreloadedRef.current = true; // buffered at offset, ready for instant play
               e.target.pauseVideo();
             }
             // Otherwise: normal muted-play phase (STARTUP_LATENCY_MS window) — let it run
@@ -192,6 +222,25 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
       window.clearTimeout(prePlayTimerRef.current);
       prePlayTimerRef.current = null;
     }
+  };
+
+  // Create a player in silent pre-buffer mode so it's buffered at the offset
+  // before the user hits play. Safe to call multiple times — idempotent.
+  const triggerPreload = (id: string) => {
+    if (!id || !apiReadyRef.current) return;
+    if (metronomeStateRef.current === "running" || metronomeStateRef.current === "paused") return;
+    if (isPreloadedRef.current && videoIdRef.current === id) return;
+    clearCountInTimer();
+    isPreloadedRef.current = false;
+    shouldPlayOnReadyRef.current = false;
+    preBufferingRef.current = false;
+    if (playerRef.current) {
+      try { playerRef.current.destroy(); } catch {}
+      playerRef.current = null;
+    }
+    if (iframeContainerRef.current) iframeContainerRef.current.innerHTML = "";
+    videoIdRef.current = id;
+    createPlayer(id);
   };
 
   // React to metronome state changes
@@ -215,9 +264,8 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
         }
       } else {
         // Fresh start from stopped:
-        // 1. Create player immediately — it mutes + loadVideoById during count-in (pre-buffering)
-        // 2. STARTUP_LATENCY_MS before beat 1: call playVideo() while still muted
-        // 3. Exactly at beat 1: unMute() — audio appears right on the beat
+        // If already pre-buffered: player is muted + paused at offset — skip createPlayer.
+        // Otherwise: create player now (will pre-buffer during count-in as fallback).
         clearCountInTimer();
         shouldPlayOnReadyRef.current = false;
         preBufferingRef.current = false;
@@ -227,7 +275,11 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
           return;
         }
 
-        createPlayer(id);
+        if (!isPreloadedRef.current) {
+          createPlayer(id);
+        }
+        // Reset so subsequent stop+play cycles go through the preload path again
+        isPreloadedRef.current = false;
 
         // How much earlier to call playVideo() to compensate for startup latency.
         // Tune this if audio still lags (increase) or plays too early (decrease).
@@ -273,6 +325,8 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
       if (p) {
         try { p.pauseVideo(); } catch {}
         try { p.seekTo(offsetRef.current, true); } catch {}
+        try { p.mute(); } catch {}
+        isPreloadedRef.current = true; // ready for next play without any loading
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -368,8 +422,9 @@ export default function YoutubePlayer({ metronomeState, onStopMetronome, bpm, su
               value={urlDraft}
               onChange={(e) => {
                 setUrlDraft(e.target.value);
-                // Reset loaded video so next play picks up the new URL
+                // Reset loaded video so the urlDraft effect triggers a fresh preload
                 videoIdRef.current = null;
+                isPreloadedRef.current = false;
                 if (playerRef.current) {
                   try { playerRef.current.destroy(); } catch {}
                   playerRef.current = null;

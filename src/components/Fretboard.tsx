@@ -551,6 +551,12 @@ export default function Fretboard() {
   const [followChords, setFollowChords] = useState(true);
   const [showCagedNotes, setShowCagedNotes] = useState(false);
 
+  type TrailEntry = { id: number; x: number; y: number; fret: { string: number; fret: number }; addedAt: number };
+  const [showSettings, setShowSettings] = useState(false);
+  const [showTrails, setShowTrails] = useState(false);
+  const [trailDurationSeconds, setTrailDurationSeconds] = useState(2);
+  const [trailItems, setTrailItems] = useState<TrailEntry[]>([]);
+
   // Metronome (header, top-right)
   const [bpm, setBpm] = useState(120);
   const [metronomeVolume, setMetronomeVolume] = useState(1);
@@ -888,10 +894,18 @@ export default function Fretboard() {
   }, [clearMetronomeTimers]);
   const fretboardRef = useRef<HTMLDivElement>(null);
   const fretboardWrapperRef = useRef<HTMLDivElement>(null);
-  // Live snapshot of currentPosition.x — updated each render so callbacks
+  // Live snapshot of currentPosition.x/y — updated each render so callbacks
   // that are memoised (useCallback) can always read the latest value without
   // needing to close over it.
   const currentPositionXRef = useRef(0);
+  const currentPositionYRef = useRef(0);
+  // Trail refs
+  const showTrailsRef = useRef(false);
+  const trailDurationSecondsRef = useRef(2);
+  const trailItemIdRef = useRef(0);
+  const trailTimerIdsRef = useRef<number[]>([]);
+  const prevPositionForTrailRef = useRef<{ x: number; y: number } | null>(null);
+  const prevFretForTrailRef = useRef<{ string: number; fret: number } | null>(null);
 
   // ─── Vertical animation ─────────────────────────────────────────────────────
 
@@ -1133,6 +1147,9 @@ export default function Fretboard() {
         currentVerticalAnimRef.current.cancel();
         currentVerticalAnimRef.current = null;
       }
+      // Clear any pending trail removal timeouts.
+      for (const id of trailTimerIdsRef.current) window.clearTimeout(id);
+      trailTimerIdsRef.current = [];
     };
   }, []);
 
@@ -1301,6 +1318,8 @@ export default function Fretboard() {
   const [scaledWrapperHeightPx, setScaledWrapperHeightPx] = useState<
     number | null
   >(null);
+  const [resizeKey, setResizeKey] = useState(0);
+  const resizeDebounceRef = useRef<number | null>(null);
 
   // Position chord-selection markers by measuring actual cell DOM centers.
   // This keeps markers fixed to the fretboard (they should NOT move with overlay anchoring).
@@ -1400,15 +1419,28 @@ export default function Fretboard() {
       }
     };
 
+    const bumpResizeKey = () => {
+      if (resizeDebounceRef.current != null) window.clearTimeout(resizeDebounceRef.current);
+      resizeDebounceRef.current = window.setTimeout(() => {
+        setResizeKey((k) => k + 1);
+        resizeDebounceRef.current = null;
+      }, 200);
+    };
+
     // Initial + on resize/orientation
     const timer = window.setTimeout(computeScale, 100);
     window.addEventListener("resize", computeScale);
+    window.addEventListener("resize", bumpResizeKey);
     window.addEventListener("orientationchange", computeScale);
+    window.addEventListener("orientationchange", bumpResizeKey);
 
     return () => {
       window.clearTimeout(timer);
+      if (resizeDebounceRef.current != null) window.clearTimeout(resizeDebounceRef.current);
       window.removeEventListener("resize", computeScale);
+      window.removeEventListener("resize", bumpResizeKey);
       window.removeEventListener("orientationchange", computeScale);
+      window.removeEventListener("orientationchange", bumpResizeKey);
     };
   }, []);
 
@@ -1674,8 +1706,49 @@ export default function Fretboard() {
     x: measuredCenterX ?? fallbackX,
     y: basePosition.y,
   };
-  // Keep ref in sync so memoised callbacks can always read the latest X.
+  // Keep ref in sync so memoised callbacks can always read the latest X/Y.
   currentPositionXRef.current = currentPosition.x;
+  currentPositionYRef.current = currentPosition.y;
+
+  // ─── Trail effects (must be before the hydration gate) ────────────────────
+  // Keep trail config refs in sync
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    showTrailsRef.current = showTrails;
+    if (!showTrails) setTrailItems([]);
+  }, [showTrails]);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => { trailDurationSecondsRef.current = trailDurationSeconds; }, [trailDurationSeconds]);
+
+  // Effect 1: capture previous position as a trail entry when the fret changes.
+  // Must be defined BEFORE effect 2 so it reads the OLD prevPosition snapshot.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (!showTrailsRef.current) return;
+    const oldPos = prevPositionForTrailRef.current;
+    const oldFret = prevFretForTrailRef.current;
+    if (!oldPos || !oldFret) return;
+    const id = trailItemIdRef.current++;
+    const durationMs = trailDurationSecondsRef.current * 1000;
+    setTrailItems((prev) => [
+      ...prev,
+      { id, x: oldPos.x, y: oldPos.y, fret: { ...oldFret }, addedAt: Date.now() },
+    ]);
+    const timeoutId = window.setTimeout(() => {
+      setTrailItems((prev) => prev.filter((t) => t.id !== id));
+      trailTimerIdsRef.current = trailTimerIdsRef.current.filter((t) => t !== timeoutId);
+    }, durationMs + 50);
+    trailTimerIdsRef.current.push(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFret.string, currentFret.fret]);
+
+  // Effect 2: snapshot current position for next fret-change detection.
+  // Must be defined AFTER effect 1 — React fires effects in definition order.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    prevPositionForTrailRef.current = { x: currentPositionXRef.current, y: currentPositionYRef.current };
+    prevFretForTrailRef.current = currentFret;
+  });
 
   // Prevent hydration mismatch: only render after mount
   if (!hasMounted) return null;
@@ -1857,9 +1930,50 @@ export default function Fretboard() {
             </div>
 
             <div
+              key={`overlay-layer-${resizeKey}`}
               ref={overlayLayerRef}
-              className={styles.overlayLayer}
+              className={`${styles.overlayLayer}${hasMounted && cellWidth > 0 ? ` ${styles.overlayLayerVisible}` : ""}`}
             >
+              {/* Trail ghost overlays — rendered behind main overlays */}
+              {showTrails && trailItems.map((trail) => (
+                <div
+                  key={`trail-${trail.id}`}
+                  className={styles.trailOverlayWrapper}
+                  style={{ animationDuration: `${trailDurationSeconds}s` }}
+                >
+                  {Array.from({ length: 21 }, (_, i) => {
+                    const cycleOffset = Math.floor(i / 2) - 5;
+                    const isFirst = i % 2 === 0;
+                    const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
+                    const bgVariant = isFirst
+                      ? swapBg ? "B" : "A"
+                      : swapBg ? "A" : "B";
+                    const zIndex = isFirst ? 888 : 889;
+                    return (
+                      <OverlayComponent
+                        key={`trail-${trail.id}-overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}
+                        isVisible={true}
+                        mousePosition={{ x: trail.x, y: trail.y }}
+                        snappedPosition={{ x: trail.x, y: trail.y }}
+                        cellWidth={cellWidth}
+                        cellHeight={cellHeight}
+                        currentFret={trail.fret}
+                        showDimmedNotes={false}
+                        tuning={tuning}
+                        bgVariant={bgVariant}
+                        zIndex={zIndex}
+                        showDegrees={false}
+                        toggledCells={{}}
+                        fretMetrics={fretMetrics ?? undefined}
+                        overlayFretOffset={cycleOffset * 12}
+                        transitionAxis="both"
+                        transitionNudgeYPx={0}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+
               {/* Render multiple overlays in alternating pattern based on continuous fret position */}
               {Array.from({ length: 21 }, (_, i) => {
                   const cycleOffset = Math.floor(i / 2) - 5;
@@ -1923,46 +2037,98 @@ export default function Fretboard() {
           Clear Selected
         </button>
 
-        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
-          <input
-            className={controlStyles.toggleCheckbox}
-            type="checkbox"
-            checked={showDimmedNotes}
-            onChange={() => setShowDimmedNotes(!showDimmedNotes)}
-          />
-          <span className={controlStyles.toggleText}>Dimmed Notes</span>
-        </label>
-
-        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
-          <input
-            className={controlStyles.toggleCheckbox}
-            type="checkbox"
-            checked={showDegrees}
-            onChange={() => setShowDegrees((v) => !v)}
-          />
-          <span className={controlStyles.toggleText}>Scale Degrees</span>
-        </label>
-
-        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
-          <input
-            className={controlStyles.toggleCheckbox}
-            type="checkbox"
-            checked={followChords}
-            onChange={() => setFollowChords((v) => !v)}
-          />
-          <span className={controlStyles.toggleText}>Follow Chords</span>
-        </label>
-
-        <label className={`${controlStyles.toggleLabel} ${styles.arrowsDockItem}`}>
-          <input
-            className={controlStyles.toggleCheckbox}
-            type="checkbox"
-            checked={showCagedNotes}
-            onChange={() => setShowCagedNotes((v) => !v)}
-          />
-          <span className={controlStyles.toggleText}>CAGED</span>
-        </label>
+        <button
+          type="button"
+          className={`${styles.arrowsDockButton} ${styles.arrowsDockItem}${showSettings ? ` ${styles.arrowsDockButtonActive}` : ""}`}
+          onClick={() => setShowSettings((v) => !v)}
+        >
+          Settings
+        </button>
       </div>
+
+      {showSettings && (
+        <div className={styles.settingsRow}>
+          <label className={controlStyles.toggleLabel}>
+            <input
+              className={controlStyles.toggleCheckbox}
+              type="checkbox"
+              checked={showDimmedNotes}
+              onChange={() => setShowDimmedNotes(!showDimmedNotes)}
+            />
+            <span className={controlStyles.toggleText}>Dimmed Notes</span>
+          </label>
+
+          <label className={controlStyles.toggleLabel}>
+            <input
+              className={controlStyles.toggleCheckbox}
+              type="checkbox"
+              checked={showDegrees}
+              onChange={() => setShowDegrees((v) => !v)}
+            />
+            <span className={controlStyles.toggleText}>Scale Degrees</span>
+          </label>
+
+          <label className={controlStyles.toggleLabel}>
+            <input
+              className={controlStyles.toggleCheckbox}
+              type="checkbox"
+              checked={followChords}
+              onChange={() => setFollowChords((v) => !v)}
+            />
+            <span className={controlStyles.toggleText}>Follow Chords</span>
+          </label>
+
+          <label className={controlStyles.toggleLabel}>
+            <input
+              className={controlStyles.toggleCheckbox}
+              type="checkbox"
+              checked={showCagedNotes}
+              onChange={() => setShowCagedNotes((v) => !v)}
+            />
+            <span className={controlStyles.toggleText}>CAGED</span>
+          </label>
+
+          <label className={controlStyles.toggleLabel}>
+            <input
+              className={controlStyles.toggleCheckbox}
+              type="checkbox"
+              checked={showTrails}
+              onChange={() => setShowTrails((v) => !v)}
+            />
+            <span className={controlStyles.toggleText}>Trails</span>
+          </label>
+
+          {showTrails && (
+            <div className={controlStyles.toggleLabel}>
+              <input
+                type="number"
+                min={0.5}
+                max={30}
+                step={0.5}
+                value={trailDurationSeconds}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (!Number.isFinite(v) || v < 0.5) return;
+                  setTrailDurationSeconds(Math.min(30, v));
+                }}
+                aria-label="Trail duration in seconds"
+                style={{
+                  width: "2.6rem",
+                  background: "transparent",
+                  border: "none",
+                  color: "inherit",
+                  fontFamily: "inherit",
+                  fontWeight: "inherit",
+                  fontSize: "inherit",
+                  outline: "none",
+                  textAlign: "right",
+                }}
+              />
+              <span className={controlStyles.toggleText}>s</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <FretboardControls
         metronomeState={metronomeState}

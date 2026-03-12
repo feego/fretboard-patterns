@@ -10,7 +10,7 @@ export const container = style({
   gap: 0,
   alignItems: "center",
   justifyContent: "center",
-  padding: spacing.md,
+  padding: spacing.sm,
   marginTop: 0,
 
   "@media": {
@@ -384,7 +384,6 @@ export const chordsTopRightRow = style({
   maxWidth: "90rem",
   marginLeft: "auto",
   marginRight: "auto",
-  marginBottom: spacing.sm,
 
   "@media": {
     "screen and (max-width: 600px)": {
@@ -476,6 +475,22 @@ export const metronomeControls = style({
   "@media": {
     "screen and (max-width: 600px)": {
       marginLeft: 0,
+      flexWrap: "wrap",
+      justifyContent: "center",
+    },
+  },
+});
+
+export const metronomeNavButtons = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      order: 2,
+      width: "100%",
+      justifyContent: "center",
     },
   },
 });

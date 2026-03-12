@@ -1,5 +1,7 @@
-import { style } from "@vanilla-extract/css";
+import { globalStyle, keyframes, style } from "@vanilla-extract/css";
 import { borderRadius, colors, spacing } from "../styles/theme";
+import { overlay as firstOverlayRow } from "./FirstOverlay.css";
+import { overlay as secondOverlayRow } from "./SecondOverlay.css";
 
 export const container = style({
   // CSS variables used for responsive sizing across the fretboard + labels
@@ -127,7 +129,7 @@ export const arrowsDock = style({
   gap: spacing.sm,
   justifyContent: "center",
   flexWrap: "wrap",
-  marginTop: spacing.sm,
+  marginTop: spacing.xs,
   marginBottom: 0,
 
   "@media": {
@@ -195,6 +197,34 @@ export const arrowsDockButton = style({
       height: "2.25rem",
       padding: `0 ${spacing.sm}`,
       fontSize: "0.8rem",
+    },
+  },
+});
+
+export const arrowsDockButtonActive = style({
+  backgroundColor: colors.dark.accent,
+  borderColor: colors.dark.accent,
+  ":hover": {
+    backgroundColor: colors.dark.accentHover,
+    borderColor: colors.dark.accentHover,
+  },
+});
+
+export const settingsRow = style({
+  width: "min(90rem, 100%)",
+  display: "flex",
+  alignItems: "center",
+  gap: spacing.sm,
+  justifyContent: "center",
+  flexWrap: "wrap",
+  marginTop: spacing.xs,
+  marginBottom: 0,
+
+  "@media": {
+    "screen and (max-width: 600px)": {
+      justifyContent: "flex-start",
+      gap: spacing.xs,
+      marginBottom: spacing.xs,
     },
   },
 });
@@ -289,11 +319,55 @@ export const selectionLayer = style({
   zIndex: 2000,
 });
 
+const overlayFadeIn = keyframes({
+  from: { opacity: 0 },
+  to: { opacity: 1 },
+});
+
 export const overlayLayer = style({
   position: "absolute",
   inset: 0,
   willChange: "transform",
   zIndex: 900,
+  opacity: 0,
+});
+
+export const overlayLayerVisible = style({
+  animationName: overlayFadeIn,
+  animationDuration: "0.35s",
+  animationTimingFunction: "ease-out",
+  animationFillMode: "forwards",
+});
+
+const trailFadeOut = keyframes({
+  from: { opacity: 0.85 },
+  to: { opacity: 0 },
+});
+
+export const trailOverlayWrapper = style({
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  animationName: trailFadeOut,
+  animationTimingFunction: "linear",
+  animationFillMode: "forwards",
+  animationIterationCount: 1,
+});
+
+// Different vivid colours for FirstOverlay vs SecondOverlay trail rows
+globalStyle(`${trailOverlayWrapper} .${firstOverlayRow}`, {
+  backgroundColor: "rgba(96, 165, 250, 0.65) !important" as any, // blue
+});
+globalStyle(`${trailOverlayWrapper} .${secondOverlayRow}`, {
+  backgroundColor: "rgba(251, 146, 60, 0.65) !important" as any, // orange
+});
+
+// Hide all text / inner borders inside trail ghosts — only the band shapes remain
+globalStyle(`${trailOverlayWrapper} *`, {
+  color: "transparent !important" as any,
+  borderColor: "transparent !important" as any,
+  boxShadow: "none !important" as any,
+  textShadow: "none !important" as any,
 });
 
 export const selectionMarker = style({

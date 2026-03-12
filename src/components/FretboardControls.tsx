@@ -1475,30 +1475,32 @@ export default function FretboardControls({
           )}
         </div>
 
-        <YoutubePlayer metronomeState={metronomeState} onStopMetronome={onStopMetronome} bpm={bpm} suggestion={ytSuggestion} />
-
         <div className={styles.metronomeControls}>
-          <button
-            type="button"
-            className={styles.metronomeIconButton}
-            onClick={() => seekByBars(-1)}
-            disabled={!onSeekToBeat || metronomeBeat == null || bars.length <= 0}
-            aria-label="Previous bar"
-            title="Previous bar"
-          >
-            ←
-          </button>
+          <YoutubePlayer metronomeState={metronomeState} onStopMetronome={onStopMetronome} bpm={bpm} suggestion={ytSuggestion} />
 
-          <button
-            type="button"
-            className={styles.metronomeIconButton}
-            onClick={() => seekByBars(1)}
-            disabled={!onSeekToBeat || metronomeBeat == null || bars.length <= 0}
-            aria-label="Next bar"
-            title="Next bar"
-          >
-            →
-          </button>
+          <div className={styles.metronomeNavButtons}>
+            <button
+              type="button"
+              className={styles.metronomeIconButton}
+              onClick={() => seekByBars(-1)}
+              disabled={!onSeekToBeat || metronomeBeat == null || bars.length <= 0}
+              aria-label="Previous bar"
+              title="Previous bar"
+            >
+              ←
+            </button>
+
+            <button
+              type="button"
+              className={styles.metronomeIconButton}
+              onClick={() => seekByBars(1)}
+              disabled={!onSeekToBeat || metronomeBeat == null || bars.length <= 0}
+              aria-label="Next bar"
+              title="Next bar"
+            >
+              →
+            </button>
+          </div>
 
           <button
             type="button"
