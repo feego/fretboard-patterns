@@ -1041,7 +1041,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(70);
-      setYtSuggestion({ id: "dSfF0bV8Pxk", offset: 5.2 });
+      setYtSuggestion({ id: "dSfF0bV8Pxk", offset: 19.05 });
       return;
     }
 

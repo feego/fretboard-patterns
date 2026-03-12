@@ -2,10 +2,51 @@
   <title>Circle of Fifths – Fretboard Visualizer</title>
 
   <defs>
-    <path id="seg" d="M 51.19,-13.71 Q 54.09,-14.49 54.87,-11.59 A 56 56 0 0 1 54.87,11.59 Q 54.09,14.49 51.19,13.71 L 28.01,7.51 Q 25.11,6.73 25.89,3.83 A 26 26 0 0 0 25.89,-3.83 Q 25.11,-6.73 28.01,-7.51 Z"/>
+    <path id="seg" d="M 54.09,-14.49 A 56 56 0 0 1 54.09,14.49 L 25.11,6.73 A 26 26 0 0 0 25.11,-6.73 Z"/>
     <clipPath id="gridClip">
-      <rect x="0" y="40.8" width="128" height="46.4"/>
+      <rect x="0" y="40.8" width="128" height="46.4" rx="8"/>
     </clipPath>
+    <linearGradient id="vcol1" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="hsl(210,65%,52%)"/>
+      <stop offset="50%"  stop-color="hsl(225,63%,52%)"/>
+      <stop offset="100%" stop-color="hsl(240,60%,54%)"/>
+    </linearGradient>
+    <linearGradient id="vcol2" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="hsl(210,16%,33%)"/>
+      <stop offset="50%"  stop-color="hsl(230,15%,35%)"/>
+      <stop offset="100%" stop-color="hsl(250,15%,33%)"/>
+    </linearGradient>
+    <linearGradient id="vcol3" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="hsl(240,60%,54%)"/>
+      <stop offset="50%"  stop-color="hsl(255,58%,55%)"/>
+      <stop offset="100%" stop-color="hsl(270,58%,55%)"/>
+    </linearGradient>
+    <linearGradient id="vcol4" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="hsl(250,15%,33%)"/>
+      <stop offset="50%"  stop-color="hsl(270,14%,35%)"/>
+      <stop offset="100%" stop-color="hsl(290,13%,33%)"/>
+    </linearGradient>
+    <linearGradient id="vcol5" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="hsl(270,58%,55%)"/>
+      <stop offset="50%"  stop-color="hsl(285,56%,52%)"/>
+      <stop offset="100%" stop-color="hsl(300,54%,50%)"/>
+    </linearGradient>
+    <linearGradient id="ringBright" x1="49.51" y1="9.91" x2="49.51" y2="118.09" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"    stop-color="hsl(210,65%,52%)"/>
+      <stop offset="16.7%" stop-color="hsl(225,63%,52%)"/>
+      <stop offset="33.3%" stop-color="hsl(240,60%,54%)"/>
+      <stop offset="50%"   stop-color="hsl(255,58%,55%)"/>
+      <stop offset="66.7%" stop-color="hsl(270,58%,55%)"/>
+      <stop offset="83.3%" stop-color="hsl(285,56%,52%)"/>
+      <stop offset="100%"  stop-color="hsl(300,54%,50%)"/>
+    </linearGradient>
+    <linearGradient id="ringDim" x1="49.51" y1="118.09" x2="49.51" y2="9.91" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="hsl(300,13%,33%)"/>
+      <stop offset="25%"  stop-color="hsl(280,14%,35%)"/>
+      <stop offset="50%"  stop-color="hsl(260,14%,33%)"/>
+      <stop offset="75%"  stop-color="hsl(240,13%,35%)"/>
+      <stop offset="100%" stop-color="hsl(220,15%,33%)"/>
+    </linearGradient>
     <clipPath id="iconClip">
       <rect width="128" height="128" rx="22"/>
     </clipPath>
@@ -13,41 +54,22 @@
 
   <g clip-path="url(#iconClip)">
   <g clip-path="url(#gridClip)">
-    <!-- Dark background so gaps between cells show as dark gutters -->
-    <rect x="0" y="40.8" width="128" height="46.4" fill="#0a0a0c"/>
-    <!-- Row 1 (1px gutters around each cell) -->
-    <rect x="1"     y="41.8" width="23.6" height="13.4" rx="3" fill="hsl(224,66%,60%)"/>
-    <rect x="26.6"  y="41.8" width="23.6" height="13.4" rx="3" fill="hsl(14,70%,59%)"/>
-    <rect x="52.2"  y="41.8" width="23.6" height="13.4" rx="3" fill="hsl(168,62%,56%)"/>
-    <rect x="77.8"  y="41.8" width="23.6" height="13.4" rx="3" fill="hsl(322,64%,58%)"/>
-    <rect x="103.4" y="41.8" width="23.6" height="13.4" rx="3" fill="hsl(88,60%,53%)"/>
-    <!-- Row 2 -->
-    <rect x="1"     y="57.2" width="23.6" height="13.4" rx="3" fill="hsl(200,68%,60%)"/>
-    <rect x="26.6"  y="57.2" width="23.6" height="13.4" rx="3" fill="hsl(350,66%,59%)"/>
-    <rect x="52.2"  y="57.2" width="23.6" height="13.4" rx="3" fill="hsl(140,60%,53%)"/>
-    <rect x="77.8"  y="57.2" width="23.6" height="13.4" rx="3" fill="hsl(290,62%,59%)"/>
-    <rect x="103.4" y="57.2" width="23.6" height="13.4" rx="3" fill="hsl(56,68%,56%)"/>
-    <!-- Row 3 -->
-    <rect x="1"     y="72.6" width="23.6" height="13.4" rx="3" fill="hsl(168,62%,56%)"/>
-    <rect x="26.6"  y="72.6" width="23.6" height="13.4" rx="3" fill="hsl(322,64%,58%)"/>
-    <rect x="52.2"  y="72.6" width="23.6" height="13.4" rx="3" fill="hsl(88,60%,53%)"/>
-    <rect x="77.8"  y="72.6" width="23.6" height="13.4" rx="3" fill="hsl(258,64%,59%)"/>
-    <rect x="103.4" y="72.6" width="23.6" height="13.4" rx="3" fill="hsl(34,70%,57%)"/>
+    <rect x="0"     y="40.8" width="25.6" height="46.4" fill="url(#vcol1)"/>
+    <rect x="25.6"  y="40.8" width="25.6" height="46.4" fill="url(#vcol2)"/>
+    <rect x="51.2"  y="40.8" width="25.6" height="46.4" fill="url(#vcol3)"/>
+    <rect x="76.8"  y="40.8" width="25.6" height="46.4" fill="url(#vcol4)"/>
+    <rect x="102.4" y="40.8" width="25.6" height="46.4" fill="url(#vcol5)"/>
   </g>
+  <!-- Rectangle border -->
+  <rect x="0" y="40.8" width="128" height="46.4" rx="8" fill="none" stroke="hsl(240,40%,12%)" stroke-width="3"/>
 
-  <!-- 12 colored segments (strokes restored) -->
-  <use href="#seg" transform="translate(64,64) rotate(-90)"  fill="hsl(200,68%,60%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(-60)"  fill="hsl(168,62%,56%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(-30)"  fill="hsl(140,60%,53%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(0)"    fill="hsl(88,60%,53%)"  stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(30)"   fill="hsl(56,68%,56%)"  stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(60)"   fill="hsl(34,70%,57%)"  stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(90)"   fill="hsl(14,70%,59%)"  stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(120)"  fill="hsl(350,66%,59%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(150)"  fill="hsl(322,64%,58%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(180)"  fill="hsl(290,62%,59%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(210)"  fill="hsl(258,64%,59%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
-  <use href="#seg" transform="translate(64,64) rotate(240)"  fill="hsl(224,66%,60%)" stroke="#0a0a0c" stroke-width="2.4" stroke-linejoin="round"/>
+  <!-- Bright arc: -105° to +105° (7 notes) -->
+  <path d="M 49.51,9.91 A 56 56 0 1 1 49.51,118.09 L 57.27,89.11 A 26 26 0 1 0 57.27,38.89 Z" fill="url(#ringBright)"/>
+  <!-- Dim arc: +105° to +255° (5 notes) -->
+  <path d="M 49.51,118.09 A 56 56 0 0 1 49.51,9.91 L 57.27,38.89 A 26 26 0 0 0 57.27,89.11 Z" fill="url(#ringDim)"/>
+  <!-- Ring borders -->
+  <circle cx="64" cy="64" r="56" fill="none" stroke="hsl(240,40%,12%)" stroke-width="3"/>
+  <circle cx="64" cy="64" r="26" fill="none" stroke="hsl(240,40%,12%)" stroke-width="3"/>
   </g>
 </svg>
 
