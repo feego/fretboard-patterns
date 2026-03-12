@@ -451,7 +451,7 @@ export default function Fretboard() {
   // Standard: high E to low E; All Fourths: high F to low E
   const [tuning, setTuning] = useState("standard");
   const [hasMounted, setHasMounted] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
 
   // On mount, sync tuning + theme from localStorage (client only)
   useEffect(() => {
