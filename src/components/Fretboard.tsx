@@ -551,11 +551,11 @@ export default function Fretboard() {
   const [followChords, setFollowChords] = useState(true);
   const [showCagedNotes, setShowCagedNotes] = useState(false);
 
-  type TrailEntry = { id: number; x: number; y: number; fret: { string: number; fret: number }; addedAt: number };
+  type TrailPos = { x: number; y: number; fret: { string: number; fret: number } };
   const [showSettings, setShowSettings] = useState(false);
   const [showTrails, setShowTrails] = useState(false);
   const [trailDurationSeconds, setTrailDurationSeconds] = useState(2);
-  const [trailItems, setTrailItems] = useState<TrailEntry[]>([]);
+  const [trailPos, setTrailPos] = useState<TrailPos | null>(null);
 
   // Metronome (header, top-right)
   const [bpm, setBpm] = useState(120);
@@ -902,8 +902,7 @@ export default function Fretboard() {
   // Trail refs
   const showTrailsRef = useRef(false);
   const trailDurationSecondsRef = useRef(2);
-  const trailItemIdRef = useRef(0);
-  const trailTimerIdsRef = useRef<number[]>([]);
+  const trailWrapperRef = useRef<HTMLDivElement | null>(null);
   const prevPositionForTrailRef = useRef<{ x: number; y: number } | null>(null);
   const prevFretForTrailRef = useRef<{ string: number; fret: number } | null>(null);
 
@@ -1147,9 +1146,6 @@ export default function Fretboard() {
         currentVerticalAnimRef.current.cancel();
         currentVerticalAnimRef.current = null;
       }
-      // Clear any pending trail removal timeouts.
-      for (const id of trailTimerIdsRef.current) window.clearTimeout(id);
-      trailTimerIdsRef.current = [];
     };
   }, []);
 
@@ -1715,7 +1711,7 @@ export default function Fretboard() {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     showTrailsRef.current = showTrails;
-    if (!showTrails) setTrailItems([]);
+    if (!showTrails) setTrailPos(null);
   }, [showTrails]);
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => { trailDurationSecondsRef.current = trailDurationSeconds; }, [trailDurationSeconds]);
@@ -1728,19 +1724,20 @@ export default function Fretboard() {
     const oldPos = prevPositionForTrailRef.current;
     const oldFret = prevFretForTrailRef.current;
     if (!oldPos || !oldFret) return;
-    const id = trailItemIdRef.current++;
-    const durationMs = trailDurationSecondsRef.current * 1000;
-    setTrailItems((prev) => [
-      ...prev,
-      { id, x: oldPos.x, y: oldPos.y, fret: { ...oldFret }, addedAt: Date.now() },
-    ]);
-    const timeoutId = window.setTimeout(() => {
-      setTrailItems((prev) => prev.filter((t) => t.id !== id));
-      trailTimerIdsRef.current = trailTimerIdsRef.current.filter((t) => t !== timeoutId);
-    }, durationMs + 50);
-    trailTimerIdsRef.current.push(timeoutId);
+    setTrailPos({ x: oldPos.x, y: oldPos.y, fret: { ...oldFret } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFret.string, currentFret.fret]);
+
+  // Restart the fade-out animation on the already-mounted wrapper whenever
+  // trailPos changes — no unmount/remount of the 21 overlay components.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useLayoutEffect(() => {
+    const el = trailWrapperRef.current;
+    if (!el || !trailPos) return;
+    el.style.animationName = "none";
+    void el.offsetHeight; // force reflow so the browser registers the reset
+    el.style.removeProperty("animation-name");
+  }, [trailPos]);
 
   // Effect 2: snapshot current position for next fret-change detection.
   // Must be defined AFTER effect 1 — React fires effects in definition order.
@@ -1934,12 +1931,17 @@ export default function Fretboard() {
               ref={overlayLayerRef}
               className={`${styles.overlayLayer}${hasMounted && cellWidth > 0 ? ` ${styles.overlayLayerVisible}` : ""}`}
             >
-              {/* Trail ghost overlays — rendered behind main overlays */}
-              {showTrails && trailItems.map((trail) => (
+              {/* Trail ghost overlays — single always-mounted wrapper so the 21 overlay
+                  components never unmount/remount on position changes; the fade-out
+                  animation is restarted imperatively via trailWrapperRef. */}
+              {showTrails && (
                 <div
-                  key={`trail-${trail.id}`}
+                  ref={trailWrapperRef}
                   className={styles.trailOverlayWrapper}
-                  style={{ animationDuration: `${trailDurationSeconds}s` }}
+                  style={{
+                    animationDuration: `${trailDurationSeconds}s`,
+                    visibility: trailPos ? "visible" : "hidden",
+                  }}
                 >
                   {Array.from({ length: 21 }, (_, i) => {
                     const cycleOffset = Math.floor(i / 2) - 5;
@@ -1949,15 +1951,17 @@ export default function Fretboard() {
                       ? swapBg ? "B" : "A"
                       : swapBg ? "A" : "B";
                     const zIndex = isFirst ? 888 : 889;
+                    const pos = trailPos ?? { x: 0, y: 0 };
+                    const fret = trailPos?.fret ?? currentFret;
                     return (
                       <OverlayComponent
-                        key={`trail-${trail.id}-overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}
+                        key={`trail-overlay-${cycleOffset}-${isFirst ? "A" : "B"}`}
                         isVisible={true}
-                        mousePosition={{ x: trail.x, y: trail.y }}
-                        snappedPosition={{ x: trail.x, y: trail.y }}
+                        mousePosition={{ x: pos.x, y: pos.y }}
+                        snappedPosition={{ x: pos.x, y: pos.y }}
                         cellWidth={cellWidth}
                         cellHeight={cellHeight}
-                        currentFret={trail.fret}
+                        currentFret={fret}
                         showDimmedNotes={false}
                         tuning={tuning}
                         bgVariant={bgVariant}
@@ -1966,13 +1970,13 @@ export default function Fretboard() {
                         toggledCells={{}}
                         fretMetrics={fretMetrics ?? undefined}
                         overlayFretOffset={cycleOffset * 12}
-                        transitionAxis="both"
+                        transitionAxis="vertical"
                         transitionNudgeYPx={0}
                       />
                     );
                   })}
                 </div>
-              ))}
+              )}
 
               {/* Render multiple overlays in alternating pattern based on continuous fret position */}
               {Array.from({ length: 21 }, (_, i) => {

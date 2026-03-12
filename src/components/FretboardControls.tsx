@@ -1026,7 +1026,8 @@ export default function FretboardControls({
         return [key, "", "", ""];
       });
       setBeatKeys(nextKeys);
-      onBpmChange(120);
+      onBpmChange(140);
+      setYtSuggestion({ id: "iyHDHYrdWPs", offset: 1.7 });
       return;
     }
 
@@ -1039,6 +1040,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(70);
+      setYtSuggestion({ id: "dSfF0bV8Pxk", offset: 8.2 });
       return;
     }
 
@@ -1051,6 +1053,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(120);
+      setYtSuggestion({ id: "WAbMcq7bmA8", offset: 0 });
       return;
     }
 
@@ -1063,6 +1066,7 @@ export default function FretboardControls({
       });
       setBeatKeys(nextKeys);
       onBpmChange(130);
+      setYtSuggestion({ id: "s48LlgTGDUo", offset: 0 });
       return;
     }
 
