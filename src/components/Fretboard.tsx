@@ -267,6 +267,10 @@ function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
     third = 5;
   } else if (/^(?:m|min)(?!aj)/.test(lower) || /(?:^|[^a-z])m(?!aj)/.test(lower)) {
     third = 3;
+  } else if (/[øØ]/.test(suffix)) {
+    // Half-diminished (ø / Ø) = minor third + diminished fifth (same as m7b5)
+    third = 3;
+    fifth = 6;
   } else if (/dim|°/.test(lower)) {
     third = 3;
     fifth = 6;
@@ -282,11 +286,15 @@ function parseChordToPitchClasses(chordText: string): ParsedChordTones | null {
   // Base extensions.
   let seventh: number | null = null;
   const isDim = /dim|°/.test(lower);
+  const isHalfDim = /[øØ]/.test(suffix);
   const hasMaj7 = /maj7|ma7|Δ7|Δ|\^7/i.test(suffix);
   const has7 = /7/.test(lower);
   const has6 = /(?:^|[^0-9])6(?:$|[^0-9])/.test(lower) || /69/.test(lower);
   if (hasMaj7) seventh = 11;
   else if (has7) seventh = isDim && /7/.test(lower) ? 9 : 10;
+
+  // Half-diminished without explicit 7 still implies a minor seventh (= m7b5).
+  if (isHalfDim && seventh == null) seventh = 10;
 
   // In common lead-sheet / jazz usage, a plain diminished chord symbol (e.g. "Bdim" or "B°")
   // typically implies a fully diminished 7th chord (1 b3 b5 bb7). Include bb7 by default.
