@@ -101,7 +101,7 @@ export const dimmedNote = style({
 
 export const highlightedNote = style({
   opacity: 1,
-  color: "white",
+  color: colors.dark.text,
 });
 
 export const emptyCell = style({

@@ -396,7 +396,7 @@ export const selectionMarker = style({
   height: "min(2.2rem, calc(var(--fret-height, 3rem) - 0.3rem))",
   borderRadius: borderRadius.full,
   border: `2px solid ${colors.dark.accent}`,
-  background: "rgba(229,229,229,0.18)",
+  background: "color-mix(in srgb, var(--color-text) 18%, transparent)" as any,
 });
 
 // Chord-driven markers should be slightly lighter than manual selections.
@@ -409,7 +409,7 @@ export const chordSelectionMarker = style({
   height: "min(2.2rem, calc(var(--fret-height, 3rem) - 0.3rem))",
   borderRadius: borderRadius.full,
   border: `2px solid ${colors.dark.text}`,
-  background: "rgba(229,229,229,0.16)",
+  background: "color-mix(in srgb, var(--color-text) 16%, transparent)" as any,
 });
 
 export const selectionMarkerNonRoot = style({
@@ -423,6 +423,30 @@ export const selectionMarkerDim = style({
   // without making the whole element effectively disappear.
   border: `1px solid color-mix(in srgb, ${colors.dark.textMuted} 10%, transparent)` as any,
   background: `color-mix(in srgb, ${colors.dark.textMuted} 1.25%, transparent)` as any,
+});
+
+export const themeToggleButton = style({
+  position: "fixed",
+  bottom: spacing.md,
+  left: spacing.md,
+  width: "2.75rem",
+  height: "2.75rem",
+  borderRadius: borderRadius.full,
+  backgroundColor: colors.dark.surface,
+  color: colors.dark.text,
+  border: `2px solid ${colors.dark.border}`,
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "1.1rem",
+  lineHeight: 1,
+  zIndex: 9999,
+  transition: "all 0.2s ease",
+  ":hover": {
+    backgroundColor: colors.dark.accent,
+    borderColor: colors.dark.accent,
+  },
 });
 
 export const fretboardWrapper = style({
@@ -460,7 +484,7 @@ export const fretboardRow = style({
   alignItems: "flex-start",
   border: `3px solid ${colors.dark.border}`,
   borderRadius: borderRadius.md,
-  boxShadow: `0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)`,
+  boxShadow: "var(--fretboard-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2))" as any,
   overflow: "hidden",
 });
 

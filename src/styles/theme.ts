@@ -22,17 +22,17 @@ export const colors = {
     300: "#93c5fd",
     500: "#3b82f6",
   },
-  // Dark theme colors
+  // Theme colors — resolved via CSS custom properties so dark/light switching works
   dark: {
-    bg: "#0a0a0a",
-    surface: "#1a1a1a",
-    fretboard: "#2a2a2a",
-    border: "#404040",
-    text: "#e5e5e5",
-    textMuted: "#a3a3a3",
-    accent: "#60a5fa",
-    accentHover: "#3b82f6",
-    danger: "#ef4444",
+    bg: "var(--color-bg)",
+    surface: "var(--color-surface)",
+    fretboard: "var(--color-fretboard)",
+    border: "var(--color-border)",
+    text: "var(--color-text)",
+    textMuted: "var(--color-text-muted)",
+    accent: "var(--color-accent)",
+    accentHover: "var(--color-accent-hover)",
+    danger: "var(--color-danger)",
   },
 } as const;
 

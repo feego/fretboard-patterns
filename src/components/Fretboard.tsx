@@ -451,15 +451,27 @@ export default function Fretboard() {
   // Standard: high E to low E; All Fourths: high F to low E
   const [tuning, setTuning] = useState("standard");
   const [hasMounted, setHasMounted] = useState(false);
+  const [isDark, setIsDark] = useState(true);
 
-  // On mount, sync tuning from localStorage (client only)
+  // On mount, sync tuning + theme from localStorage (client only)
   useEffect(() => {
     setHasMounted(true);
     try {
       const stored = window.localStorage.getItem("fretboard-tuning");
       if (stored === "standard" || stored === "allFourths") setTuning(stored);
+      const storedTheme = window.localStorage.getItem("fretboard-theme");
+      if (storedTheme === "light") setIsDark(false);
     } catch {}
   }, []);
+
+  // Sync theme to <html> and localStorage
+  useEffect(() => {
+    if (!hasMounted) return;
+    document.documentElement.dataset.theme = isDark ? "" : "light";
+    try {
+      window.localStorage.setItem("fretboard-theme", isDark ? "dark" : "light");
+    } catch {}
+  }, [isDark, hasMounted]);
   const strings =
     tuning === "allFourths"
       ? ["F", "C", "G", "D", "A", "E"]
@@ -1850,7 +1862,7 @@ export default function Fretboard() {
                     border: "none",
                     backgroundColor: "transparent",
                     fontSize: "0.7rem",
-                    color: "#a3a3a3",
+                    color: "var(--color-text-muted)",
                     fontWeight: "600",
                   }}
                 >
@@ -2095,54 +2107,54 @@ export default function Fretboard() {
 
       {showSettings && (
         <div className={styles.settingsRow}>
-          <label className={controlStyles.toggleLabel}>
+          <label className={`${controlStyles.toggleLabel}${showDimmedNotes ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
             <input
               className={controlStyles.toggleCheckbox}
               type="checkbox"
               checked={showDimmedNotes}
               onChange={() => setShowDimmedNotes(!showDimmedNotes)}
             />
-            <span className={controlStyles.toggleText}>Dimmed Notes</span>
+            Dimmed Notes
           </label>
 
-          <label className={controlStyles.toggleLabel}>
+          <label className={`${controlStyles.toggleLabel}${showDegrees ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
             <input
               className={controlStyles.toggleCheckbox}
               type="checkbox"
               checked={showDegrees}
               onChange={() => setShowDegrees((v) => !v)}
             />
-            <span className={controlStyles.toggleText}>Scale Degrees</span>
+            Scale Degrees
           </label>
 
-          <label className={controlStyles.toggleLabel}>
+          <label className={`${controlStyles.toggleLabel}${followChords ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
             <input
               className={controlStyles.toggleCheckbox}
               type="checkbox"
               checked={followChords}
               onChange={() => setFollowChords((v) => !v)}
             />
-            <span className={controlStyles.toggleText}>Follow Chords</span>
+            Follow Chords
           </label>
 
-          <label className={controlStyles.toggleLabel}>
+          <label className={`${controlStyles.toggleLabel}${showCagedNotes ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
             <input
               className={controlStyles.toggleCheckbox}
               type="checkbox"
               checked={showCagedNotes}
               onChange={() => setShowCagedNotes((v) => !v)}
             />
-            <span className={controlStyles.toggleText}>CAGED</span>
+            CAGED
           </label>
 
-          <label className={controlStyles.toggleLabel}>
+          <label className={`${controlStyles.toggleLabel}${showTrails ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
             <input
               className={controlStyles.toggleCheckbox}
               type="checkbox"
               checked={showTrails}
               onChange={() => setShowTrails((v) => !v)}
             />
-            <span className={controlStyles.toggleText}>Trails</span>
+            Trails
           </label>
 
           {showTrails && (
@@ -2198,6 +2210,14 @@ export default function Fretboard() {
         onActiveBeatKeyChange={setActiveBeatKeyText}
         onActiveBeatChordChange={setActiveBeatChordText}
       />
+      <button
+        className={styles.themeToggleButton}
+        onClick={() => setIsDark((d) => !d)}
+        aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+        title={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {isDark ? "☀" : "☾"}
+      </button>
     </div>
   );
 }

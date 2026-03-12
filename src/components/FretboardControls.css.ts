@@ -79,9 +79,9 @@ export const button = style({
 });
 
 export const toggleLabel = style({
-  display: "flex",
+  display: "inline-flex",
   alignItems: "center",
-  gap: spacing.sm,
+  justifyContent: "center",
   fontFamily: "var(--font-geist-mono)",
   height: "2.5rem",
   padding: `0 ${spacing.md}`,
@@ -96,13 +96,14 @@ export const toggleLabel = style({
   transition: "all 0.2s ease",
   whiteSpace: "nowrap",
   ":hover": {
+    backgroundColor: colors.dark.accent,
     borderColor: colors.dark.accent,
   },
 
   "@media": {
     "screen and (max-width: 600px)": {
       width: "100%",
-      justifyContent: "flex-start",
+      justifyContent: "center",
     },
     "screen and (orientation: landscape) and (max-height: 450px)": {
       height: "2.25rem",
@@ -112,11 +113,17 @@ export const toggleLabel = style({
   },
 });
 
+export const toggleLabelActive = style({
+  backgroundColor: colors.dark.accent,
+  borderColor: colors.dark.accent,
+  ":hover": {
+    backgroundColor: colors.dark.accentHover,
+    borderColor: colors.dark.accentHover,
+  },
+});
+
 export const toggleCheckbox = style({
-  width: "1.05rem",
-  height: "1.05rem",
-  accentColor: colors.dark.accent,
-  cursor: "pointer",
+  display: "none",
 });
 
 export const toggleText = style({

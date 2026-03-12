@@ -1,6 +1,42 @@
 :root {
   --background: #0a0a0a;
   --foreground: #e5e5e5;
+
+  /* Theme color tokens (dark by default) */
+  --color-bg: #0a0a0a;
+  --color-surface: #1a1a1a;
+  --color-fretboard: #2a2a2a;
+  --color-border: #404040;
+  --color-text: #e5e5e5;
+  --color-text-muted: #a3a3a3;
+  --color-accent: #60a5fa;
+  --color-accent-hover: #3b82f6;
+  --color-danger: #ef4444;
+
+  /* Overlay panel backgrounds */
+  --color-overlay-a: rgba(50, 55, 70, 0.7);
+  --color-overlay-b: rgba(70, 72, 85, 0.7);
+}
+
+[data-theme="light"] {
+  --background: #fafafa;
+  --foreground: #1a1400;
+
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-fretboard: #f2f2f4;
+  --color-border: rgba(184, 176, 164, 0.25);
+  --fretboard-shadow: none;
+  --color-text: #1a1400;
+  --color-text-muted: #64748b;
+  --color-accent: #60a5fa;
+  --color-accent-hover: #3b82f6;
+  --color-danger: #dc2626;
+
+  --color-overlay-a: rgba(200, 200, 205, 0.55);
+  --color-overlay-b: rgba(240, 240, 242, 0.75);
+
+  color-scheme: light;
 }
 
 html,
@@ -32,4 +68,6 @@ a {
 
 html {
   color-scheme: dark;
+  background: var(--background);
+  color: var(--foreground);
 }
