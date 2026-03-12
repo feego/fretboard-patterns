@@ -10,7 +10,7 @@ export const container = style({
   gap: 0,
   alignItems: "center",
   justifyContent: "center",
-  padding: spacing.sm,
+  padding: spacing.md,
   marginTop: 0,
 
   "@media": {
@@ -384,10 +384,15 @@ export const chordsTopRightRow = style({
   maxWidth: "90rem",
   marginLeft: "auto",
   marginRight: "auto",
+  marginBottom: "0.75rem",
 
   "@media": {
+    "screen and (min-width: 601px) and (max-width: 1024px)": {
+      justifyContent: "center",
+    },
     "screen and (max-width: 600px)": {
       justifyContent: "center",
+      marginBottom: 0,
     },
   },
 });
@@ -473,6 +478,9 @@ export const metronomeControls = style({
   backgroundColor: "transparent",
 
   "@media": {
+    "screen and (min-width: 601px) and (max-width: 1024px)": {
+      marginLeft: 0,
+    },
     "screen and (max-width: 600px)": {
       marginLeft: 0,
       flexWrap: "wrap",

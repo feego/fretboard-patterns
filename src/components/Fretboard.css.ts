@@ -129,7 +129,7 @@ export const arrowsDock = style({
   gap: spacing.sm,
   justifyContent: "center",
   flexWrap: "wrap",
-  marginTop: spacing.xs,
+  marginTop: spacing.sm,
   marginBottom: 0,
 
   "@media": {
