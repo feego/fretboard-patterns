@@ -1304,19 +1304,19 @@ export default function Fretboard() {
     const tonicRaw = displayKeyToRawTonic(displayKey);
     let primaryRawNotes: Set<string>;
     const tonicIndex = NOTES.indexOf(tonicRaw);
+    // Only highlight scale degrees 1, 3, and 5 for CAGED
+    let scaleDegrees: number[];
     if (scaleFamily === "Harmonic minor") {
-      // Harmonic minor: 1,2,3,4,5#,6,7
-      // Semitones: 0,2,3,5,8,9,11
-      const scaleDegrees = [0,2,3,5,8,9,11];
-      primaryRawNotes = new Set(scaleDegrees.map(d => NOTES[(tonicIndex + d) % 12]));
+      // Harmonic minor: 1, 3, 5 (semitones: 0, 3, 7)
+      scaleDegrees = [0, 3, 7];
     } else if (scaleFamily === "Diatonic scale") {
-      // Diatonic: 1,2,3,4,5,6,7
-      // Semitones: 0,2,4,5,7,9,11
-      const scaleDegrees = [0,2,4,5,7,9,11];
-      primaryRawNotes = new Set(scaleDegrees.map(d => NOTES[(tonicIndex + d) % 12]));
+      // Diatonic: 1, 3, 5 (semitones: 0, 4, 7)
+      scaleDegrees = [0, 4, 7];
     } else {
-      primaryRawNotes = computeMajorTriadRawNotes(tonicRaw); // fallback: triad
+      // fallback: major triad
+      scaleDegrees = [0, 4, 7];
     }
+    primaryRawNotes = new Set(scaleDegrees.map(d => NOTES[(tonicIndex + d) % 12]));
 
     const next: Record<string, boolean> = {};
     const addOverlayHighlights = (

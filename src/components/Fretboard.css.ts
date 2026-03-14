@@ -522,7 +522,7 @@ export const fret = style({
 });
 
 export const cagedFret = style({
-  backgroundColor: `color-mix(in srgb, ${colors.dark.accent} 18%, transparent)`,
+  backgroundColor: "rgba(120, 80, 200, 0.38)", // darker purple highlight
   border: "none",
   borderRadius: borderRadius.md,
 });
