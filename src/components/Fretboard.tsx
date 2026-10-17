@@ -39,7 +39,7 @@ type DisplaySettings = {
 const DISPLAY_SETTINGS_KEY = "fretboard-display-settings";
 
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
-  showStrings: false,
+  showStrings: true,
   showZones: true,
   showDimmedNotes: false,
   showDegrees: false,
