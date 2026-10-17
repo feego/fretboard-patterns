@@ -475,16 +475,23 @@ export default function Fretboard() {
   // Standard: high E to low E; All Fourths: high F to low E
   const [tuning, setTuning] = useState("standard");
   const [hasMounted, setHasMounted] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  // Saved theme (light by default). The layout's inline script has already
+  // applied it to <html> before first paint; this keeps state in sync.
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("fretboard-theme") === "dark";
+    } catch {
+      return false;
+    }
+  });
 
-  // On mount, sync tuning + theme from localStorage (client only)
+  // On mount, sync tuning from localStorage (client only)
   useEffect(() => {
     setHasMounted(true);
     try {
       const stored = window.localStorage.getItem("fretboard-tuning");
       if (stored === "standard" || stored === "allFourths") setTuning(stored);
-      const storedTheme = window.localStorage.getItem("fretboard-theme");
-      if (storedTheme === "light") setIsDark(false);
     } catch {}
   }, []);
 

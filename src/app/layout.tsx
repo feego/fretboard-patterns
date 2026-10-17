@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const THEME_SCRIPT = `try{if(localStorage.getItem("fretboard-theme")!=="dark")document.documentElement.dataset.theme="light"}catch(e){document.documentElement.dataset.theme="light"}`;
+
 export const metadata: Metadata = {
   applicationName: "Fretboard Visualizer",
   title: "Fretboard Visualizer",
@@ -29,6 +31,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
+      <head>
+        {/* Apply the saved theme before first paint (light unless "dark" was saved). */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script, no user input
+          dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
         <SocialLinks />
