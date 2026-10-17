@@ -96,7 +96,6 @@ export default function QuizVerticalBoard({
             </span>
             {STRING_ORDER.map((s) => {
               const key = positionKey(s, fret);
-              const enabled = quiz.isInScope(s, fret);
               const zone = zoneAt?.(s, fret);
               const targetIndex = targetIndexByKey.get(key);
               const target =
@@ -115,7 +114,7 @@ export default function QuizVerticalBoard({
               return (
                 <div
                   key={s}
-                  className={`${styles.cell}${enabled ? "" : ` ${styles.cellInactive}`}`}
+                  className={styles.cell}
                   data-quiz-cell={key}
                   style={
                     // Shades the cell under its string line, like the overlays on the main board.

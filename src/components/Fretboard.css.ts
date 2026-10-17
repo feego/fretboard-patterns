@@ -646,10 +646,6 @@ export const pageTitle = style({
 });
 
 // Note quiz
-export const quizFretInactive = style({
-  boxShadow: `inset 0 0 0 999px color-mix(in srgb, ${colors.dark.bg} 55%, transparent)` as any,
-});
-
 const quizPulse = keyframes({
   "0%": { boxShadow: `0 0 0 0 color-mix(in srgb, ${colors.dark.accent} 60%, transparent)` as any },
   "100%": { boxShadow: `0 0 0 0.6rem color-mix(in srgb, ${colors.dark.accent} 0%, transparent)` as any },

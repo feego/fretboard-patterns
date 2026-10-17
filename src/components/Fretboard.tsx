@@ -2202,10 +2202,6 @@ export default function Fretboard() {
                     fretClasses += ` ${styles.cagedFret}`;
                   }
 
-                  if (quizMode && !quiz.isInScope(stringIndex, fretNumber)) {
-                    fretClasses += ` ${styles.quizFretInactive}`;
-                  }
-
                   return (
                     <div
                       key={`fret-${fretNumber}`}
