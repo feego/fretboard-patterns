@@ -1,4 +1,4 @@
-import { style } from "@vanilla-extract/css";
+import { globalStyle, style } from "@vanilla-extract/css";
 import { borderRadius, spacing } from "../styles/theme";
 
 export const container = style({
@@ -34,4 +34,9 @@ export const icon = style({
   width: "1.25rem",
   height: "1.25rem",
   display: "block",
+});
+
+// The compact quiz pins its answer pad to the bottom edge; get out of its way.
+globalStyle(`body[data-quiz-compact="true"] ${container}`, {
+  display: "none",
 });

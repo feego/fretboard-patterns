@@ -14,48 +14,15 @@ import FretboardArrows, { type ArrowKey } from "./FretboardArrows";
 import FretboardControls from "./FretboardControls";
 import * as controlStyles from "./FretboardControls.css";
 import SecondOverlay from "./SecondOverlay";
+import NoteQuizPanel from "./NoteQuizPanel";
+import QuizVerticalBoard from "./QuizVerticalBoard";
 import StringLabels from "./StringLabels";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { positionKey, useNoteQuiz } from "../hooks/useNoteQuiz";
+import { getNoteAtPosition, NOTES, TUNING_CONFIGS } from "../lib/notes";
 
 type ToggledCellMap = Record<string, boolean>;
 type MarkerTone = "primary" | "dim";
-
-const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-const TUNING_CONFIGS: Record<string, { note: string; octave: number }[]> = {
-  standard: [
-    { note: "E", octave: 4 },
-    { note: "B", octave: 3 },
-    { note: "G", octave: 3 },
-    { note: "D", octave: 3 },
-    { note: "A", octave: 2 },
-    { note: "E", octave: 2 },
-  ],
-  allFourths: [
-    { note: "F", octave: 4 },
-    { note: "C", octave: 4 },
-    { note: "G", octave: 3 },
-    { note: "D", octave: 3 },
-    { note: "A", octave: 2 },
-    { note: "E", octave: 2 },
-  ],
-};
-
-function getNoteAtPosition(
-  stringIndex: number,
-  fretNumber: number,
-  tuning: string,
-): string {
-  const stringTuning = TUNING_CONFIGS[tuning] || TUNING_CONFIGS.standard;
-  const openString = stringTuning[stringIndex];
-  const openNoteIndex = NOTES.indexOf(openString.note);
-
-  let wrappedFret = fretNumber;
-  while (wrappedFret < 1) wrappedFret += 24;
-  while (wrappedFret > 24) wrappedFret -= 24;
-
-  const noteIndex = (openNoteIndex + wrappedFret) % 12;
-  return NOTES[noteIndex];
-}
 
 const FLAT_MAP: Record<string, string> = {
   "C#": "Db",
@@ -588,6 +555,26 @@ export default function Fretboard() {
   const [showTrails, setShowTrails] = useState(false);
   const [trailDurationSeconds, setTrailDurationSeconds] = useState(2);
   const [trailPos, setTrailPos] = useState<TrailPos | null>(null);
+
+  // Note quiz: hides note names and asks the player to name highlighted positions.
+  const [quizMode, setQuizMode] = useState(false);
+  const quiz = useNoteQuiz(quizMode, tuning);
+  const [quizMarkerPositions, setQuizMarkerPositions] = useState<
+    { x: number; y: number }[]
+  >([]);
+  // Phones (portrait or landscape): board + pinned answer pad, nothing else.
+  const isCompactScreen = useMediaQuery("(max-width: 899px), (max-height: 500px)");
+  const quizCompact = quizMode && isCompactScreen;
+  // Upright phones get a vertical board (strings as columns, frets as rows).
+  const isPortrait = useMediaQuery("(orientation: portrait)");
+  const quizVertical = quizCompact && isPortrait;
+  const fretboardScrollRef = useRef<HTMLDivElement>(null);
+  const quizPadRef = useRef<HTMLDivElement>(null);
+  const [quizPadHeight, setQuizPadHeight] = useState(0);
+  // Fret cell size (px) that fits the quiz fret range on screen; null = default sizing.
+  const [quizFit, setQuizFit] = useState<{ width: number; height: number } | null>(
+    null,
+  );
 
   // Metronome (header, top-right)
   const [bpm, setBpm] = useState(120);
@@ -1494,7 +1481,8 @@ export default function Fretboard() {
       measureBaseFromDom();
     });
     return () => window.cancelAnimationFrame(raf);
-  }, [hasMounted, fretboardScale]);
+    // quizFit changes cell sizes via CSS variables, so re-measure then too.
+  }, [hasMounted, fretboardScale, quizFit]);
 
   // Keep selection markers positioned above overlays.
   useLayoutEffect(() => {
@@ -1532,7 +1520,169 @@ export default function Fretboard() {
     return () => window.cancelAnimationFrame(raf);
   }, [hasMounted, toggledCells, fretboardScale, tuning]);
 
+  // Position quiz markers over the cells the current question asks about.
+  const quizTargets = quiz.question?.targets;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resizeKey re-measures after layout changes
+  useLayoutEffect(() => {
+    if (!hasMounted || !quizTargets) {
+      setQuizMarkerPositions([]);
+      return;
+    }
+    const fretboardEl = fretboardRef.current;
+    if (!fretboardEl) return;
+
+    // Measured synchronously (layout is already up to date in a layout effect)
+    // so markers appear in the same frame as the question.
+    const fretboardRect = fretboardEl.getBoundingClientRect();
+    const scale = fretboardScale || 1;
+    setQuizMarkerPositions(
+      quizTargets.map((t) => {
+        const cellEl = fretboardEl.querySelector(
+          `[data-string="${t.string}"][data-fret-number="${t.fret}"]`,
+        ) as HTMLElement | null;
+        if (!cellEl) return { x: -9999, y: -9999 };
+        const cellRect = cellEl.getBoundingClientRect();
+        return {
+          x: (cellRect.left - fretboardRect.left + cellRect.width / 2) / scale,
+          y: (cellRect.top - fretboardRect.top + cellRect.height / 2) / scale,
+        };
+      }),
+    );
+  }, [hasMounted, quizTargets, fretboardScale, resizeKey, quizFit]);
+
+  // Pinned answer pad: track its height so the page leaves room for it.
+  useLayoutEffect(() => {
+    const padEl = quizPadRef.current;
+    if (!quizCompact || !padEl) {
+      setQuizPadHeight(0);
+      return;
+    }
+    const observer = new ResizeObserver(() => setQuizPadHeight(padEl.offsetHeight));
+    observer.observe(padEl);
+    setQuizPadHeight(padEl.offsetHeight);
+    return () => observer.disconnect();
+  }, [quizCompact]);
+
+  // Lets global chrome outside this component (social links) hide itself.
+  useEffect(() => {
+    if (quizCompact) document.body.dataset.quizCompact = "true";
+    else delete document.body.dataset.quizCompact;
+    return () => {
+      delete document.body.dataset.quizCompact;
+    };
+  }, [quizCompact]);
+
+  // Size fret cells so the quiz fret range fills the screen width, and the
+  // six strings fill the height left above the answer pad.
+  const quizMinFret = quiz.settings.minFret;
+  const quizMaxFret = quiz.settings.maxFret;
+  useLayoutEffect(() => {
+    if (!quizCompact || quizVertical) {
+      setQuizFit(null);
+      return;
+    }
+    const compute = () => {
+      const scrollEl = fretboardScrollRef.current;
+      const boardEl = fretboardRef.current;
+      const rowEl = boardEl?.parentElement;
+      if (!scrollEl || !boardEl || !rowEl) return;
+
+      const rowRect = rowEl.getBoundingClientRect();
+      const boardRect = boardEl.getBoundingClientRect();
+      // String labels + left border sit before the first fret; only budget for
+      // them when the range starts at fret 1 (otherwise they're scrolled away).
+      const leadingPx = boardRect.left - rowRect.left;
+      const trailingPx = rowRect.right - boardRect.right;
+      // A few px of slack so rounding never tips the last fret off-screen.
+      const budgetWidth =
+        scrollEl.clientWidth -
+        trailingPx -
+        (quizMinFret === 1 ? leadingPx : 0) -
+        4;
+
+      let factorSum = 0;
+      for (let f = quizMinFret; f <= quizMaxFret; f++) {
+        factorSum += getFretWidthFactor(f);
+      }
+      const width = Math.min(96, Math.max(20, budgetWidth / factorSum));
+
+      // Height: the screen minus the answer pad, the fret-number row and some
+      // breathing room. Deliberately independent of where the board currently
+      // sits, since the board is centred in that space.
+      const fretNumbersPx = boardRect.top - scrollEl.getBoundingClientRect().top;
+      const availableHeight =
+        window.innerHeight - quizPadHeight - fretNumbersPx - 32;
+      const height = Math.min(56, Math.max(26, availableHeight / 6));
+
+      setQuizFit((prev) =>
+        prev &&
+        Math.abs(prev.width - width) < 0.5 &&
+        Math.abs(prev.height - height) < 0.5
+          ? prev
+          : { width, height },
+      );
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, [quizCompact, quizVertical, quizMinFret, quizMaxFret, quizPadHeight]);
+
+  // Keep the quiz on screen: line the board up with the start of the range,
+  // then scroll further only if the asked position is out of view.
+  const quizActiveTarget =
+    quiz.question && !quiz.question.done
+      ? quiz.question.targets[quiz.question.activeIndex]
+      : null;
+  const quizActiveString = quizActiveTarget?.string;
+  const quizActiveFret = quizActiveTarget?.fret;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: quizFit changes cell positions
+  useLayoutEffect(() => {
+    if (!quizMode || quizVertical) return;
+    const scrollEl = fretboardScrollRef.current;
+    const boardEl = fretboardRef.current;
+    if (!scrollEl || !boardEl || scrollEl.scrollWidth <= scrollEl.clientWidth) return;
+
+    if (quizMinFret === 1) {
+      scrollEl.scrollLeft = 0; // keep the string labels in view
+      return;
+    }
+    const startEl = boardEl.querySelector(
+      `[data-string="0"][data-fret-number="${quizMinFret}"]`,
+    ) as HTMLElement | null;
+    if (!startEl) return;
+    scrollEl.scrollLeft +=
+      startEl.getBoundingClientRect().left - scrollEl.getBoundingClientRect().left;
+  }, [quizMode, quizVertical, quizMinFret, quizFit]);
+
+  useEffect(() => {
+    if (
+      !quizMode ||
+      quizVertical ||
+      quizActiveString == null ||
+      quizActiveFret == null
+    ) {
+      return;
+    }
+    const scrollEl = fretboardScrollRef.current;
+    const cellEl = fretboardRef.current?.querySelector(
+      `[data-string="${quizActiveString}"][data-fret-number="${quizActiveFret}"]`,
+    ) as HTMLElement | null;
+    if (!scrollEl || !cellEl) return;
+    const viewRect = scrollEl.getBoundingClientRect();
+    const cellRect = cellEl.getBoundingClientRect();
+    const margin = 8;
+    if (cellRect.left >= viewRect.left + margin && cellRect.right <= viewRect.right - margin) {
+      return;
+    }
+    scrollEl.scrollBy({
+      left:
+        cellRect.left + cellRect.width / 2 - (viewRect.left + viewRect.width / 2),
+      behavior: "smooth",
+    });
+  }, [quizMode, quizVertical, quizActiveString, quizActiveFret]);
+
   // Measure per-fret widths/centers (needed when frets are not uniform width).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: quizFit resizes cells via CSS variables
   useLayoutEffect(() => {
     if (!hasMounted) return;
     const fretboardEl = fretboardRef.current;
@@ -1567,7 +1717,7 @@ export default function Fretboard() {
     });
 
     return () => window.cancelAnimationFrame(raf);
-  }, [hasMounted, fretboardScale, cellWidth]);
+  }, [hasMounted, fretboardScale, cellWidth, quizFit]);
 
   // Handle arrow key navigation with infinite scroll
   const navigate = useCallback(
@@ -1686,6 +1836,8 @@ export default function Fretboard() {
   );
 
   useEffect(() => {
+    // The quiz panel owns the keyboard (letters, Space, Enter) while quizzing.
+    if (quizMode) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target) {
@@ -1732,7 +1884,7 @@ export default function Fretboard() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate, playPauseMetronome]);
+  }, [navigate, playPauseMetronome, quizMode]);
   // Calculate current position with modulo to keep overlays cycling
   // Use modulo 24 frets (2 full cycles of 12) to keep overlays within range
   let effectiveFret = (continuousFret - 12) % 24;
@@ -1796,7 +1948,23 @@ export default function Fretboard() {
   if (!hasMounted) return null;
 
   return (
-    <div className={styles.container}>
+    <div
+      className={`${styles.container}${quizCompact ? ` ${styles.quizCompactContainer}` : ""}`}
+      style={
+        quizCompact
+          ? ({
+              "--quiz-pad-height": `${quizPadHeight}px`,
+              ...(quizFit
+                ? {
+                    "--fret-width": `${quizFit.width}px`,
+                    "--fret-height": `${quizFit.height}px`,
+                  }
+                : {}),
+            } as CSSProperties)
+          : undefined
+      }
+    >
+      {!quizCompact && (
       <div className={styles.header}>
         <h1 className={styles.pageTitle}>Fretboard Visualizer</h1>
 
@@ -1831,13 +1999,18 @@ export default function Fretboard() {
           </select>
         </div>
       </div>
+      )}
+      {quizVertical && <QuizVerticalBoard quiz={quiz} stringNames={strings} />}
       <div
+        ref={fretboardScrollRef}
         className={styles.fretboardScrollContainer}
-        style={
-          fretboardScale < 1 && scaledWrapperHeightPx
+        style={{
+          ...(fretboardScale < 1 && scaledWrapperHeightPx
             ? { height: `${scaledWrapperHeightPx}px` }
-            : undefined
-        }
+            : null),
+          // Hidden, not unmounted, so its measurements stay valid for later.
+          ...(quizVertical ? { display: "none" } : null),
+        }}
       >
         <div
           className={styles.fretboardWrapper}
@@ -1930,15 +2103,32 @@ export default function Fretboard() {
                   }
 
                   const cellId = `${stringIndex}:${fretNumber}`;
-                  if (showCagedNotes && cagedHighlightedCells[cellId]) {
+                  if (!quizMode && showCagedNotes && cagedHighlightedCells[cellId]) {
                     fretClasses += ` ${styles.cagedFret}`;
+                  }
+
+                  let quizCellStyle: CSSProperties | undefined;
+                  if (quizMode) {
+                    const { settings: quizSettings, stats: quizStats } = quiz;
+                    const inQuizRange =
+                      quizSettings.strings[stringIndex] &&
+                      fretNumber >= quizSettings.minFret &&
+                      fretNumber <= quizSettings.maxFret;
+                    if (!inQuizRange) fretClasses += ` ${styles.quizFretInactive}`;
+                    const stat = quizStats[positionKey(stringIndex, fretNumber)];
+                    if (quizSettings.showHeatmap && stat && stat.attempts > 0) {
+                      const accuracyPct = Math.round((stat.correct / stat.attempts) * 100);
+                      quizCellStyle = {
+                        backgroundColor: `color-mix(in srgb, color-mix(in srgb, #16a34a ${accuracyPct}%, #dc2626) 40%, transparent)`,
+                      };
+                    }
                   }
 
                   return (
                     <div
                       key={`fret-${fretNumber}`}
                       className={fretClasses}
-                      style={{ width: fretWidthCss(fretNumber) }}
+                      style={{ width: fretWidthCss(fretNumber), ...quizCellStyle }}
                       data-fret={`${stringIndex}-${fretIndex}`}
                       data-string={stringIndex}
                       data-fret-number={fretNumber}
@@ -1971,14 +2161,40 @@ export default function Fretboard() {
             </div>
 
             <div className={styles.selectionLayer}>
-              {Object.entries(chordMarkerPositions).map(([cellId, pos]) => (
+              {quizMode &&
+                quiz.question?.targets.map((target, i) => {
+                  const pos = quizMarkerPositions[i];
+                  if (!pos) return null;
+                  const question = quiz.question;
+                  const answered = target.answeredPc != null;
+                  let stateClass = "";
+                  if (answered) {
+                    stateClass =
+                      target.answeredPc === target.pc
+                        ? styles.quizMarkerCorrect
+                        : styles.quizMarkerWrong;
+                  } else if (question && i === question.activeIndex) {
+                    stateClass = styles.quizMarkerActive;
+                  }
+                  const isGroup = (question?.targets.length ?? 0) > 1;
+                  return (
+                    <span
+                      key={`quiz-${question?.id}-${target.string}:${target.fret}`}
+                      className={`${styles.quizMarker} ${stateClass}`}
+                      style={{ left: pos.x, top: pos.y }}
+                    >
+                      {answered ? NOTES[target.pc] : isGroup ? i + 1 : "?"}
+                    </span>
+                  );
+                })}
+              {!quizMode && Object.entries(chordMarkerPositions).map(([cellId, pos]) => (
                 <span
                   key={`chord-${cellId}`}
                   className={`${styles.chordSelectionMarker} ${chordSelectedCellIsRoot[cellId] === false ? styles.selectionMarkerNonRoot : ""} ${chordSelectedCellTones[cellId] === "dim" ? styles.selectionMarkerDim : ""}`}
                   style={{ left: pos.x, top: pos.y }}
                 />
               ))}
-              {Object.entries(selectedMarkerPositions).map(([cellId, pos]) => (
+              {!quizMode && Object.entries(selectedMarkerPositions).map(([cellId, pos]) => (
                 <span
                   key={`selected-${cellId}`}
                   className={`${styles.selectionMarker} ${selectedCellTones[cellId] === "dim" ? styles.selectionMarkerDim : ""}`}
@@ -1991,6 +2207,8 @@ export default function Fretboard() {
               key={`overlay-layer-${resizeKey}`}
               ref={overlayLayerRef}
               className={`${styles.overlayLayer}${hasMounted && cellWidth > 0 ? ` ${styles.overlayLayerVisible}` : ""}`}
+              // Overlays are where note names live; hide them while quizzing.
+              style={quizMode ? { visibility: "hidden" } : undefined}
             >
               {/* Trail ghost overlays — single always-mounted wrapper so the 21 overlay
                   components never unmount/remount on position changes; the fade-out
@@ -2092,6 +2310,7 @@ export default function Fretboard() {
         </div>
       </div>
 
+      {!quizCompact && (
       <div className={styles.arrowsDock}>
         <div className={styles.arrowsDockWideItem}>
           <FretboardArrows onNavigate={navigate} />
@@ -2111,9 +2330,30 @@ export default function Fretboard() {
         >
           Settings
         </button>
-      </div>
 
-      {showSettings && (
+        <button
+          type="button"
+          className={`${styles.arrowsDockButton} ${styles.arrowsDockItem}${quizMode ? ` ${styles.arrowsDockButtonActive}` : ""}`}
+          aria-pressed={quizMode}
+          onClick={() => setQuizMode((v) => !v)}
+        >
+          {quizMode ? "Exit Quiz" : "Quiz"}
+        </button>
+      </div>
+      )}
+
+      {quizMode && (
+        <div ref={quizPadRef} className={quizCompact ? styles.quizPad : undefined}>
+          <NoteQuizPanel
+            quiz={quiz}
+            stringNames={strings}
+            compact={quizCompact}
+            onExit={() => setQuizMode(false)}
+          />
+        </div>
+      )}
+
+      {showSettings && !quizCompact && (
         <div className={styles.settingsRow}>
           <label className={`${controlStyles.toggleLabel}${showDimmedNotes ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
             <input
@@ -2198,6 +2438,8 @@ export default function Fretboard() {
         </div>
       )}
 
+      {/* Hidden rather than unmounted in the compact quiz, so song/metronome state survives. */}
+      <div style={{ display: quizCompact ? "none" : "contents" }}>
       <FretboardControls
         metronomeState={metronomeState}
         metronomeBeat={metronomeBeat}
@@ -2218,6 +2460,8 @@ export default function Fretboard() {
         onActiveBeatKeyChange={setActiveBeatKeyText}
         onActiveBeatChordChange={setActiveBeatChordText}
       />
+      </div>
+      {!quizCompact && (
       <button
         className={styles.themeToggleButton}
         onClick={() => setIsDark((d) => !d)}
@@ -2226,6 +2470,7 @@ export default function Fretboard() {
       >
         {isDark ? "☀" : "☾"}
       </button>
+      )}
     </div>
   );
 }

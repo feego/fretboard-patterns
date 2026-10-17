@@ -605,3 +605,88 @@ export const pageTitle = style({
     },
   },
 });
+
+// Note quiz
+export const quizFretInactive = style({
+  boxShadow: `inset 0 0 0 999px color-mix(in srgb, ${colors.dark.bg} 55%, transparent)` as any,
+});
+
+const quizPulse = keyframes({
+  "0%": { boxShadow: `0 0 0 0 color-mix(in srgb, ${colors.dark.accent} 60%, transparent)` as any },
+  "100%": { boxShadow: `0 0 0 0.6rem color-mix(in srgb, ${colors.dark.accent} 0%, transparent)` as any },
+});
+
+// Never wider than a fret, so markers on the last fret stay on the board.
+const quizMarkerSize =
+  "min(2.2rem, calc(var(--fret-height, 3rem) - 0.3rem), calc(var(--fret-width, 4rem) - 0.15rem))";
+
+export const quizMarker = style({
+  position: "absolute",
+  left: 0,
+  top: 0,
+  transform: "translate(-50%, -50%)",
+  width: quizMarkerSize,
+  height: quizMarkerSize,
+  borderRadius: borderRadius.full,
+  border: `2px solid ${colors.dark.textMuted}`,
+  background: colors.dark.surface,
+  color: colors.dark.text,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontFamily: "var(--font-geist-mono)",
+  fontSize: "0.8rem",
+  fontWeight: 700,
+  transition: "background-color 0.15s ease, border-color 0.15s ease",
+});
+
+export const quizMarkerActive = style({
+  borderColor: colors.dark.accent,
+  borderWidth: "3px",
+  background: `color-mix(in srgb, ${colors.dark.accent} 30%, ${colors.dark.surface})` as any,
+  animationName: quizPulse,
+  animationDuration: "1.2s",
+  animationIterationCount: "infinite",
+});
+
+export const quizMarkerCorrect = style({
+  borderColor: "#16a34a",
+  background: "color-mix(in srgb, #16a34a 35%, var(--color-surface))" as any,
+});
+
+export const quizMarkerWrong = style({
+  borderColor: colors.dark.danger,
+  background: `color-mix(in srgb, ${colors.dark.danger} 35%, ${colors.dark.surface})` as any,
+});
+
+// Compact quiz layout (phones): only the board and a pinned answer pad.
+export const quizCompactContainer = style({
+  paddingTop: spacing.xs,
+  paddingBottom: "calc(var(--quiz-pad-height, 12rem) + 0.5rem)",
+  // Centre the board in the space above the pinned pad.
+  minHeight: "100dvh",
+  justifyContent: "center",
+
+  "@media": {
+    // Same query as `container`'s landscape rule, whose `padding` shorthand
+    // would otherwise drop the room reserved for the pad.
+    "screen and (orientation: landscape) and (max-height: 450px)": {
+      paddingTop: spacing.xs,
+      paddingBottom: "calc(var(--quiz-pad-height, 12rem) + 0.5rem)",
+    },
+  },
+});
+
+export const quizPad = style({
+  position: "fixed",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 3000,
+  padding: `${spacing.xs} ${spacing.sm} calc(${spacing.xs} + env(safe-area-inset-bottom, 0px))`,
+  backgroundColor: colors.dark.bg,
+  borderTop: `1px solid ${colors.dark.border}`,
+  boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.12)",
+  display: "flex",
+  justifyContent: "center",
+});
