@@ -1,5 +1,5 @@
-/** Semi-transparent white string lines: they read against the grey zones without competing with note names. */
-export const stringLineColor = "rgba(255, 255, 255, 0.35)";
+/** Faint string lines (white in light mode, black in dark), themed in globals.css. */
+export const stringLineColor = "var(--color-string-line)";
 
 /**
  * A horizontal string line through the middle of an element, as a background
