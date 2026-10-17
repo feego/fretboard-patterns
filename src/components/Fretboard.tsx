@@ -1674,7 +1674,9 @@ export default function Fretboard() {
       const fretNumbersPx = boardRect.top - scrollEl.getBoundingClientRect().top;
       const availableHeight =
         window.innerHeight - quizPadHeight - fretNumbersPx - 32;
-      const height = Math.min(56, Math.max(26, availableHeight / 6));
+      // Whole pixels: with a fractional height the semi-transparent zone rows'
+      // edges land mid-pixel and leave light seams between strings.
+      const height = Math.floor(Math.min(56, Math.max(26, availableHeight / 6)));
 
       setQuizFit((prev) =>
         prev &&
@@ -2236,6 +2238,18 @@ export default function Fretboard() {
                   />
                 );
               })}
+            </div>
+
+            <div className={styles.fretWireLayer}>
+              {fretMetrics &&
+                Object.entries(fretMetrics.centerXByFret).map(([fret, centerX]) => (
+                  <span
+                    key={fret}
+                    className={styles.fretWire}
+                    // On each fret cell's right border.
+                    style={{ left: centerX + fretMetrics.widthByFret[Number(fret)] / 2 - 1 }}
+                  />
+                ))}
             </div>
 
             <div className={styles.selectionLayer}>

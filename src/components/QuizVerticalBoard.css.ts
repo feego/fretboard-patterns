@@ -62,7 +62,7 @@ export const cell = style({
   // The string runs down the middle of each column; the fret wire is the bottom edge.
   // An optional overlay-zone shade (--v-zone) sits under the string line.
   backgroundImage: `linear-gradient(to right, transparent calc(50% - 1px), ${stringLineColor} calc(50% - 1px), ${stringLineColor} calc(50% + 1px), transparent calc(50% + 1px)), linear-gradient(var(--v-zone, transparent), var(--v-zone, transparent))`,
-  borderBottom: `2px solid ${colors.dark.border}`,
+  borderBottom: "2px solid var(--color-fret-line)",
 });
 
 // Out-of-scope cells: tint only the base colour (like the horizontal board's
@@ -76,7 +76,7 @@ export const firstRowNut = style({
 });
 
 export const firstRowNoNut = style({
-  borderTop: `2px solid ${colors.dark.border}`,
+  borderTop: "2px solid var(--color-fret-line)",
 });
 
 export const inlay = style({
@@ -85,7 +85,7 @@ export const inlay = style({
   width: "0.6rem",
   height: "0.6rem",
   borderRadius: borderRadius.full,
-  backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 30%, transparent)`,
+  backgroundColor: "var(--color-fret-marker)",
   transform: "translate(-50%, -50%)",
   pointerEvents: "none",
 });

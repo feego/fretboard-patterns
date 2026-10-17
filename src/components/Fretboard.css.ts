@@ -330,6 +330,23 @@ export const fretboard = style({
   overflow: "hidden", // Clip overlays at fretboard edges
 });
 
+// Fret wires redrawn over the overlay zones (overlayLayer, 900), below the
+// inlay dots (950) and selection/quiz markers (selectionLayer, 2000).
+export const fretWireLayer = style({
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  zIndex: 940,
+});
+
+export const fretWire = style({
+  position: "absolute",
+  top: 0,
+  bottom: 0,
+  width: "1px",
+  backgroundColor: "var(--color-fret-line)",
+});
+
 export const selectionLayer = style({
   position: "absolute",
   inset: 0,
@@ -519,7 +536,7 @@ export const stringLabel = style({
 export const fret = style({
   width: "var(--fret-width, 4rem)",
   height: "var(--fret-height, 3rem)",
-  borderRight: `1px solid ${colors.dark.border}`,
+  borderRight: "1px solid var(--color-fret-line)",
   cursor: "pointer",
   selectors: {
     // String cells (not the fret-number rows): the string runs along the middle.
@@ -551,7 +568,7 @@ export const firstFret = style({
 // Inlay dots sit above the overlay zones (overlayLayer, 900) but below the
 // selection/quiz markers (selectionLayer, 2000).
 const markerDotZIndex = 950;
-const markerDotColor = `color-mix(in srgb, ${colors.dark.textMuted} 30%, transparent)`;
+const markerDotColor = "var(--color-fret-marker)";
 
 export const markerFret = style({
   position: "relative",

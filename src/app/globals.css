@@ -17,8 +17,12 @@
   --color-overlay-a: rgba(50, 55, 70, 0.7);
   --color-overlay-b: rgba(70, 72, 85, 0.7);
 
-  /* Fretboard string lines */
+  /* Fretboard string lines and fret wires */
   --color-string-line: rgba(0, 0, 0, 0.35);
+  /* Inlay dots (3, 5, 7…) */
+  --color-fret-marker: color-mix(in srgb, var(--color-text-muted) 45%, transparent);
+  /* Fret wires: fainter than the inlay dots */
+  --color-fret-line: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
 }
 
 [data-theme="light"] {
