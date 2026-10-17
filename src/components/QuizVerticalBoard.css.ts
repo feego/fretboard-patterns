@@ -65,6 +65,12 @@ export const cell = style({
   borderBottom: `2px solid ${colors.dark.border}`,
 });
 
+// Out-of-scope cells: tint only the base colour (like the horizontal board's
+// quizFretInactive), so the zone shade and string line drawn over it stay intact.
+export const cellInactive = style({
+  backgroundColor: `color-mix(in srgb, ${colors.dark.bg} 55%, ${colors.dark.fretboard})`,
+});
+
 export const firstRowNut = style({
   borderTop: `6px solid ${colors.dark.textMuted}`,
 });

@@ -2,7 +2,7 @@
 
 import { type CSSProperties, useEffect, useRef } from "react";
 import { type NoteQuiz, positionKey } from "../hooks/useNoteQuiz";
-import { NOTES } from "../lib/notes";
+import { quizNoteName } from "../lib/notes";
 import type { OverlayZone } from "../lib/overlayZones";
 import * as styles from "./QuizVerticalBoard.css";
 
@@ -34,7 +34,7 @@ export default function QuizVerticalBoard({
   stringNames,
   zoneAt,
 }: QuizVerticalBoardProps) {
-  const { settings, stats, question } = quiz;
+  const { settings, question } = quiz;
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const frets: number[] = [];
@@ -92,12 +92,7 @@ export default function QuizVerticalBoard({
             <span className={styles.fretNumber}>{fret}</span>
             {STRING_ORDER.map((s) => {
               const key = positionKey(s, fret);
-              const enabled = settings.strings[s];
-              const stat = stats[key];
-              const heat =
-                settings.showHeatmap && stat && stat.attempts > 0
-                  ? Math.round((stat.correct / stat.attempts) * 100)
-                  : null;
+              const enabled = quiz.isInScope(s, fret);
               const zone = zoneAt?.(s, fret);
               const targetIndex = targetIndexByKey.get(key);
               const target =
@@ -116,27 +111,21 @@ export default function QuizVerticalBoard({
               return (
                 <div
                   key={s}
-                  className={styles.cell}
+                  className={`${styles.cell}${enabled ? "" : ` ${styles.cellInactive}`}`}
                   data-quiz-cell={key}
-                  style={{
-                    ...(enabled ? null : { opacity: 0.35 }),
+                  style={
                     // Shades the cell under its string line, like the overlays on the main board.
-                    ...(zone && heat == null
-                      ? {
+                    zone
+                      ? ({
                           "--v-zone": `var(--color-overlay-${zone.toLowerCase()})`,
-                        }
-                      : null),
-                    ...(heat != null
-                      ? {
-                          backgroundColor: `color-mix(in srgb, color-mix(in srgb, #16a34a ${heat}%, #dc2626) 40%, var(--color-fretboard))`,
-                        }
-                      : null),
-                  }}
+                        } as CSSProperties)
+                      : undefined
+                  }
                 >
                   {target && targetIndex != null && (
                     <span className={markerClass}>
                       {target.answeredPc != null
-                        ? NOTES[target.pc]
+                        ? quizNoteName(target.pc, settings.key)
                         : isGroup
                           ? targetIndex + 1
                           : "?"}

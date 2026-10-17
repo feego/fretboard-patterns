@@ -85,3 +85,40 @@ export function pitchClassLabel(pc: number): string {
   const flat = FLAT_NAMES[sharp];
   return flat ? `${sharp}/${flat}` : sharp;
 }
+
+const MAJOR_SCALE_STEPS = [0, 2, 4, 5, 7, 9, 11];
+
+/** Major key names by tonic pitch class, spelled the conventional way. */
+export const KEY_NAMES = [
+  "C",
+  "Db",
+  "D",
+  "Eb",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "Ab",
+  "A",
+  "Bb",
+  "B",
+];
+
+/** Keys whose signatures use flats, so their notes read better as flats. */
+const FLAT_KEYS = new Set([1, 3, 5, 8, 10]);
+
+/** Pitch classes of the major key on `tonic`, in scale order. */
+export function keyPitchClasses(tonic: number): number[] {
+  return MAJOR_SCALE_STEPS.map((step) => (tonic + step) % 12);
+}
+
+/** Name of a pitch class as spelled in the major key on `tonic` (sharps when there's no key). */
+export function quizNoteName(pc: number, tonic: number | null): string {
+  return tonic == null ? NOTES[pc] : noteNameInKey(pc, tonic);
+}
+
+/** Name of a pitch class as spelled in the major key on `tonic`. */
+export function noteNameInKey(pc: number, tonic: number): string {
+  const sharp = NOTES[pc];
+  return FLAT_KEYS.has(tonic) ? (FLAT_NAMES[sharp] ?? sharp) : sharp;
+}

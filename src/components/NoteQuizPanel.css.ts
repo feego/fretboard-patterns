@@ -75,6 +75,28 @@ export const fretInput = style({
   textAlign: "center",
 });
 
+export const keySelect = style([
+  fretInput,
+  {
+    width: "auto",
+    minWidth: "3.25rem",
+    flexShrink: 0,
+    textAlign: "center",
+    textAlignLast: "center",
+    cursor: "pointer",
+    // No dropdown arrow.
+    appearance: "none",
+    WebkitAppearance: "none",
+  },
+]);
+
+export const promptRow = style({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.5rem",
+});
+
 export const linkButton = style({
   fontFamily: "inherit",
   background: "none",

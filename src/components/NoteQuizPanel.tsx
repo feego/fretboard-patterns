@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import {
   FLAT_NAMES,
+  KEY_NAMES,
+  keyPitchClasses,
   NOTES,
-  pitchClassLabel as noteName,
+  noteNameInKey,
+  pitchClassLabel,
   toPitchClass,
 } from "../lib/notes";
 import {
@@ -30,7 +33,21 @@ export default function NoteQuizPanel({
   compact = false,
   onExit,
 }: NoteQuizPanelProps) {
-  const { settings, setSettings, question, score, stats, submit, skip } = quiz;
+  const {
+    settings,
+    setSettings,
+    isInScope,
+    question,
+    score,
+    stats,
+    submit,
+    skip,
+  } = quiz;
+  const noteName = (pc: number) =>
+    settings.key == null ? pitchClassLabel(pc) : noteNameInKey(pc, settings.key);
+  // With a key, only its notes can be asked, so only offer those (in scale order).
+  const answerPcs =
+    settings.key == null ? NOTES.map((_, pc) => pc) : keyPitchClasses(settings.key);
   const [pendingLetter, setPendingLetter] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const showSettings = !compact || settingsOpen;
@@ -133,8 +150,8 @@ export default function NoteQuizPanel({
   let lifetimeAttempts = 0;
   let lifetimeCorrect = 0;
   for (let s = 0; s < settings.strings.length; s++) {
-    if (!settings.strings[s]) continue;
     for (let f = settings.minFret; f <= settings.maxFret; f++) {
+      if (!isInScope(s, f)) continue;
       poolSize++;
       const stat = stats[positionKey(s, f)];
       if (!stat) continue;
@@ -150,6 +167,26 @@ export default function NoteQuizPanel({
       : name,
   );
 
+  const keySelect = (
+    <select
+      className={styles.keySelect}
+      aria-label="Key"
+      value={settings.key ?? "free"}
+      onChange={(e) =>
+        setSettings({
+          key: e.target.value === "free" ? null : Number(e.target.value),
+        })
+      }
+    >
+      <option value="free">Free</option>
+      {KEY_NAMES.map((name, pc) => (
+        <option key={name} value={pc}>
+          {name}
+        </option>
+      ))}
+    </select>
+  );
+
   return (
     <section
       className={`${styles.panel}${compact ? ` ${styles.panelCompact}` : ""}`}
@@ -157,6 +194,7 @@ export default function NoteQuizPanel({
     >
       {compact && (
         <div className={styles.compactTopRow}>
+          {keySelect}
           <div
             className={`${styles.prompt} ${styles.compactPrompt} ${promptClass}`}
             aria-live="polite"
@@ -289,34 +327,29 @@ export default function NoteQuizPanel({
             </fieldset>
           </div>
 
-          <label className={styles.group}>
-            <input
-              type="checkbox"
-              checked={settings.showHeatmap}
-              onChange={(e) => setSettings({ showHeatmap: e.target.checked })}
-            />
-            Heatmap
-          </label>
-          <label className={styles.group}>
-            <input
-              type="checkbox"
-              checked={settings.showZones}
-              onChange={(e) => setSettings({ showZones: e.target.checked })}
-            />
-            Zones
-          </label>
         </div>
       )}
 
       {!compact && (
-        <div className={`${styles.prompt} ${promptClass}`} aria-live="polite">
-          {promptText}
+        <div className={styles.promptRow}>
+          {keySelect}
+          <div className={`${styles.prompt} ${promptClass}`} aria-live="polite">
+            {promptText}
+          </div>
         </div>
       )}
 
-      <div className={styles.answerGrid}>
-        {NOTES.map((sharp, pc) => {
-          const flat = FLAT_NAMES[sharp];
+      <div
+        className={styles.answerGrid}
+        style={
+          settings.key == null
+            ? undefined
+            : { gridTemplateColumns: `repeat(${answerPcs.length}, minmax(0, 1fr))` }
+        }
+      >
+        {answerPcs.map((pc) => {
+          const sharp = NOTES[pc];
+          const flat = settings.key == null ? FLAT_NAMES[sharp] : undefined;
           let stateClass = "";
           if (pc === pendingPc && !question?.done) {
             stateClass = styles.answerButtonPending;
@@ -336,7 +369,9 @@ export default function NoteQuizPanel({
                 submit(pc);
               }}
             >
-              <span>{sharp}</span>
+              <span>
+                {settings.key == null ? sharp : noteNameInKey(pc, settings.key)}
+              </span>
               {flat && <span className={styles.answerButtonAlt}>{flat}</span>}
             </button>
           );

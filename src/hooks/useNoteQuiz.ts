@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getNoteAtPosition, NOTES } from "../lib/notes";
+import { getNoteAtPosition, keyPitchClasses, NOTES } from "../lib/notes";
 
 export type QuizMode = "single" | "group";
 
@@ -12,14 +12,12 @@ export interface QuizSettings {
   /** One flag per string, index 0 = high string (same order as the fretboard rows). */
   strings: boolean[];
   groupSize: number;
-  /** Tint fretboard cells by saved accuracy. */
-  showHeatmap: boolean;
-  /** Shade the fretboard with the overlay zones (without their note names). */
-  showZones: boolean;
+  /** Tonic pitch class of the major key to practise, or null for all notes. */
+  key: number | null;
 }
 
-/** The settings that decide which positions get asked (display-only settings excluded). */
-type QuizScope = Omit<QuizSettings, "showHeatmap" | "showZones">;
+/** The settings that decide which positions get asked. */
+type QuizScope = QuizSettings;
 
 export interface QuizTarget {
   string: number;
@@ -70,8 +68,7 @@ export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
   maxFret: 12,
   strings: [true, true, true, true, true, true],
   groupSize: 3,
-  showHeatmap: false,
-  showZones: true,
+  key: null,
 };
 
 const EMPTY_SCORE: QuizScore = {
@@ -110,6 +107,20 @@ function weightedPick<T>(items: T[], weightOf: (item: T) => number): T {
 
 type Pos = { string: number; fret: number };
 
+/** Whether a position can be asked: enabled string, in the fret range and, with a key, in that key. */
+function isInQuizScope(
+  settings: QuizScope,
+  tuning: string,
+  string: number,
+  fret: number,
+): boolean {
+  if (!settings.strings[string]) return false;
+  if (fret < settings.minFret || fret > settings.maxFret) return false;
+  if (settings.key == null) return true;
+  const pc = NOTES.indexOf(getNoteAtPosition(string, fret, tuning));
+  return keyPitchClasses(settings.key).includes(pc);
+}
+
 function buildQuestion(
   id: number,
   settings: QuizScope,
@@ -119,9 +130,8 @@ function buildQuestion(
 ): QuizQuestion | null {
   const pool: Pos[] = [];
   for (let s = 0; s < settings.strings.length; s++) {
-    if (!settings.strings[s]) continue;
     for (let f = settings.minFret; f <= settings.maxFret; f++) {
-      pool.push({ string: s, fret: f });
+      if (isInQuizScope(settings, tuning, s, f)) pool.push({ string: s, fret: f });
     }
   }
   if (pool.length === 0) return null;
@@ -207,8 +217,10 @@ function sanitizeSettings(raw: Partial<QuizSettings> | null): QuizSettings {
     maxFret,
     strings,
     groupSize: Math.min(5, Math.max(2, clampFret(s.groupSize, 3))),
-    showHeatmap: s.showHeatmap === true,
-    showZones: s.showZones !== false,
+    key:
+      typeof s.key === "number" && Number.isInteger(s.key) && s.key >= 0 && s.key < 12
+        ? s.key
+        : null,
   };
 }
 
@@ -256,15 +268,16 @@ export function useNoteQuiz(active: boolean, tuning: string) {
     });
   }, []);
 
-  // Stable while only display settings (e.g. the heatmap) change, so toggling
-  // those doesn't throw away the current question.
-  const { mode, minFret, maxFret, strings, groupSize } = settings;
+  // Keyed by value, so re-saving unchanged settings doesn't throw away the
+  // current question.
+  const { mode, minFret, maxFret, strings, groupSize, key } = settings;
   const scopeKey = JSON.stringify({
     mode,
     minFret,
     maxFret,
     strings,
     groupSize,
+    key,
   });
   const scope = useMemo(() => JSON.parse(scopeKey) as QuizScope, [scopeKey]);
 
@@ -364,9 +377,16 @@ export function useNoteQuiz(active: boolean, tuning: string) {
     });
   }, [tuning]);
 
+  const isInScope = useCallback(
+    (string: number, fret: number) =>
+      isInQuizScope(settings, tuning, string, fret),
+    [settings, tuning],
+  );
+
   return {
     settings,
     setSettings,
+    isInScope,
     question,
     score,
     stats,

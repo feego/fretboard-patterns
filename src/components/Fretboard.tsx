@@ -18,11 +18,59 @@ import NoteQuizPanel from "./NoteQuizPanel";
 import QuizVerticalBoard from "./QuizVerticalBoard";
 import StringLabels from "./StringLabels";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { positionKey, useNoteQuiz } from "../hooks/useNoteQuiz";
-import { getNoteAtPosition, NOTES, TUNING_CONFIGS } from "../lib/notes";
+import { useNoteQuiz } from "../hooks/useNoteQuiz";
+import { getNoteAtPosition, NOTES, quizNoteName, TUNING_CONFIGS } from "../lib/notes";
 import { getOverlayZone } from "../lib/overlayZones";
 
 type ToggledCellMap = Record<string, boolean>;
+
+/** The Settings panel toggles, saved to localStorage. */
+type DisplaySettings = {
+  showStrings: boolean;
+  showZones: boolean;
+  showDimmedNotes: boolean;
+  showDegrees: boolean;
+  followChords: boolean;
+  showCagedNotes: boolean;
+  showTrails: boolean;
+  trailDurationSeconds: number;
+};
+
+const DISPLAY_SETTINGS_KEY = "fretboard-display-settings";
+
+const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  showStrings: false,
+  showZones: true,
+  showDimmedNotes: false,
+  showDegrees: false,
+  followChords: true,
+  showCagedNotes: false,
+  showTrails: false,
+  trailDurationSeconds: 2,
+};
+
+// Safe to call from state initializers: the component renders nothing until
+// mounted, so differing server/client initial state can't cause a mismatch.
+function readDisplaySettings(): DisplaySettings {
+  const settings = { ...DEFAULT_DISPLAY_SETTINGS };
+  if (typeof window === "undefined") return settings;
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(DISPLAY_SETTINGS_KEY) ?? "{}",
+    ) as Partial<Record<keyof DisplaySettings, unknown>>;
+    for (const key of Object.keys(settings) as (keyof DisplaySettings)[]) {
+      const value = raw[key];
+      if (typeof value === typeof settings[key]) {
+        (settings as Record<keyof DisplaySettings, unknown>)[key] = value;
+      }
+    }
+    settings.trailDurationSeconds = Math.min(
+      30,
+      Math.max(0.5, settings.trailDurationSeconds),
+    );
+  } catch {}
+  return settings;
+}
 type MarkerTone = "primary" | "dim";
 
 const FLAT_MAP: Record<string, string> = {
@@ -533,11 +581,14 @@ export default function Fretboard() {
     fret: number;
   }>({ string: 4, fret: 12 }); // 2 strings down (string 4 = A)
   const [continuousFret, setContinuousFret] = useState(12); // Track continuous position for infinite scroll
-  const [showDimmedNotes, setShowDimmedNotes] = useState(false);
+  const [storedDisplaySettings] = useState(readDisplaySettings);
+  const [showDimmedNotes, setShowDimmedNotes] = useState(storedDisplaySettings.showDimmedNotes);
+  const [showStrings, setShowStrings] = useState(storedDisplaySettings.showStrings);
+  const [showZones, setShowZones] = useState(storedDisplaySettings.showZones);
   const [swapBg, setSwapBg] = useState(false);
-  const [showDegrees, setShowDegrees] = useState(false);
-  const [followChords, setFollowChords] = useState(true);
-  const [showCagedNotes, setShowCagedNotes] = useState(false);
+  const [showDegrees, setShowDegrees] = useState(storedDisplaySettings.showDegrees);
+  const [followChords, setFollowChords] = useState(storedDisplaySettings.followChords);
+  const [showCagedNotes, setShowCagedNotes] = useState(storedDisplaySettings.showCagedNotes);
 
   const SCALE_FAMILIES = [
     "Diatonic scale",
@@ -553,9 +604,39 @@ export default function Fretboard() {
 
   type TrailPos = { x: number; y: number; fret: { string: number; fret: number } };
   const [showSettings, setShowSettings] = useState(false);
-  const [showTrails, setShowTrails] = useState(false);
-  const [trailDurationSeconds, setTrailDurationSeconds] = useState(2);
+  const [showTrails, setShowTrails] = useState(storedDisplaySettings.showTrails);
+  const [trailDurationSeconds, setTrailDurationSeconds] = useState(
+    storedDisplaySettings.trailDurationSeconds,
+  );
   const [trailPos, setTrailPos] = useState<TrailPos | null>(null);
+
+  // Persist the Settings panel toggles.
+  useEffect(() => {
+    if (!hasMounted) return;
+    const settings: DisplaySettings = {
+      showStrings,
+      showZones,
+      showDimmedNotes,
+      showDegrees,
+      followChords,
+      showCagedNotes,
+      showTrails,
+      trailDurationSeconds,
+    };
+    try {
+      window.localStorage.setItem(DISPLAY_SETTINGS_KEY, JSON.stringify(settings));
+    } catch {}
+  }, [
+    hasMounted,
+    showStrings,
+    showZones,
+    showDimmedNotes,
+    showDegrees,
+    followChords,
+    showCagedNotes,
+    showTrails,
+    trailDurationSeconds,
+  ]);
 
   // Note quiz: hides note names and asks the player to name highlighted positions.
   const [quizMode, setQuizMode] = useState(false);
@@ -1882,6 +1963,17 @@ export default function Fretboard() {
   currentPositionXRef.current = currentPosition.x;
   currentPositionYRef.current = currentPosition.y;
 
+  // In the quiz, the zones show the selected key (C when Free) instead of the
+  // player's position: anchored at fret 12 the zone pattern spells C major, and
+  // each fret higher transposes it up a semitone.
+  const zoneFret = quizMode
+    ? { string: currentFret.string, fret: 12 + (quiz.settings.key ?? 0) }
+    : currentFret;
+  const zoneSwapBg = quizMode ? false : swapBg;
+  const zoneX = quizMode
+    ? (getFretCenterX(fretMetrics, zoneFret.fret) ?? currentPosition.x)
+    : currentPosition.x;
+
   // ─── Trail effects (must be before the hydration gate) ────────────────────
 
   // Keep trail config refs in sync
@@ -1929,17 +2021,27 @@ export default function Fretboard() {
     <div
       className={`${styles.container}${quizCompact ? ` ${styles.quizCompactContainer}` : ""}`}
       style={
-        quizCompact
-          ? ({
-              "--quiz-pad-height": `${quizPadHeight}px`,
-              ...(quizFit
-                ? {
-                    "--fret-width": `${quizFit.width}px`,
-                    "--fret-height": `${quizFit.height}px`,
-                  }
-                : {}),
-            } as CSSProperties)
-          : undefined
+        {
+          // Hide the string lines / zone shading on both fretboards.
+          ...(showStrings ? null : { "--color-string-line": "transparent" }),
+          ...(showZones
+            ? null
+            : {
+                "--color-overlay-a": "transparent",
+                "--color-overlay-b": "transparent",
+              }),
+          ...(quizCompact
+            ? {
+                "--quiz-pad-height": `${quizPadHeight}px`,
+                ...(quizFit
+                  ? {
+                      "--fret-width": `${quizFit.width}px`,
+                      "--fret-height": `${quizFit.height}px`,
+                    }
+                  : {}),
+              }
+            : null),
+        } as CSSProperties
       }
     >
       {!quizCompact && (
@@ -1983,9 +2085,9 @@ export default function Fretboard() {
           quiz={quiz}
           stringNames={strings}
           zoneAt={
-            quiz.settings.showZones && currentFret
+            currentFret
               ? (stringIndex, fret) =>
-                  getOverlayZone(stringIndex, fret, currentFret, tuning, swapBg)
+                  getOverlayZone(stringIndex, fret, zoneFret, tuning, zoneSwapBg)
               : undefined
           }
         />
@@ -2096,28 +2198,15 @@ export default function Fretboard() {
                     fretClasses += ` ${styles.cagedFret}`;
                   }
 
-                  let quizCellStyle: CSSProperties | undefined;
-                  if (quizMode) {
-                    const { settings: quizSettings, stats: quizStats } = quiz;
-                    const inQuizRange =
-                      quizSettings.strings[stringIndex] &&
-                      fretNumber >= quizSettings.minFret &&
-                      fretNumber <= quizSettings.maxFret;
-                    if (!inQuizRange) fretClasses += ` ${styles.quizFretInactive}`;
-                    const stat = quizStats[positionKey(stringIndex, fretNumber)];
-                    if (quizSettings.showHeatmap && stat && stat.attempts > 0) {
-                      const accuracyPct = Math.round((stat.correct / stat.attempts) * 100);
-                      quizCellStyle = {
-                        backgroundColor: `color-mix(in srgb, color-mix(in srgb, #16a34a ${accuracyPct}%, #dc2626) 40%, transparent)`,
-                      };
-                    }
+                  if (quizMode && !quiz.isInScope(stringIndex, fretNumber)) {
+                    fretClasses += ` ${styles.quizFretInactive}`;
                   }
 
                   return (
                     <div
                       key={`fret-${fretNumber}`}
                       className={fretClasses}
-                      style={{ width: fretWidthCss(fretNumber), ...quizCellStyle }}
+                      style={{ width: fretWidthCss(fretNumber) }}
                       data-fret={`${stringIndex}-${fretIndex}`}
                       data-string={stringIndex}
                       data-fret-number={fretNumber}
@@ -2172,7 +2261,11 @@ export default function Fretboard() {
                       className={`${styles.quizMarker} ${stateClass}`}
                       style={{ left: pos.x, top: pos.y }}
                     >
-                      {answered ? NOTES[target.pc] : isGroup ? i + 1 : "?"}
+                      {answered
+                        ? quizNoteName(target.pc, quiz.settings.key)
+                        : isGroup
+                          ? i + 1
+                          : "?"}
                     </span>
                   );
                 })}
@@ -2195,10 +2288,9 @@ export default function Fretboard() {
             <div
               key={`overlay-layer-${resizeKey}`}
               ref={overlayLayerRef}
-              className={`${styles.overlayLayer}${hasMounted && cellWidth > 0 ? ` ${styles.overlayLayerVisible}` : ""}${quizMode && quiz.settings.showZones ? ` ${styles.overlayLayerZonesOnly}` : ""}`}
+              className={`${styles.overlayLayer}${hasMounted && cellWidth > 0 ? ` ${styles.overlayLayerVisible}` : ""}${quizMode ? ` ${styles.overlayLayerZonesOnly}` : ""}`}
               // Overlays are where note names live: while quizzing keep only
-              // their zone shading (if enabled), never the names.
-              style={quizMode && !quiz.settings.showZones ? { visibility: "hidden" } : undefined}
+              // their zone shading, never the names.
             >
               {/* Trail ghost overlays — single always-mounted wrapper so the 21 overlay
                   components never unmount/remount on position changes; the fade-out
@@ -2254,15 +2346,15 @@ export default function Fretboard() {
                   const isFirst = i % 2 === 0;
                   const OverlayComponent = isFirst ? FirstOverlay : SecondOverlay;
                   const bgVariant = isFirst
-                    ? swapBg
+                    ? zoneSwapBg
                       ? "B"
                       : "A"
-                    : swapBg
+                    : zoneSwapBg
                       ? "A"
                       : "B";
                   const zIndex = isFirst ? 999 : 1001;
 
-                  const shiftedX = currentPosition.x;
+                  const shiftedX = zoneX;
                   const shiftedY = currentPosition.y;
                   return (
                     <OverlayComponent
@@ -2278,7 +2370,7 @@ export default function Fretboard() {
                       }}
                       cellWidth={cellWidth}
                       cellHeight={cellHeight}
-                      currentFret={currentFret}
+                      currentFret={zoneFret}
                       showDimmedNotes={showDimmedNotes}
                       tuning={tuning}
                       bgVariant={bgVariant}
@@ -2344,6 +2436,26 @@ export default function Fretboard() {
 
       {showSettings && !quizCompact && (
         <div className={styles.settingsRow}>
+          <label className={`${controlStyles.toggleLabel}${showStrings ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
+            <input
+              className={controlStyles.toggleCheckbox}
+              type="checkbox"
+              checked={showStrings}
+              onChange={() => setShowStrings((v) => !v)}
+            />
+            Strings
+          </label>
+
+          <label className={`${controlStyles.toggleLabel}${showZones ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
+            <input
+              className={controlStyles.toggleCheckbox}
+              type="checkbox"
+              checked={showZones}
+              onChange={() => setShowZones((v) => !v)}
+            />
+            Zones
+          </label>
+
           <label className={`${controlStyles.toggleLabel}${showDimmedNotes ? ` ${controlStyles.toggleLabelActive}` : ""}`}>
             <input
               className={controlStyles.toggleCheckbox}
