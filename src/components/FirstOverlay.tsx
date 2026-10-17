@@ -153,6 +153,41 @@ function getScalePitchClasses(scaleFamily: string, bestKey: string): ReadonlySet
   return new Set(offsets.map(d => (tonicIdx + d) % 12));
 }
 
+// Configuration for each string's row
+// String indices: 0=high E (top), 5=low E (bottom)
+// startFret is offset from currentFret (e.g., -11 means 11 frets to the left)
+// Also used to shade the quiz board with the same zones (lib/overlayZones).
+export const FIRST_OVERLAY_ROWS = [
+  { stringIndex: -1, startFret: -6, numFrets: 5, gridStyle: styles.thirdGrid }, // Buffer above top string (mirrors string 0 config)
+  { stringIndex: 0, startFret: -6, numFrets: 5, gridStyle: styles.thirdGrid }, // Top string (high E): shifted 1 right
+  {
+    stringIndex: 1,
+    startFret: -8,
+    numFrets: 7,
+    gridStyle: styles.fourthGrid,
+  }, // String 2: 7 columns
+  { stringIndex: 2, startFret: -9, numFrets: 5, gridStyle: styles.thirdGrid }, // String 3 (G): shifted 1 fret right
+  {
+    stringIndex: 3,
+    startFret: -11,
+    numFrets: 7,
+    gridStyle: styles.fourthGrid,
+  }, // String 4: 7 columns
+  {
+    stringIndex: 4,
+    startFret: -11,
+    numFrets: 5,
+    gridStyle: styles.thirdGrid,
+  }, // String 5 (A): 5 columns, shifted 1 fret right
+  {
+    stringIndex: 5,
+    startFret: -1,
+    numFrets: 7,
+    gridStyle: styles.fourthGrid,
+  }, // Bottom string (low E): 7 columns
+  { stringIndex: 6, startFret: -1, numFrets: 7, gridStyle: styles.fourthGrid }, // Buffer below bottom string (mirrors string 5 config)
+];
+
 interface FirstOverlayProps {
   isVisible: boolean;
   mousePosition: { x: number; y: number };
@@ -203,39 +238,7 @@ export default function FirstOverlay({
   const cellWidth = measuredCellWidth ?? 64;
   const cellHeight = measuredCellHeight ?? 48;
 
-  // Configuration for each string's row
-  // String indices: 0=high E (top), 5=low E (bottom)
-  // startFret is offset from currentFret (e.g., -11 means 11 frets to the left)
-  const rowConfigs = [
-    { stringIndex: -1, startFret: -6, numFrets: 5, gridStyle: styles.thirdGrid }, // Buffer above top string (mirrors string 0 config)
-    { stringIndex: 0, startFret: -6, numFrets: 5, gridStyle: styles.thirdGrid }, // Top string (high E): shifted 1 right
-    {
-      stringIndex: 1,
-      startFret: -8,
-      numFrets: 7,
-      gridStyle: styles.fourthGrid,
-    }, // String 2: 7 columns
-    { stringIndex: 2, startFret: -9, numFrets: 5, gridStyle: styles.thirdGrid }, // String 3 (G): shifted 1 fret right
-    {
-      stringIndex: 3,
-      startFret: -11,
-      numFrets: 7,
-      gridStyle: styles.fourthGrid,
-    }, // String 4: 7 columns
-    {
-      stringIndex: 4,
-      startFret: -11,
-      numFrets: 5,
-      gridStyle: styles.thirdGrid,
-    }, // String 5 (A): 5 columns, shifted 1 fret right
-    {
-      stringIndex: 5,
-      startFret: -1,
-      numFrets: 7,
-      gridStyle: styles.fourthGrid,
-    }, // Bottom string (low E): 7 columns
-    { stringIndex: 6, startFret: -1, numFrets: 7, gridStyle: styles.fourthGrid }, // Buffer below bottom string (mirrors string 5 config)
-  ];
+  const rowConfigs = FIRST_OVERLAY_ROWS;
 
   // Compute global bestKey/accidentalStyle/displayKey
   const centerNotes = getAllOverlayCenterNotes(rowConfigs, currentFret, tuning);

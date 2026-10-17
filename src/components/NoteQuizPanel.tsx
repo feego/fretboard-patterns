@@ -297,6 +297,14 @@ export default function NoteQuizPanel({
             />
             Heatmap
           </label>
+          <label className={styles.group}>
+            <input
+              type="checkbox"
+              checked={settings.showZones}
+              onChange={(e) => setSettings({ showZones: e.target.checked })}
+            />
+            Zones
+          </label>
         </div>
       )}
 

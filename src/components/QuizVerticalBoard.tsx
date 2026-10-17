@@ -3,6 +3,7 @@
 import { type CSSProperties, useEffect, useRef } from "react";
 import { type NoteQuiz, positionKey } from "../hooks/useNoteQuiz";
 import { NOTES } from "../lib/notes";
+import type { OverlayZone } from "../lib/overlayZones";
 import * as styles from "./QuizVerticalBoard.css";
 
 const SINGLE_INLAY_FRETS = new Set([3, 5, 7, 9, 15, 17, 19, 21]);
@@ -20,6 +21,8 @@ interface QuizVerticalBoardProps {
   quiz: NoteQuiz;
   /** Open-string names, index 0 = high string. */
   stringNames: string[];
+  /** Overlay zone shading per cell, when enabled. */
+  zoneAt?: (stringIndex: number, fret: number) => OverlayZone | null;
 }
 
 /**
@@ -29,6 +32,7 @@ interface QuizVerticalBoardProps {
 export default function QuizVerticalBoard({
   quiz,
   stringNames,
+  zoneAt,
 }: QuizVerticalBoardProps) {
   const { settings, stats, question } = quiz;
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +98,7 @@ export default function QuizVerticalBoard({
                 settings.showHeatmap && stat && stat.attempts > 0
                   ? Math.round((stat.correct / stat.attempts) * 100)
                   : null;
+              const zone = zoneAt?.(s, fret);
               const targetIndex = targetIndexByKey.get(key);
               const target =
                 targetIndex != null
@@ -115,6 +120,12 @@ export default function QuizVerticalBoard({
                   data-quiz-cell={key}
                   style={{
                     ...(enabled ? null : { opacity: 0.35 }),
+                    // Shades the cell under its string line, like the overlays on the main board.
+                    ...(zone && heat == null
+                      ? {
+                          "--v-zone": `var(--color-overlay-${zone.toLowerCase()})`,
+                        }
+                      : null),
                     ...(heat != null
                       ? {
                           backgroundColor: `color-mix(in srgb, color-mix(in srgb, #16a34a ${heat}%, #dc2626) 40%, var(--color-fretboard))`,

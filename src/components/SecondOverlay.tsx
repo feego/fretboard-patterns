@@ -151,6 +151,36 @@ function getScalePitchClasses(scaleFamily: string, bestKey: string): ReadonlySet
   return new Set(offsets.map(d => (tonicIdx + d) % 12));
 }
 
+// Configuration for each string's row
+// String indices: 0=high E (top), 5=low E (bottom)
+// startFret is offset from currentFret
+// Also used to shade the quiz board with the same zones (lib/overlayZones).
+export const SECOND_OVERLAY_ROWS = [
+  { stringIndex: -1, startFret: -1, numFrets: 7, gridStyle: styles.topGrid }, // Buffer above top string (mirrors string 0 config)
+  { stringIndex: 0, startFret: -1, numFrets: 7, gridStyle: styles.topGrid }, // Top string (high E): 7 columns
+  {
+    stringIndex: 1,
+    startFret: -1,
+    numFrets: 5,
+    gridStyle: styles.singleRowGrid5,
+  }, // B string: 1 fret right
+  { stringIndex: 2, startFret: -4, numFrets: 7, gridStyle: styles.topGrid }, // G string: 1 fret left
+  {
+    stringIndex: 3,
+    startFret: -4,
+    numFrets: 5,
+    gridStyle: styles.singleRowGrid5,
+  }, // D string: 1 fret right
+  { stringIndex: 4, startFret: -6, numFrets: 7, gridStyle: styles.topGrid }, // A string: 1 fret left
+  {
+    stringIndex: 5,
+    startFret: -6,
+    numFrets: 5,
+    gridStyle: styles.singleRowGrid5,
+  }, // Bottom string (low E): unchanged
+  { stringIndex: 6, startFret: -6, numFrets: 5, gridStyle: styles.singleRowGrid5 }, // Buffer below bottom string (mirrors string 5 config)
+];
+
 interface SecondOverlayProps {
   isVisible: boolean;
   mousePosition: { x: number; y: number };
@@ -201,34 +231,7 @@ export default function SecondOverlay({
   const cellWidth = measuredCellWidth ?? 64;
   const cellHeight = measuredCellHeight ?? 48;
 
-  // Configuration for each string's row
-  // String indices: 0=high E (top), 5=low E (bottom)
-  // startFret is offset from currentFret
-  const rowConfigs = [
-    { stringIndex: -1, startFret: -1, numFrets: 7, gridStyle: styles.topGrid }, // Buffer above top string (mirrors string 0 config)
-    { stringIndex: 0, startFret: -1, numFrets: 7, gridStyle: styles.topGrid }, // Top string (high E): 7 columns
-    {
-      stringIndex: 1,
-      startFret: -1,
-      numFrets: 5,
-      gridStyle: styles.singleRowGrid5,
-    }, // B string: 1 fret right
-    { stringIndex: 2, startFret: -4, numFrets: 7, gridStyle: styles.topGrid }, // G string: 1 fret left
-    {
-      stringIndex: 3,
-      startFret: -4,
-      numFrets: 5,
-      gridStyle: styles.singleRowGrid5,
-    }, // D string: 1 fret right
-    { stringIndex: 4, startFret: -6, numFrets: 7, gridStyle: styles.topGrid }, // A string: 1 fret left
-    {
-      stringIndex: 5,
-      startFret: -6,
-      numFrets: 5,
-      gridStyle: styles.singleRowGrid5,
-    }, // Bottom string (low E): unchanged
-    { stringIndex: 6, startFret: -6, numFrets: 5, gridStyle: styles.singleRowGrid5 }, // Buffer below bottom string (mirrors string 5 config)
-  ];
+  const rowConfigs = SECOND_OVERLAY_ROWS;
 
   // Compute global bestKey/accidentalStyle/displayKey
   const centerNotes = getAllOverlayCenterNotes(rowConfigs, currentFret, tuning);

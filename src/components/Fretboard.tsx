@@ -20,6 +20,7 @@ import StringLabels from "./StringLabels";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { positionKey, useNoteQuiz } from "../hooks/useNoteQuiz";
 import { getNoteAtPosition, NOTES, TUNING_CONFIGS } from "../lib/notes";
+import { getOverlayZone } from "../lib/overlayZones";
 
 type ToggledCellMap = Record<string, boolean>;
 type MarkerTone = "primary" | "dim";
@@ -1350,42 +1351,48 @@ export default function Fretboard() {
   const [resizeKey, setResizeKey] = useState(0);
   const resizeDebounceRef = useRef<number | null>(null);
 
+  // Centres of the given "string:fret" cells, in unscaled fretboard coordinates.
+  // Measured synchronously from layout effects: layout is already up to date there,
+  // and requestAnimationFrame can be deferred indefinitely (e.g. background tabs).
+  const measureCellCenters = (
+    fretboardEl: HTMLElement,
+    cells: Record<string, boolean>,
+  ) => {
+    const next: Record<string, { x: number; y: number }> = {};
+    const fretboardRect = fretboardEl.getBoundingClientRect();
+    const scale = fretboardScale || 1;
+
+    for (const [cellId, isOn] of Object.entries(cells)) {
+      if (!isOn) continue;
+      const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
+      const stringIndex = Number(stringIndexRaw);
+      const fretNumber = Number(fretNumberRaw);
+      if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
+
+      const cellEl = fretboardEl.querySelector(
+        `[data-string="${stringIndex}"][data-fret-number="${fretNumber}"]`,
+      ) as HTMLElement | null;
+      if (!cellEl) continue;
+
+      const cellRect = cellEl.getBoundingClientRect();
+      next[cellId] = {
+        x: (cellRect.left - fretboardRect.left + cellRect.width / 2) / scale,
+        y: (cellRect.top - fretboardRect.top + cellRect.height / 2) / scale,
+      };
+    }
+    return next;
+  };
+
   // Position chord-selection markers by measuring actual cell DOM centers.
   // This keeps markers fixed to the fretboard (they should NOT move with overlay anchoring).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resizeKey/quizFit re-measure after layout changes
   useLayoutEffect(() => {
     if (!hasMounted) return;
     const fretboardEl = fretboardRef.current;
     if (!fretboardEl) return;
 
-    const raf = window.requestAnimationFrame(() => {
-      const next: Record<string, { x: number; y: number }> = {};
-      const fretboardRect = fretboardEl.getBoundingClientRect();
-      const scale = fretboardScale || 1;
-
-      for (const [cellId, isOn] of Object.entries(chordSelectedCells)) {
-        if (!isOn) continue;
-        const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
-        const stringIndex = Number(stringIndexRaw);
-        const fretNumber = Number(fretNumberRaw);
-        if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
-
-        const cellEl = fretboardEl.querySelector(
-          `[data-string="${stringIndex}"][data-fret-number="${fretNumber}"]`,
-        ) as HTMLElement | null;
-        if (!cellEl) continue;
-
-        const cellRect = cellEl.getBoundingClientRect();
-        next[cellId] = {
-          x: (cellRect.left - fretboardRect.left + cellRect.width / 2) / scale,
-          y: (cellRect.top - fretboardRect.top + cellRect.height / 2) / scale,
-        };
-      }
-
-      setChordMarkerPositions(next);
-    });
-
-    return () => window.cancelAnimationFrame(raf);
-  }, [hasMounted, chordSelectedCells, fretboardScale]);
+    setChordMarkerPositions(measureCellCenters(fretboardEl, chordSelectedCells));
+  }, [hasMounted, chordSelectedCells, fretboardScale, resizeKey, quizFit]);
 
   const measureBaseFromDom = () => {
     if (!fretboardRef.current) return;
@@ -1473,52 +1480,26 @@ export default function Fretboard() {
     };
   }, []);
 
-  // After mount (DOM exists) and after scale changes, re-measure base/cell size so overlays stay aligned.
+  // After mount (DOM exists) and after scale/layout changes, re-measure base/cell size so overlays stay aligned.
+  // Measured synchronously: layout is already up to date in a layout effect, and
+  // requestAnimationFrame can be deferred indefinitely (e.g. background tabs).
+  // resizeKey covers media-query size changes (e.g. rotating into small landscape);
+  // quizFit changes cell sizes via CSS variables.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resizeKey/quizFit re-measure after layout changes
   useLayoutEffect(() => {
     if (!hasMounted) return;
-    // Allow the transform to apply before measuring.
-    const raf = window.requestAnimationFrame(() => {
-      measureBaseFromDom();
-    });
-    return () => window.cancelAnimationFrame(raf);
-    // quizFit changes cell sizes via CSS variables, so re-measure then too.
-  }, [hasMounted, fretboardScale, quizFit]);
+    measureBaseFromDom();
+  }, [hasMounted, fretboardScale, resizeKey, quizFit]);
 
   // Keep selection markers positioned above overlays.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resizeKey/quizFit re-measure after layout changes
   useLayoutEffect(() => {
     if (!hasMounted) return;
     const fretboardEl = fretboardRef.current;
     if (!fretboardEl) return;
 
-    const raf = window.requestAnimationFrame(() => {
-      const next: Record<string, { x: number; y: number }> = {};
-      const fretboardRect = fretboardEl.getBoundingClientRect();
-      const scale = fretboardScale || 1;
-
-      for (const [cellId, isOn] of Object.entries(toggledCells)) {
-        if (!isOn) continue;
-        const [stringIndexRaw, fretNumberRaw] = cellId.split(":");
-        const stringIndex = Number(stringIndexRaw);
-        const fretNumber = Number(fretNumberRaw);
-        if (!Number.isFinite(stringIndex) || !Number.isFinite(fretNumber)) continue;
-
-        const cellEl = fretboardEl.querySelector(
-          `[data-string="${stringIndex}"][data-fret-number="${fretNumber}"]`,
-        ) as HTMLElement | null;
-        if (!cellEl) continue;
-
-        const cellRect = cellEl.getBoundingClientRect();
-        next[cellId] = {
-          x: (cellRect.left - fretboardRect.left + cellRect.width / 2) / scale,
-          y: (cellRect.top - fretboardRect.top + cellRect.height / 2) / scale,
-        };
-      }
-
-      setSelectedMarkerPositions(next);
-    });
-
-    return () => window.cancelAnimationFrame(raf);
-  }, [hasMounted, toggledCells, fretboardScale, tuning]);
+    setSelectedMarkerPositions(measureCellCenters(fretboardEl, toggledCells));
+  }, [hasMounted, toggledCells, fretboardScale, tuning, resizeKey, quizFit]);
 
   // Position quiz markers over the cells the current question asks about.
   const quizTargets = quiz.question?.targets;
@@ -1682,42 +1663,39 @@ export default function Fretboard() {
   }, [quizMode, quizVertical, quizActiveString, quizActiveFret]);
 
   // Measure per-fret widths/centers (needed when frets are not uniform width).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: quizFit resizes cells via CSS variables
+  // Measured synchronously for the same reasons as measureBaseFromDom above.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resizeKey/quizFit re-measure after layout changes
   useLayoutEffect(() => {
     if (!hasMounted) return;
     const fretboardEl = fretboardRef.current;
     if (!fretboardEl) return;
 
-    const raf = window.requestAnimationFrame(() => {
-      const fretboardRect = fretboardEl.getBoundingClientRect();
-      const scale = fretboardScale || 1;
+    const fretboardRect = fretboardEl.getBoundingClientRect();
+    const scale = fretboardScale || 1;
 
-      const centerXByFret: Record<number, number> = {};
-      const widthByFret: Record<number, number> = {};
+    const centerXByFret: Record<number, number> = {};
+    const widthByFret: Record<number, number> = {};
 
-      for (let fretNumber = 1; fretNumber <= 24; fretNumber++) {
-        const cellEl = fretboardEl.querySelector(
-          `[data-string="0"][data-fret-number="${fretNumber}"]`,
-        ) as HTMLElement | null;
-        if (!cellEl) continue;
-        const rect = cellEl.getBoundingClientRect();
-        widthByFret[fretNumber] = (rect.width || 0) / scale;
-        centerXByFret[fretNumber] =
-          (rect.left - fretboardRect.left + rect.width / 2) / scale;
-      }
+    for (let fretNumber = 1; fretNumber <= 24; fretNumber++) {
+      const cellEl = fretboardEl.querySelector(
+        `[data-string="0"][data-fret-number="${fretNumber}"]`,
+      ) as HTMLElement | null;
+      if (!cellEl) continue;
+      const rect = cellEl.getBoundingClientRect();
+      widthByFret[fretNumber] = (rect.width || 0) / scale;
+      centerXByFret[fretNumber] =
+        (rect.left - fretboardRect.left + rect.width / 2) / scale;
+    }
 
-      // 12-fret octave width, used for placing octave-shifted overlay copies.
-      const d1 =
-        centerXByFret[13] != null && centerXByFret[1] != null
-          ? centerXByFret[13] - centerXByFret[1]
-          : null;
-      const octaveWidth = typeof d1 === "number" ? d1 : cellWidth * 12;
+    // 12-fret octave width, used for placing octave-shifted overlay copies.
+    const d1 =
+      centerXByFret[13] != null && centerXByFret[1] != null
+        ? centerXByFret[13] - centerXByFret[1]
+        : null;
+    const octaveWidth = typeof d1 === "number" ? d1 : cellWidth * 12;
 
-      setFretMetrics({ centerXByFret, widthByFret, octaveWidth });
-    });
-
-    return () => window.cancelAnimationFrame(raf);
-  }, [hasMounted, fretboardScale, cellWidth, quizFit]);
+    setFretMetrics({ centerXByFret, widthByFret, octaveWidth });
+  }, [hasMounted, fretboardScale, cellWidth, resizeKey, quizFit]);
 
   // Handle arrow key navigation with infinite scroll
   const navigate = useCallback(
@@ -2000,7 +1978,18 @@ export default function Fretboard() {
         </div>
       </div>
       )}
-      {quizVertical && <QuizVerticalBoard quiz={quiz} stringNames={strings} />}
+      {quizVertical && (
+        <QuizVerticalBoard
+          quiz={quiz}
+          stringNames={strings}
+          zoneAt={
+            quiz.settings.showZones && currentFret
+              ? (stringIndex, fret) =>
+                  getOverlayZone(stringIndex, fret, currentFret, tuning, swapBg)
+              : undefined
+          }
+        />
+      )}
       <div
         ref={fretboardScrollRef}
         className={styles.fretboardScrollContainer}
@@ -2206,14 +2195,15 @@ export default function Fretboard() {
             <div
               key={`overlay-layer-${resizeKey}`}
               ref={overlayLayerRef}
-              className={`${styles.overlayLayer}${hasMounted && cellWidth > 0 ? ` ${styles.overlayLayerVisible}` : ""}`}
-              // Overlays are where note names live; hide them while quizzing.
-              style={quizMode ? { visibility: "hidden" } : undefined}
+              className={`${styles.overlayLayer}${hasMounted && cellWidth > 0 ? ` ${styles.overlayLayerVisible}` : ""}${quizMode && quiz.settings.showZones ? ` ${styles.overlayLayerZonesOnly}` : ""}`}
+              // Overlays are where note names live: while quizzing keep only
+              // their zone shading (if enabled), never the names.
+              style={quizMode && !quiz.settings.showZones ? { visibility: "hidden" } : undefined}
             >
               {/* Trail ghost overlays — single always-mounted wrapper so the 21 overlay
                   components never unmount/remount on position changes; the fade-out
                   animation is restarted imperatively via trailWrapperRef. */}
-              {showTrails && (
+              {showTrails && !quizMode && (
                 <div
                   ref={trailWrapperRef}
                   className={styles.trailOverlayWrapper}

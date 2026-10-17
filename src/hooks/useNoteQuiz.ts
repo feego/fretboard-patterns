@@ -14,10 +14,12 @@ export interface QuizSettings {
   groupSize: number;
   /** Tint fretboard cells by saved accuracy. */
   showHeatmap: boolean;
+  /** Shade the fretboard with the overlay zones (without their note names). */
+  showZones: boolean;
 }
 
 /** The settings that decide which positions get asked (display-only settings excluded). */
-type QuizScope = Omit<QuizSettings, "showHeatmap">;
+type QuizScope = Omit<QuizSettings, "showHeatmap" | "showZones">;
 
 export interface QuizTarget {
   string: number;
@@ -69,6 +71,7 @@ export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
   strings: [true, true, true, true, true, true],
   groupSize: 3,
   showHeatmap: false,
+  showZones: true,
 };
 
 const EMPTY_SCORE: QuizScore = {
@@ -205,6 +208,7 @@ function sanitizeSettings(raw: Partial<QuizSettings> | null): QuizSettings {
     strings,
     groupSize: Math.min(5, Math.max(2, clampFret(s.groupSize, 3))),
     showHeatmap: s.showHeatmap === true,
+    showZones: s.showZones !== false,
   };
 }
 

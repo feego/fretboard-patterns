@@ -59,7 +59,8 @@ export const cell = style({
   justifyContent: "center",
   backgroundColor: colors.dark.fretboard,
   // The string runs down the middle of each column; the fret wire is the bottom edge.
-  backgroundImage: `linear-gradient(to right, transparent calc(50% - 1px), ${colors.dark.textMuted} calc(50% - 1px), ${colors.dark.textMuted} calc(50% + 1px), transparent calc(50% + 1px))`,
+  // An optional overlay-zone shade (--v-zone) sits under the string line.
+  backgroundImage: `linear-gradient(to right, transparent calc(50% - 1px), ${colors.dark.textMuted} calc(50% - 1px), ${colors.dark.textMuted} calc(50% + 1px), transparent calc(50% + 1px)), linear-gradient(var(--v-zone, transparent), var(--v-zone, transparent))`,
   borderBottom: `2px solid ${colors.dark.border}`,
 });
 

@@ -356,6 +356,16 @@ export const overlayLayerVisible = style({
   animationFillMode: "forwards",
 });
 
+// Quiz mode: show the overlay zones' shading but not their note names.
+export const overlayLayerZonesOnly = style({
+  pointerEvents: "none",
+});
+
+globalStyle(`${overlayLayerZonesOnly} *`, {
+  color: "transparent",
+  pointerEvents: "none",
+});
+
 const trailFadeOut = keyframes({
   from: { opacity: 0.75 },
   to: { opacity: 0 },
@@ -510,6 +520,12 @@ export const fret = style({
   height: "var(--fret-height, 3rem)",
   borderRight: `1px solid ${colors.dark.border}`,
   cursor: "pointer",
+  selectors: {
+    // String cells (not the fret-number rows): the string runs along the middle.
+    "&[data-string]": {
+      backgroundImage: `linear-gradient(to bottom, transparent calc(50% - 1px), ${colors.dark.textMuted} calc(50% - 1px), ${colors.dark.textMuted} calc(50% + 1px), transparent calc(50% + 1px))`,
+    },
+  },
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
