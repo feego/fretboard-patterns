@@ -2135,9 +2135,11 @@ export default function Fretboard() {
                     padding: "0.25rem 0",
                     border: "none",
                     backgroundColor: "transparent",
-                    fontSize: "0.7rem",
+                    // Bigger on the inlay (3, 5, 7…) frets, like a real neck's side dots.
+                    fontSize: markerFrets.includes(fretNumber) ? "0.95rem" : "0.7rem",
                     color: "var(--color-text-muted)",
-                    fontWeight: "600",
+                    fontWeight: markerFrets.includes(fretNumber) ? "800" : "600",
+                    opacity: markerFrets.includes(fretNumber) ? 1 : 0.5,
                   }}
                 >
                   {fretNumber}

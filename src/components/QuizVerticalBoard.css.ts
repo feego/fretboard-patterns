@@ -51,6 +51,14 @@ export const fretNumber = style({
   fontSize: "0.7rem",
   fontWeight: 600,
   color: colors.dark.textMuted,
+  opacity: 0.5,
+});
+
+// Bigger, bolder, opaque numbers on the inlay (3, 5, 7…) frets.
+export const fretNumberMarker = style({
+  fontSize: "0.95rem",
+  fontWeight: 800,
+  opacity: 1,
 });
 
 export const cell = style({

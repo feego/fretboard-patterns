@@ -89,7 +89,11 @@ export default function QuizVerticalBoard({
             key={fret}
             className={`${styles.row}${rowIndex === 0 ? ` ${fret === 1 ? styles.firstRowNut : styles.firstRowNoNut}` : ""}`}
           >
-            <span className={styles.fretNumber}>{fret}</span>
+            <span
+              className={`${styles.fretNumber}${SINGLE_INLAY_FRETS.has(fret) || DOUBLE_INLAY_FRETS.has(fret) ? ` ${styles.fretNumberMarker}` : ""}`}
+            >
+              {fret}
+            </span>
             {STRING_ORDER.map((s) => {
               const key = positionKey(s, fret);
               const enabled = quiz.isInScope(s, fret);

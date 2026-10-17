@@ -22,7 +22,7 @@
   /* Inlay dots (3, 5, 7…) */
   --color-fret-marker: color-mix(in srgb, var(--color-text-muted) 45%, transparent);
   /* Fret wires: fainter than the inlay dots */
-  --color-fret-line: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
+  --color-fret-line: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
 }
 
 [data-theme="light"] {
