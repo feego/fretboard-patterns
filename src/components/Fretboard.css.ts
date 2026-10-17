@@ -548,6 +548,11 @@ export const firstFret = style({
   borderLeft: `2px solid ${colors.dark.border}`,
 });
 
+// Inlay dots sit above the overlay zones (overlayLayer, 900) but below the
+// selection/quiz markers (selectionLayer, 2000).
+const markerDotZIndex = 950;
+const markerDotColor = `color-mix(in srgb, ${colors.dark.textMuted} 30%, transparent)`;
+
 export const markerFret = style({
   position: "relative",
   "::after": {
@@ -559,9 +564,9 @@ export const markerFret = style({
       "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "8px",
     height: "8px",
-    backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 60%, transparent)`,
+    backgroundColor: markerDotColor,
     borderRadius: borderRadius.full,
-    zIndex: 1,
+    zIndex: markerDotZIndex,
   },
 });
 
@@ -576,9 +581,9 @@ export const doubleMarkerFret = style({
       "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "6px",
     height: "6px",
-    backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 60%, transparent)`,
+    backgroundColor: markerDotColor,
     borderRadius: borderRadius.full,
-    zIndex: 1,
+    zIndex: markerDotZIndex,
   },
   "::before": {
     content: '""',
@@ -589,9 +594,9 @@ export const doubleMarkerFret = style({
       "translate(-50%, calc(-50% + (var(--fret-height, 3rem) / 2)))",
     width: "6px",
     height: "6px",
-    backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 60%, transparent)`,
+    backgroundColor: markerDotColor,
     borderRadius: borderRadius.full,
-    zIndex: 1,
+    zIndex: markerDotZIndex,
   },
 });
 

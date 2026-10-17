@@ -79,7 +79,7 @@ export const inlay = style({
   width: "0.6rem",
   height: "0.6rem",
   borderRadius: borderRadius.full,
-  backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 55%, transparent)`,
+  backgroundColor: `color-mix(in srgb, ${colors.dark.textMuted} 30%, transparent)`,
   transform: "translate(-50%, -50%)",
   pointerEvents: "none",
 });
