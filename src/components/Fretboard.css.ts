@@ -1,4 +1,5 @@
 import { globalStyle, keyframes, style } from "@vanilla-extract/css";
+import { stringLineImage } from "../styles/stringLine";
 import { borderRadius, colors, spacing } from "../styles/theme";
 import { overlay as firstOverlayRow } from "./FirstOverlay.css";
 import { overlay as secondOverlayRow } from "./SecondOverlay.css";
@@ -523,7 +524,7 @@ export const fret = style({
   selectors: {
     // String cells (not the fret-number rows): the string runs along the middle.
     "&[data-string]": {
-      backgroundImage: `linear-gradient(to bottom, transparent calc(50% - 1px), ${colors.dark.textMuted} calc(50% - 1px), ${colors.dark.textMuted} calc(50% + 1px), transparent calc(50% + 1px))`,
+      backgroundImage: stringLineImage,
     },
   },
   display: "flex",

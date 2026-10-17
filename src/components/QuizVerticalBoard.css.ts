@@ -1,5 +1,6 @@
 import { keyframes, style } from "@vanilla-extract/css";
 import { borderRadius, colors } from "../styles/theme";
+import { stringLineColor } from "../styles/stringLine";
 
 /**
  * Sizing is pure CSS: the board fills the height above the pinned answer pad
@@ -60,7 +61,7 @@ export const cell = style({
   backgroundColor: colors.dark.fretboard,
   // The string runs down the middle of each column; the fret wire is the bottom edge.
   // An optional overlay-zone shade (--v-zone) sits under the string line.
-  backgroundImage: `linear-gradient(to right, transparent calc(50% - 1px), ${colors.dark.textMuted} calc(50% - 1px), ${colors.dark.textMuted} calc(50% + 1px), transparent calc(50% + 1px)), linear-gradient(var(--v-zone, transparent), var(--v-zone, transparent))`,
+  backgroundImage: `linear-gradient(to right, transparent calc(50% - 1px), ${stringLineColor} calc(50% - 1px), ${stringLineColor} calc(50% + 1px), transparent calc(50% + 1px)), linear-gradient(var(--v-zone, transparent), var(--v-zone, transparent))`,
   borderBottom: `2px solid ${colors.dark.border}`,
 });
 
