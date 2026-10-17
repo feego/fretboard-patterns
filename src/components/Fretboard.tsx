@@ -2307,6 +2307,14 @@ export default function Fretboard() {
         </div>
         <button
           type="button"
+          className={`${styles.arrowsDockButton} ${styles.arrowsDockWideItem}${quizMode ? ` ${styles.arrowsDockButtonActive}` : ""}`}
+          aria-pressed={quizMode}
+          onClick={() => setQuizMode((v) => !v)}
+        >
+          {quizMode ? "Exit Quiz" : "Note Quiz"}
+        </button>
+        <button
+          type="button"
           className={`${styles.arrowsDockButton} ${styles.arrowsDockItem}`}
           onClick={clearSelectedNotes}
         >
@@ -2319,15 +2327,6 @@ export default function Fretboard() {
           onClick={() => setShowSettings((v) => !v)}
         >
           Settings
-        </button>
-
-        <button
-          type="button"
-          className={`${styles.arrowsDockButton} ${styles.arrowsDockItem}${quizMode ? ` ${styles.arrowsDockButtonActive}` : ""}`}
-          aria-pressed={quizMode}
-          onClick={() => setQuizMode((v) => !v)}
-        >
-          {quizMode ? "Exit Quiz" : "Quiz"}
         </button>
       </div>
       )}
