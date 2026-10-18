@@ -67,9 +67,9 @@ export const highlightedNote = style({
   color: colors.dark.text,
 });
 
+// Dim the text only: cell opacity would also dim the string line drawn in the cell.
 export const dimmedNote = style({
-  opacity: 0.5,
-  color: colors.dark.textMuted,
+  color: `color-mix(in srgb, ${colors.dark.textMuted} 50%, transparent)`,
 });
 
 export const mainGrid = style([
