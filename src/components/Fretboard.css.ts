@@ -678,7 +678,7 @@ export const quizMarker = style({
 // Chord-mode markers respond to hover/tap (the selection layer ignores pointers).
 export const quizMarkerInspectable = style({
   pointerEvents: "auto",
-  cursor: "help",
+  cursor: "none",
   userSelect: "none",
 });
 

@@ -102,7 +102,7 @@ const pulse = keyframes({
 });
 
 export const markerInspectable = style({
-  cursor: "help",
+  cursor: "none",
   userSelect: "none",
 });
 
