@@ -62,11 +62,17 @@ export const segmentButtonActive = style({
 });
 
 // Shown above the prompt row when auto-next is off.
+// Covers the prompt row once a question is answered (with auto-next off).
 export const nextButton = style({
+  position: "absolute",
+  inset: 0,
+  zIndex: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+  padding: "0 1rem",
   fontFamily: "inherit",
-  // As wide as the answer grid.
-  width: "min(48rem, 100%)",
-  height: "2.5rem",
   backgroundColor: colors.dark.accent,
   color: colors.dark.text,
   border: "none",
@@ -77,6 +83,13 @@ export const nextButton = style({
   ":hover": {
     backgroundColor: colors.dark.accentHover,
   },
+});
+
+export const nextButtonResult = style({
+  minWidth: 0,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 });
 
 export const fretInput = style({
@@ -109,6 +122,8 @@ export const keySelect = style([
 ]);
 
 export const promptRow = style({
+  position: "relative",
+  width: "min(48rem, 100%)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -257,6 +272,7 @@ export const panelCompact = style({
 });
 
 export const compactTopRow = style({
+  position: "relative",
   width: "100%",
   display: "flex",
   alignItems: "center",

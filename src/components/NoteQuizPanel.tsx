@@ -248,10 +248,12 @@ export default function NoteQuizPanel({
     </select>
   );
 
-  // Without auto-next, the player moves on (or skips) with this.
-  const nextButton = !settings.autoNext && (
+  // Without auto-next, an answered question waits for this. It covers the
+  // prompt row, so it carries the result too.
+  const nextButton = !settings.autoNext && question?.done && (
     <button type="button" className={styles.nextButton} onClick={skip}>
-      Next
+      <span className={styles.nextButtonResult}>{promptText}</span>
+      <span>Next →</span>
     </button>
   );
 
@@ -260,10 +262,9 @@ export default function NoteQuizPanel({
       className={`${styles.panel}${compact ? ` ${styles.panelCompact}` : ""}`}
       aria-label="Note quiz"
     >
-      {compact && nextButton}
-
       {compact && (
         <div className={styles.compactTopRow}>
+          {nextButton}
           {keySelect}
           <div
             className={`${styles.prompt} ${styles.compactPrompt} ${promptClass}`}
@@ -445,10 +446,9 @@ export default function NoteQuizPanel({
         </div>
       )}
 
-      {!compact && nextButton}
-
       {!compact && (
         <div className={styles.promptRow}>
+          {nextButton}
           {keySelect}
           <div className={`${styles.prompt} ${promptClass}`} aria-live="polite">
             {promptText}
