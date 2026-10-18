@@ -106,7 +106,8 @@ export default function QuizVerticalBoard({
               let markerClass = styles.marker;
               if (target?.answeredPc != null) {
                 markerClass += ` ${target.answeredPc === target.pc ? styles.markerCorrect : styles.markerWrong}`;
-              } else if (targetIndex === question?.activeIndex) {
+              } else if (question?.chord || targetIndex === question?.activeIndex) {
+                // A chord is asked as a whole, so all its notes are active.
                 markerClass += ` ${styles.markerActive}`;
               }
               const isGroup = (question?.targets.length ?? 0) > 1;
@@ -129,9 +130,11 @@ export default function QuizVerticalBoard({
                     <span className={markerClass}>
                       {target.answeredPc != null
                         ? quizNoteName(target.pc, settings.key)
-                        : isGroup
-                          ? targetIndex + 1
-                          : "?"}
+                        : question?.chord
+                          ? ""
+                          : isGroup
+                            ? targetIndex + 1
+                            : "?"}
                     </span>
                   )}
                 </div>

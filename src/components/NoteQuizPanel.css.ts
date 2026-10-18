@@ -164,6 +164,17 @@ export const answerButton = style({
   },
 });
 
+// Chord names are longer than note names ("Bm7♭5"), so they need to fit narrower buttons.
+export const answerButtonChord = style({
+  whiteSpace: "nowrap",
+  "@media": {
+    "screen and (max-width: 600px)": {
+      fontSize: "0.72rem",
+      letterSpacing: "-0.02em",
+    },
+  },
+});
+
 export const answerButtonAlt = style({
   fontSize: "0.7rem",
   fontWeight: 600,

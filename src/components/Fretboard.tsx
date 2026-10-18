@@ -2270,7 +2270,8 @@ export default function Fretboard() {
                       target.answeredPc === target.pc
                         ? styles.quizMarkerCorrect
                         : styles.quizMarkerWrong;
-                  } else if (question && i === question.activeIndex) {
+                  } else if (question && (question.chord || i === question.activeIndex)) {
+                    // A chord is asked as a whole, so all its notes are active.
                     stateClass = styles.quizMarkerActive;
                   }
                   const isGroup = (question?.targets.length ?? 0) > 1;
@@ -2282,9 +2283,11 @@ export default function Fretboard() {
                     >
                       {answered
                         ? quizNoteName(target.pc, quiz.settings.key)
-                        : isGroup
-                          ? i + 1
-                          : "?"}
+                        : question?.chord
+                          ? ""
+                          : isGroup
+                            ? i + 1
+                            : "?"}
                     </span>
                   );
                 })}

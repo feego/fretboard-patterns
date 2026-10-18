@@ -2,6 +2,18 @@
 
 import { useEffect, useState } from "react";
 import {
+  CHORD_SET_LABELS,
+  CHORD_SHAPE_LABELS,
+  type Chord,
+  type ChordSet,
+  type ChordShape,
+  chordName,
+  chordQualities,
+  chordsInScope,
+  QUALITY_LABELS,
+  sameChord,
+} from "../lib/chords";
+import {
   FLAT_NAMES,
   KEY_NAMES,
   keyPitchClasses,
@@ -41,13 +53,29 @@ export default function NoteQuizPanel({
     score,
     stats,
     submit,
+    submitChord,
     skip,
   } = quiz;
+  const isChordMode = settings.mode === "chord";
+  // Free chords: pick a quality, then tap the root.
+  const qualities = chordQualities(settings.chordSet);
+  const [pickedQuality, setPickedQuality] = useState(qualities[0]);
+  const chordQuality = qualities.includes(pickedQuality)
+    ? pickedQuality
+    : qualities[0];
+  const answerChords: Chord[] =
+    settings.key == null
+      ? NOTES.map((_, root) => ({ root, quality: chordQuality }))
+      : chordsInScope(settings.chordSet, settings.key);
   const noteName = (pc: number) =>
-    settings.key == null ? pitchClassLabel(pc) : noteNameInKey(pc, settings.key);
+    settings.key == null
+      ? pitchClassLabel(pc)
+      : noteNameInKey(pc, settings.key);
   // With a key, only its notes can be asked, so only offer those (in scale order).
   const answerPcs =
-    settings.key == null ? NOTES.map((_, pc) => pc) : keyPitchClasses(settings.key);
+    settings.key == null
+      ? NOTES.map((_, pc) => pc)
+      : keyPitchClasses(settings.key);
   const [pendingLetter, setPendingLetter] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const showSettings = !compact || settingsOpen;
@@ -79,6 +107,8 @@ export default function NoteQuizPanel({
         }
         return;
       }
+      // Chords are answered with the buttons only.
+      if (question?.chord) return;
 
       const isFlatKey = key === "b" || key === "-";
       const isSharpKey =
@@ -105,7 +135,7 @@ export default function NoteQuizPanel({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pendingLetter, question?.done, skip, submit]);
+  }, [pendingLetter, question?.done, question?.chord, skip, submit]);
 
   const lastAnswered =
     question && question.activeIndex > 0
@@ -116,7 +146,26 @@ export default function NoteQuizPanel({
   // Empty only for the first render, before the first question is picked.
   let promptText = "";
   let promptClass = "";
-  if (question && !question.done) {
+  if (!question && isChordMode) {
+    promptText = "No chord shapes fit these frets";
+  } else if (question?.chord) {
+    const name = chordName(question.chord, settings.key);
+    if (!question.done) {
+      promptText = compact ? "Name the chord" : "Name the highlighted chord";
+    } else if (
+      question.answeredChord &&
+      sameChord(question.answeredChord, question.chord)
+    ) {
+      promptClass = styles.promptCorrect;
+      promptText = `✓ ${name}`;
+    } else {
+      promptClass = styles.promptWrong;
+      promptText =
+        compact || !question.answeredChord
+          ? `✗ It was ${name}`
+          : `✗ It was ${name}, you said ${chordName(question.answeredChord, settings.key)}`;
+    }
+  } else if (question && !question.done) {
     const isGroup = question.targets.length > 1;
     const position = `${question.activeIndex + 1} of ${question.targets.length}`;
     if (compact) {
@@ -228,7 +277,7 @@ export default function NoteQuizPanel({
       {showSettings && (
         <div className={styles.settingsBar}>
           <fieldset className={styles.segment} aria-label="Question type">
-            {(["single", "group"] as const).map((mode) => (
+            {(["single", "group", "chord"] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -236,7 +285,11 @@ export default function NoteQuizPanel({
                 aria-pressed={settings.mode === mode}
                 onClick={() => setSettings({ mode })}
               >
-                {mode === "single" ? "Single" : "Group"}
+                {mode === "single"
+                  ? "Single"
+                  : mode === "group"
+                    ? "Group"
+                    : "Chords"}
               </button>
             ))}
           </fieldset>
@@ -255,6 +308,39 @@ export default function NoteQuizPanel({
                 }
               />
             </label>
+          )}
+
+          {isChordMode && (
+            <>
+              <select
+                className={styles.keySelect}
+                aria-label="Chord types"
+                value={settings.chordSet}
+                onChange={(e) =>
+                  setSettings({ chordSet: e.target.value as ChordSet })
+                }
+              >
+                {Object.entries(CHORD_SET_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={styles.keySelect}
+                aria-label="Chord shapes"
+                value={settings.chordShape}
+                onChange={(e) =>
+                  setSettings({ chordShape: e.target.value as ChordShape })
+                }
+              >
+                {Object.entries(CHORD_SHAPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
 
           <div className={styles.group}>
@@ -326,7 +412,6 @@ export default function NoteQuizPanel({
               })}
             </fieldset>
           </div>
-
         </div>
       )}
 
@@ -339,44 +424,104 @@ export default function NoteQuizPanel({
         </div>
       )}
 
-      <div
-        className={styles.answerGrid}
-        style={
-          settings.key == null
-            ? undefined
-            : { gridTemplateColumns: `repeat(${answerPcs.length}, minmax(0, 1fr))` }
-        }
-      >
-        {answerPcs.map((pc) => {
-          const sharp = NOTES[pc];
-          const flat = settings.key == null ? FLAT_NAMES[sharp] : undefined;
-          let stateClass = "";
-          if (pc === pendingPc && !question?.done) {
-            stateClass = styles.answerButtonPending;
-          } else if (lastAnswered?.pc === pc) {
-            stateClass = styles.answerButtonCorrect;
-          } else if (lastAnswered?.answeredPc === pc) {
-            stateClass = styles.answerButtonWrong;
-          }
-          return (
+      {isChordMode && settings.key == null && qualities.length > 1 && (
+        <fieldset className={styles.segment} aria-label="Chord quality">
+          {qualities.map((quality) => (
             <button
-              key={sharp}
+              key={quality}
               type="button"
-              className={`${styles.answerButton} ${stateClass}`}
-              disabled={!question || question.done}
-              onClick={() => {
-                setPendingLetter(null);
-                submit(pc);
-              }}
+              className={`${styles.segmentButton}${chordQuality === quality ? ` ${styles.segmentButtonActive}` : ""}`}
+              aria-pressed={chordQuality === quality}
+              onClick={() => setPickedQuality(quality)}
             >
-              <span>
-                {settings.key == null ? sharp : noteNameInKey(pc, settings.key)}
-              </span>
-              {flat && <span className={styles.answerButtonAlt}>{flat}</span>}
+              {QUALITY_LABELS[quality]}
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </fieldset>
+      )}
+
+      {isChordMode ? (
+        <div
+          className={styles.answerGrid}
+          style={
+            settings.key == null
+              ? undefined
+              : {
+                  gridTemplateColumns: `repeat(${Math.min(answerChords.length, 7)}, minmax(0, 1fr))`,
+                }
+          }
+        >
+          {answerChords.map((chord) => {
+            const asked = question?.chord;
+            const answered = question?.answeredChord;
+            // Free: highlight by root, since the quality is picked separately.
+            const matches = (other: Chord) =>
+              settings.key == null
+                ? other.root === chord.root
+                : sameChord(other, chord);
+            let stateClass = "";
+            if (question?.done && asked && matches(asked)) {
+              stateClass = styles.answerButtonCorrect;
+            } else if (question?.done && answered && matches(answered)) {
+              stateClass = styles.answerButtonWrong;
+            }
+            return (
+              <button
+                key={`${chord.root}-${chord.quality}`}
+                type="button"
+                className={`${styles.answerButton} ${styles.answerButtonChord} ${stateClass}`}
+                disabled={!question || question.done}
+                onClick={() => submitChord(chord)}
+              >
+                {chordName(chord, settings.key)}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          className={styles.answerGrid}
+          style={
+            settings.key == null
+              ? undefined
+              : {
+                  gridTemplateColumns: `repeat(${answerPcs.length}, minmax(0, 1fr))`,
+                }
+          }
+        >
+          {answerPcs.map((pc) => {
+            const sharp = NOTES[pc];
+            const flat = settings.key == null ? FLAT_NAMES[sharp] : undefined;
+            let stateClass = "";
+            if (pc === pendingPc && !question?.done) {
+              stateClass = styles.answerButtonPending;
+            } else if (lastAnswered?.pc === pc) {
+              stateClass = styles.answerButtonCorrect;
+            } else if (lastAnswered?.answeredPc === pc) {
+              stateClass = styles.answerButtonWrong;
+            }
+            return (
+              <button
+                key={sharp}
+                type="button"
+                className={`${styles.answerButton} ${stateClass}`}
+                disabled={!question || question.done}
+                onClick={() => {
+                  setPendingLetter(null);
+                  submit(pc);
+                }}
+              >
+                <span>
+                  {settings.key == null
+                    ? sharp
+                    : noteNameInKey(pc, settings.key)}
+                </span>
+                {flat && <span className={styles.answerButtonAlt}>{flat}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {showSettings && (
         <div className={styles.scoreRow}>

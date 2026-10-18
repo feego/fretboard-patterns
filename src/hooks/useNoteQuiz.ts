@@ -1,9 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Chord,
+  type ChordSet,
+  type ChordShape,
+  chordsInScope,
+  findVoicings,
+  sameChord,
+} from "../lib/chords";
 import { getNoteAtPosition, keyPitchClasses, NOTES } from "../lib/notes";
 
-export type QuizMode = "single" | "group";
+export type QuizMode = "single" | "group" | "chord";
 
 export interface QuizSettings {
   mode: QuizMode;
@@ -14,6 +22,10 @@ export interface QuizSettings {
   groupSize: number;
   /** Tonic pitch class of the major key to practise, or null for all notes. */
   key: number | null;
+  /** Chord mode: which chord qualities are asked. */
+  chordSet: ChordSet;
+  /** Chord mode: how the chords are voiced on the neck. */
+  chordShape: ChordShape;
 }
 
 /** The settings that decide which positions get asked. */
@@ -32,6 +44,9 @@ export interface QuizQuestion {
   targets: QuizTarget[];
   activeIndex: number;
   done: boolean;
+  /** Chord mode: the chord the targets spell, and the player's answer. */
+  chord: Chord | null;
+  answeredChord: Chord | null;
 }
 
 export interface PositionStat {
@@ -69,6 +84,8 @@ export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
   strings: [true, true, true, true, true, true],
   groupSize: 3,
   key: null,
+  chordSet: "majmin",
+  chordShape: "adjacent",
 };
 
 const EMPTY_SCORE: QuizScore = {
@@ -119,6 +136,44 @@ function isInQuizScope(
   if (settings.key == null) return true;
   const pc = NOTES.indexOf(getNoteAtPosition(string, fret, tuning));
   return keyPitchClasses(settings.key).includes(pc);
+}
+
+/** A random in-scope chord, voiced somewhere in the fret range. */
+function buildChordQuestion(
+  id: number,
+  settings: QuizScope,
+  tuning: string,
+  previous: QuizQuestion | null,
+): QuizQuestion | null {
+  const chords = chordsInScope(settings.chordSet, settings.key);
+  // Avoid repeating the last chord, unless it's the only one.
+  const fresh = chords.filter(
+    (c) => !(previous?.chord && sameChord(c, previous.chord)),
+  );
+  const candidates = [...(fresh.length > 0 ? fresh : chords)];
+  while (candidates.length > 0) {
+    const index = Math.floor(Math.random() * candidates.length);
+    const chord = candidates.splice(index, 1)[0];
+    const voicings = findVoicings(chord, settings.chordShape, settings, tuning);
+    if (voicings.length === 0) continue;
+    const voicing = voicings[Math.floor(Math.random() * voicings.length)];
+    return {
+      id,
+      // Low string first, like the note groups.
+      targets: [...voicing]
+        .sort((a, b) => b.string - a.string)
+        .map((p) => ({
+          ...p,
+          pc: NOTES.indexOf(getNoteAtPosition(p.string, p.fret, tuning)),
+          answeredPc: null,
+        })),
+      activeIndex: 0,
+      done: false,
+      chord,
+      answeredChord: null,
+    };
+  }
+  return null;
 }
 
 function buildQuestion(
@@ -176,6 +231,8 @@ function buildQuestion(
     })),
     activeIndex: 0,
     done: false,
+    chord: null,
+    answeredChord: null,
   };
 }
 
@@ -212,7 +269,7 @@ function sanitizeSettings(raw: Partial<QuizSettings> | null): QuizSettings {
       ? s.strings.map(Boolean)
       : DEFAULT_QUIZ_SETTINGS.strings;
   return {
-    mode: s.mode === "group" ? "group" : "single",
+    mode: s.mode === "group" || s.mode === "chord" ? s.mode : "single",
     minFret,
     maxFret,
     strings,
@@ -221,6 +278,10 @@ function sanitizeSettings(raw: Partial<QuizSettings> | null): QuizSettings {
       typeof s.key === "number" && Number.isInteger(s.key) && s.key >= 0 && s.key < 12
         ? s.key
         : null,
+    chordSet: (["majmin", "triads", "sevenths", "all"] as const).includes(s.chordSet)
+      ? s.chordSet
+      : DEFAULT_QUIZ_SETTINGS.chordSet,
+    chordShape: s.chordShape === "full" ? "full" : "adjacent",
   };
 }
 
@@ -270,7 +331,8 @@ export function useNoteQuiz(active: boolean, tuning: string) {
 
   // Keyed by value, so re-saving unchanged settings doesn't throw away the
   // current question.
-  const { mode, minFret, maxFret, strings, groupSize, key } = settings;
+  const { mode, minFret, maxFret, strings, groupSize, key, chordSet, chordShape } =
+    settings;
   const scopeKey = JSON.stringify({
     mode,
     minFret,
@@ -278,18 +340,23 @@ export function useNoteQuiz(active: boolean, tuning: string) {
     strings,
     groupSize,
     key,
+    chordSet,
+    chordShape,
   });
   const scope = useMemo(() => JSON.parse(scopeKey) as QuizScope, [scopeKey]);
 
   const nextQuestion = useCallback(() => {
-    const previous = questionRef.current?.targets ?? [];
-    const q = buildQuestion(
-      nextIdRef.current++,
-      scope,
-      tuning,
-      allStatsRef.current[tuning] ?? {},
-      previous,
-    );
+    const previous = questionRef.current;
+    const q =
+      scope.mode === "chord"
+        ? buildChordQuestion(nextIdRef.current++, scope, tuning, previous)
+        : buildQuestion(
+            nextIdRef.current++,
+            scope,
+            tuning,
+            allStatsRef.current[tuning] ?? {},
+            previous?.targets ?? [],
+          );
     targetStartRef.current = performance.now();
     questionRef.current = q;
     setQuestion(q);
@@ -368,6 +435,36 @@ export function useNoteQuiz(active: boolean, tuning: string) {
     [tuning],
   );
 
+  /** Chord mode: answer the whole chord at once. */
+  const submitChord = useCallback((chord: Chord) => {
+    const q = questionRef.current;
+    if (!q?.chord || q.done) return;
+    const correct = sameChord(chord, q.chord);
+    const ms = Math.min(performance.now() - targetStartRef.current, MAX_COUNTED_MS);
+
+    setScore((prev) => {
+      const streak = correct ? prev.streak + 1 : 0;
+      return {
+        correct: prev.correct + (correct ? 1 : 0),
+        total: prev.total + 1,
+        streak,
+        bestStreak: Math.max(prev.bestStreak, streak),
+        totalMs: prev.totalMs + ms,
+      };
+    });
+
+    // Reveal every note, marked right or wrong as a whole.
+    const updatedQuestion: QuizQuestion = {
+      ...q,
+      targets: q.targets.map((t) => ({ ...t, answeredPc: correct ? t.pc : -1 })),
+      activeIndex: q.targets.length,
+      done: true,
+      answeredChord: chord,
+    };
+    questionRef.current = updatedQuestion;
+    setQuestion(updatedQuestion);
+  }, []);
+
   const resetStats = useCallback(() => {
     setAllStats((prev) => {
       const next = { ...prev };
@@ -391,6 +488,7 @@ export function useNoteQuiz(active: boolean, tuning: string) {
     score,
     stats,
     submit,
+    submitChord,
     skip: nextQuestion,
     resetStats,
   };
