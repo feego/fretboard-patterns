@@ -58,6 +58,7 @@ export default function NoteQuizPanel({
     skip,
   } = quiz;
   const isChordMode = settings.mode === "chord";
+  const { autoNext } = settings;
   // Free chords: pick a quality, then tap the root.
   const qualities = chordQualities(settings.chordSet);
   const [pickedQuality, setPickedQuality] = useState(qualities[0]);
@@ -89,20 +90,26 @@ export default function NoteQuizPanel({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
       const key = e.key;
+      const target = e.target as HTMLElement | null;
+      // Leave typing alone; a focused dropdown keeps its letter keys but not Space.
+      const isTextField =
+        (target?.tagName === "INPUT" &&
+          (target as HTMLInputElement).type !== "checkbox") ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (isTextField || (target?.tagName === "SELECT" && key !== " ")) return;
+
       if (key === "Escape") {
         setPendingLetter(null);
+        return;
+      }
+      // Space does what Next does: after an answer, or any time without auto-next.
+      // (Unless it's completing a typed natural note.) preventDefault also stops it
+      // pressing whichever button has focus.
+      if (key === " " && !pendingLetter && (question?.done || !autoNext)) {
+        e.preventDefault();
+        skip();
         return;
       }
       if (question?.done) {
@@ -140,7 +147,7 @@ export default function NoteQuizPanel({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pendingLetter, question?.done, question?.chord, skip, submit]);
+  }, [pendingLetter, question?.done, question?.chord, autoNext, skip, submit]);
 
   const lastAnswered =
     question && question.activeIndex > 0
@@ -595,8 +602,9 @@ export default function NoteQuizPanel({
 
       {!compact && (
         <div className={styles.hint}>
-          Keys: A–G, then # or b for sharps and flats, or Enter for a natural.
-          {question?.done ? " Enter skips to the next question." : ""}
+          {isChordMode
+            ? "Space goes to the next chord."
+            : "Keys: A–G, then # or b for sharps and flats, or Enter for a natural. Space goes to the next question."}
         </div>
       )}
     </section>
