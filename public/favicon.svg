@@ -1,75 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <title>Circle of Fifths – Fretboard Visualizer</title>
-
-  <defs>
-    <path id="seg" d="M 54.09,-14.49 A 56 56 0 0 1 54.09,14.49 L 25.11,6.73 A 26 26 0 0 0 25.11,-6.73 Z"/>
-    <clipPath id="gridClip">
-      <rect x="0" y="40.8" width="128" height="46.4" rx="8"/>
-    </clipPath>
-    <linearGradient id="vcol1" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="hsl(210,65%,52%)"/>
-      <stop offset="50%"  stop-color="hsl(225,63%,52%)"/>
-      <stop offset="100%" stop-color="hsl(240,60%,54%)"/>
-    </linearGradient>
-    <linearGradient id="vcol2" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="hsl(210,16%,33%)"/>
-      <stop offset="50%"  stop-color="hsl(230,15%,35%)"/>
-      <stop offset="100%" stop-color="hsl(250,15%,33%)"/>
-    </linearGradient>
-    <linearGradient id="vcol3" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="hsl(240,60%,54%)"/>
-      <stop offset="50%"  stop-color="hsl(255,58%,55%)"/>
-      <stop offset="100%" stop-color="hsl(270,58%,55%)"/>
-    </linearGradient>
-    <linearGradient id="vcol4" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="hsl(250,15%,33%)"/>
-      <stop offset="50%"  stop-color="hsl(270,14%,35%)"/>
-      <stop offset="100%" stop-color="hsl(290,13%,33%)"/>
-    </linearGradient>
-    <linearGradient id="vcol5" x1="0" y1="40.8" x2="0" y2="87.2" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="hsl(270,58%,55%)"/>
-      <stop offset="50%"  stop-color="hsl(285,56%,52%)"/>
-      <stop offset="100%" stop-color="hsl(300,54%,50%)"/>
-    </linearGradient>
-    <linearGradient id="ringBright" x1="49.51" y1="9.91" x2="49.51" y2="118.09" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"    stop-color="hsl(210,65%,52%)"/>
-      <stop offset="16.7%" stop-color="hsl(225,63%,52%)"/>
-      <stop offset="33.3%" stop-color="hsl(240,60%,54%)"/>
-      <stop offset="50%"   stop-color="hsl(255,58%,55%)"/>
-      <stop offset="66.7%" stop-color="hsl(270,58%,55%)"/>
-      <stop offset="83.3%" stop-color="hsl(285,56%,52%)"/>
-      <stop offset="100%"  stop-color="hsl(300,54%,50%)"/>
-    </linearGradient>
-    <linearGradient id="ringDim" x1="49.51" y1="118.09" x2="49.51" y2="9.91" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="hsl(300,13%,33%)"/>
-      <stop offset="25%"  stop-color="hsl(280,14%,35%)"/>
-      <stop offset="50%"  stop-color="hsl(260,14%,33%)"/>
-      <stop offset="75%"  stop-color="hsl(240,13%,35%)"/>
-      <stop offset="100%" stop-color="hsl(220,15%,33%)"/>
-    </linearGradient>
-    <clipPath id="iconClip">
-      <rect width="128" height="128" rx="22"/>
-    </clipPath>
-  </defs>
-
-  <g clip-path="url(#iconClip)">
-  <g clip-path="url(#gridClip)">
-    <rect x="0"     y="40.8" width="25.6" height="46.4" fill="url(#vcol1)"/>
-    <rect x="25.6"  y="40.8" width="25.6" height="46.4" fill="url(#vcol2)"/>
-    <rect x="51.2"  y="40.8" width="25.6" height="46.4" fill="url(#vcol3)"/>
-    <rect x="76.8"  y="40.8" width="25.6" height="46.4" fill="url(#vcol4)"/>
-    <rect x="102.4" y="40.8" width="25.6" height="46.4" fill="url(#vcol5)"/>
+  <!-- Circle of fifths: the 7 notes of a key lit, the other 5 dim -->
+  <g stroke="#3C3489" stroke-width="2.5">
+  <path d="M 50.02,11.84 A 54 54 0 0 1 77.98,11.84 L 70.21,40.82 A 24 24 0 0 0 57.79,40.82 Z" fill="#CECBF6"/>
+  <path d="M 77.98,11.84 A 54 54 0 0 1 102.18,25.82 L 80.97,47.03 A 24 24 0 0 0 70.21,40.82 Z" fill="#CECBF6"/>
+  <path d="M 102.18,25.82 A 54 54 0 0 1 116.16,50.02 L 87.18,57.79 A 24 24 0 0 0 80.97,47.03 Z" fill="#CECBF6"/>
+  <path d="M 116.16,50.02 A 54 54 0 0 1 116.16,77.98 L 87.18,70.21 A 24 24 0 0 0 87.18,57.79 Z" fill="#CECBF6"/>
+  <path d="M 116.16,77.98 A 54 54 0 0 1 102.18,102.18 L 80.97,80.97 A 24 24 0 0 0 87.18,70.21 Z" fill="#CECBF6"/>
+  <path d="M 102.18,102.18 A 54 54 0 0 1 77.98,116.16 L 70.21,87.18 A 24 24 0 0 0 80.97,80.97 Z" fill="#CECBF6"/>
+  <path d="M 77.98,116.16 A 54 54 0 0 1 50.02,116.16 L 57.79,87.18 A 24 24 0 0 0 70.21,87.18 Z" fill="#CECBF6"/>
+  <path d="M 50.02,116.16 A 54 54 0 0 1 25.82,102.18 L 47.03,80.97 A 24 24 0 0 0 57.79,87.18 Z" fill="#534AB7"/>
+  <path d="M 25.82,102.18 A 54 54 0 0 1 11.84,77.98 L 40.82,70.21 A 24 24 0 0 0 47.03,80.97 Z" fill="#534AB7"/>
+  <path d="M 11.84,77.98 A 54 54 0 0 1 11.84,50.02 L 40.82,57.79 A 24 24 0 0 0 40.82,70.21 Z" fill="#534AB7"/>
+  <path d="M 11.84,50.02 A 54 54 0 0 1 25.82,25.82 L 47.03,47.03 A 24 24 0 0 0 40.82,57.79 Z" fill="#534AB7"/>
+  <path d="M 25.82,25.82 A 54 54 0 0 1 50.02,11.84 L 57.79,40.82 A 24 24 0 0 0 47.03,47.03 Z" fill="#534AB7"/>
   </g>
-  <!-- Rectangle border -->
-  <rect x="0" y="40.8" width="128" height="46.4" rx="8" fill="none" stroke="hsl(240,40%,12%)" stroke-width="3"/>
-
-  <!-- Bright arc: -105° to +105° (7 notes) -->
-  <path d="M 49.51,9.91 A 56 56 0 1 1 49.51,118.09 L 57.27,89.11 A 26 26 0 1 0 57.27,38.89 Z" fill="url(#ringBright)"/>
-  <!-- Dim arc: +105° to +255° (5 notes) -->
-  <path d="M 49.51,118.09 A 56 56 0 0 1 49.51,9.91 L 57.27,38.89 A 26 26 0 0 0 57.27,89.11 Z" fill="url(#ringDim)"/>
-  <!-- Ring borders -->
-  <circle cx="64" cy="64" r="56" fill="none" stroke="hsl(240,40%,12%)" stroke-width="3"/>
-  <circle cx="64" cy="64" r="26" fill="none" stroke="hsl(240,40%,12%)" stroke-width="3"/>
-  </g>
+  <circle cx="64" cy="64" r="11" fill="#fff"/>
 </svg>
-
