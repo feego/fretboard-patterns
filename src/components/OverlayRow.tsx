@@ -1,6 +1,7 @@
 
 
 import type { CSSProperties } from "react";
+import { cellLine, cellLineFaded } from "./StringLine.css";
 
 const flatMap: Record<string, string> = {
   "C#": "Db",
@@ -405,7 +406,7 @@ export default function OverlayRow({
           return (
             <div
               key={`row-${stringIndex}-fret-${cell.fretNumber}`}
-              className={`${cellClassName} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${textClass} ${sideBordersClass} ${topBorderClass}`}
+              className={`${cellClassName} ${showText ? cellLineFaded : cellLine} ${cell.isCenter ? centerCellClassName : ""} ${!cell.visible ? emptyCellClassName : ""} ${textClass} ${sideBordersClass} ${topBorderClass}`}
               style={{
                 position: "relative",
                 cursor: onCellToggle && showText ? "pointer" : undefined,

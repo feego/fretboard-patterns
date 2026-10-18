@@ -1,5 +1,5 @@
 import { globalStyle, keyframes, style } from "@vanilla-extract/css";
-import { stringLineImage } from "../styles/stringLine";
+import { cellLineFaded } from "./StringLine.css";
 import { borderRadius, colors, spacing } from "../styles/theme";
 import { overlay as firstOverlayRow } from "./FirstOverlay.css";
 import { overlay as secondOverlayRow } from "./SecondOverlay.css";
@@ -384,6 +384,12 @@ globalStyle(`${overlayLayerZonesOnly} *`, {
   pointerEvents: "none",
 });
 
+// The names are hidden, so the strings shouldn't fade under them.
+globalStyle(`${overlayLayerZonesOnly} ${cellLineFaded}::before`, {
+  maskImage: "none",
+  WebkitMaskImage: "none",
+});
+
 const trailFadeOut = keyframes({
   from: { opacity: 0.75 },
   to: { opacity: 0 },
@@ -538,12 +544,6 @@ export const fret = style({
   height: "var(--fret-height, 3rem)",
   borderRight: "1px solid var(--color-fret-line)",
   cursor: "pointer",
-  selectors: {
-    // String cells (not the fret-number rows): the string runs along the middle.
-    "&[data-string]": {
-      backgroundImage: stringLineImage,
-    },
-  },
   display: "flex",
   alignItems: "center",
   justifyContent: "center",

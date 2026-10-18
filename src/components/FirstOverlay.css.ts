@@ -1,5 +1,4 @@
 import { style } from "@vanilla-extract/css";
-import { stringLineImage } from "../styles/stringLine";
 import { borderRadius, colors } from "../styles/theme";
 
 export const overlay = style({
@@ -7,8 +6,6 @@ export const overlay = style({
   // pointerEvents: "none", // Allow pointer events for cell click
   zIndex: 1000,
   transform: "translate(-50%, -50%)",
-  // Redraw the string over the zone shade (under the note names).
-  backgroundImage: stringLineImage,
   // Animate repositioning so overlay shifts are easier to track.
   // Use a CSS variable so vertical mode can disable left/top tweening.
   transition:
