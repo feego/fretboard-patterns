@@ -101,6 +101,11 @@ const pulse = keyframes({
   },
 });
 
+export const markerInspectable = style({
+  cursor: "help",
+  userSelect: "none",
+});
+
 export const marker = style({
   position: "relative",
   zIndex: 1,

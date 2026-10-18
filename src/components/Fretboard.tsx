@@ -20,6 +20,7 @@ import StringLabels from "./StringLabels";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useNoteQuiz } from "../hooks/useNoteQuiz";
 import { getNoteAtPosition, NOTES, quizNoteName, TUNING_CONFIGS } from "../lib/notes";
+import { chordToneLabel } from "../lib/chords";
 import { getOverlayZone } from "../lib/overlayZones";
 
 type ToggledCellMap = Record<string, boolean>;
@@ -1591,6 +1592,8 @@ export default function Fretboard() {
 
   // Position quiz markers over the cells the current question asks about.
   const quizTargets = quiz.question?.targets;
+  // Chord mode: the marker ("questionId:index") showing its chord-tone label.
+  const [inspectedQuizNote, setInspectedQuizNote] = useState<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: resizeKey re-measures after layout changes
   useLayoutEffect(() => {
     if (!hasMounted || !quizTargets) {
@@ -2275,19 +2278,49 @@ export default function Fretboard() {
                     stateClass = styles.quizMarkerActive;
                   }
                   const isGroup = (question?.targets.length ?? 0) > 1;
+                  // Chords: hover (or tap) a note to see its role in the chord.
+                  const chord = question?.chord;
+                  const inspectKey = `${question?.id}:${i}`;
+                  const toneLabel =
+                    chord && inspectedQuizNote === inspectKey
+                      ? chordToneLabel(chord, target.pc)
+                      : null;
                   return (
                     <span
                       key={`quiz-${question?.id}-${target.string}:${target.fret}`}
-                      className={`${styles.quizMarker} ${stateClass}`}
+                      className={`${styles.quizMarker} ${stateClass}${chord ? ` ${styles.quizMarkerInspectable}` : ""}`}
                       style={{ left: pos.x, top: pos.y }}
+                      onPointerEnter={
+                        chord
+                          ? (e) => {
+                              if (e.pointerType === "mouse") setInspectedQuizNote(inspectKey);
+                            }
+                          : undefined
+                      }
+                      onPointerLeave={
+                        chord
+                          ? (e) => {
+                              if (e.pointerType === "mouse") setInspectedQuizNote(null);
+                            }
+                          : undefined
+                      }
+                      onPointerUp={
+                        chord
+                          ? (e) => {
+                              if (e.pointerType === "mouse") return;
+                              setInspectedQuizNote((k) => (k === inspectKey ? null : inspectKey));
+                            }
+                          : undefined
+                      }
                     >
-                      {answered
-                        ? quizNoteName(target.pc, quiz.settings.key)
-                        : question?.chord
-                          ? ""
-                          : isGroup
-                            ? i + 1
-                            : "?"}
+                      {toneLabel ??
+                        (answered
+                          ? quizNoteName(target.pc, quiz.settings.key)
+                          : chord
+                            ? ""
+                            : isGroup
+                              ? i + 1
+                              : "?")}
                     </span>
                   );
                 })}

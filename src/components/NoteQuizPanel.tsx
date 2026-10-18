@@ -12,6 +12,7 @@ import {
   chordsInScope,
   QUALITY_LABELS,
   sameChord,
+  usesChordChoices,
 } from "../lib/chords";
 import {
   FLAT_NAMES,
@@ -63,8 +64,12 @@ export default function NoteQuizPanel({
   const chordQuality = qualities.includes(pickedQuality)
     ? pickedQuality
     : qualities[0];
-  const answerChords: Chord[] =
-    settings.key == null
+  // Big chord sets get a per-question multiple choice instead.
+  const usesChoices = usesChordChoices(settings.chordSet, settings.key);
+  const qualityPicker = settings.key == null && !usesChoices;
+  const answerChords: Chord[] = usesChoices
+    ? (question?.chordChoices ?? [])
+    : settings.key == null
       ? NOTES.map((_, root) => ({ root, quality: chordQuality }))
       : chordsInScope(settings.chordSet, settings.key);
   const noteName = (pc: number) =>
@@ -424,7 +429,7 @@ export default function NoteQuizPanel({
         </div>
       )}
 
-      {isChordMode && settings.key == null && qualities.length > 1 && (
+      {isChordMode && qualityPicker && qualities.length > 1 && (
         <fieldset className={styles.segment} aria-label="Chord quality">
           {qualities.map((quality) => (
             <button
@@ -444,7 +449,7 @@ export default function NoteQuizPanel({
         <div
           className={styles.answerGrid}
           style={
-            settings.key == null
+            qualityPicker
               ? undefined
               : {
                   gridTemplateColumns: `repeat(${Math.min(answerChords.length, 7)}, minmax(0, 1fr))`,
@@ -456,9 +461,8 @@ export default function NoteQuizPanel({
             const answered = question?.answeredChord;
             // Free: highlight by root, since the quality is picked separately.
             const matches = (other: Chord) =>
-              settings.key == null
-                ? other.root === chord.root
-                : sameChord(other, chord);
+              qualityPicker ? other.root === chord.root : sameChord(other, chord);
+            const name = chordName(chord, settings.key);
             let stateClass = "";
             if (question?.done && asked && matches(asked)) {
               stateClass = styles.answerButtonCorrect;
@@ -469,11 +473,11 @@ export default function NoteQuizPanel({
               <button
                 key={`${chord.root}-${chord.quality}`}
                 type="button"
-                className={`${styles.answerButton} ${styles.answerButtonChord} ${stateClass}`}
+                className={`${styles.answerButton} ${styles.answerButtonChord} ${name.length >= 9 ? styles.answerButtonChordXLong : name.length >= 7 ? styles.answerButtonChordLong : ""} ${stateClass}`}
                 disabled={!question || question.done}
                 onClick={() => submitChord(chord)}
               >
-                {chordName(chord, settings.key)}
+                {name}
               </button>
             );
           })}

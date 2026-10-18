@@ -7,7 +7,9 @@ import {
   type ChordShape,
   chordsInScope,
   findVoicings,
+  pickChordChoices,
   sameChord,
+  usesChordChoices,
 } from "../lib/chords";
 import { getNoteAtPosition, keyPitchClasses, NOTES } from "../lib/notes";
 
@@ -47,6 +49,8 @@ export interface QuizQuestion {
   /** Chord mode: the chord the targets spell, and the player's answer. */
   chord: Chord | null;
   answeredChord: Chord | null;
+  /** Chord mode: the multiple-choice answers, when there are too many to show them all. */
+  chordChoices: Chord[] | null;
 }
 
 export interface PositionStat {
@@ -171,6 +175,9 @@ function buildChordQuestion(
       done: false,
       chord,
       answeredChord: null,
+      chordChoices: usesChordChoices(settings.chordSet, settings.key)
+        ? pickChordChoices(chord, chords, settings.key)
+        : null,
     };
   }
   return null;
@@ -233,6 +240,7 @@ function buildQuestion(
     done: false,
     chord: null,
     answeredChord: null,
+    chordChoices: null,
   };
 }
 

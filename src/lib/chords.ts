@@ -11,36 +11,132 @@ export type ChordQuality =
   | "min"
   | "dim"
   | "aug"
+  | "sus2"
+  | "sus4"
+  | "6"
+  | "m6"
+  | "add9"
   | "maj7"
   | "7"
   | "m7"
-  | "m7b5";
+  | "m7b5"
+  | "dim7"
+  | "mMaj7"
+  | "7sus4"
+  | "9"
+  | "maj9"
+  | "m9"
+  | "7b9"
+  | "7#9"
+  | "11"
+  | "m11"
+  | "13"
+  | "maj13"
+  | "m13";
 
 export interface Chord {
   root: number;
   quality: ChordQuality;
 }
 
+/**
+ * The notes each chord is played with, in semitones above the root. Extended
+ * chords use the usual guitar voicings, which leave notes out so they fit on
+ * four strings: no 5th in 9ths and 13ths, no 9th or 11th in 13ths, and 11ths
+ * as root, 7th, 9th and 11th.
+ */
 const CHORD_INTERVALS: Record<ChordQuality, number[]> = {
   maj: [0, 4, 7],
   min: [0, 3, 7],
   dim: [0, 3, 6],
   aug: [0, 4, 8],
+  sus2: [0, 2, 7],
+  sus4: [0, 5, 7],
+  "6": [0, 4, 7, 9],
+  m6: [0, 3, 7, 9],
+  add9: [0, 4, 7, 2],
   maj7: [0, 4, 7, 11],
   "7": [0, 4, 7, 10],
   m7: [0, 3, 7, 10],
   m7b5: [0, 3, 6, 10],
+  dim7: [0, 3, 6, 9],
+  mMaj7: [0, 3, 7, 11],
+  "7sus4": [0, 5, 7, 10],
+  "9": [0, 4, 10, 2],
+  maj9: [0, 4, 11, 2],
+  m9: [0, 3, 10, 2],
+  "7b9": [0, 4, 10, 1],
+  "7#9": [0, 4, 10, 3],
+  "11": [0, 10, 2, 5],
+  m11: [0, 3, 10, 5],
+  "13": [0, 4, 10, 9],
+  maj13: [0, 4, 11, 9],
+  m13: [0, 3, 10, 9],
 };
+
+/** Each note's role in the chord, matching CHORD_INTERVALS position by position. */
+const CHORD_TONE_LABELS: Record<ChordQuality, string[]> = {
+  maj: ["R", "3", "5"],
+  min: ["R", "♭3", "5"],
+  dim: ["R", "♭3", "♭5"],
+  aug: ["R", "3", "♯5"],
+  sus2: ["R", "2", "5"],
+  sus4: ["R", "4", "5"],
+  "6": ["R", "3", "5", "6"],
+  m6: ["R", "♭3", "5", "6"],
+  add9: ["R", "3", "5", "9"],
+  maj7: ["R", "3", "5", "7"],
+  "7": ["R", "3", "5", "♭7"],
+  m7: ["R", "♭3", "5", "♭7"],
+  m7b5: ["R", "♭3", "♭5", "♭7"],
+  dim7: ["R", "♭3", "♭5", "♭♭7"],
+  mMaj7: ["R", "♭3", "5", "7"],
+  "7sus4": ["R", "4", "5", "♭7"],
+  "9": ["R", "3", "♭7", "9"],
+  maj9: ["R", "3", "7", "9"],
+  m9: ["R", "♭3", "♭7", "9"],
+  "7b9": ["R", "3", "♭7", "♭9"],
+  "7#9": ["R", "3", "♭7", "♯9"],
+  "11": ["R", "♭7", "9", "11"],
+  m11: ["R", "♭3", "♭7", "11"],
+  "13": ["R", "3", "♭7", "13"],
+  maj13: ["R", "3", "7", "13"],
+  m13: ["R", "♭3", "♭7", "13"],
+};
+
+/** A note's role in a chord (R, ♭3, 5, ♭9…), or null if it isn't a chord tone. */
+export function chordToneLabel(chord: Chord, pc: number): string | null {
+  const index = CHORD_INTERVALS[chord.quality].indexOf((pc - chord.root + 12) % 12);
+  return index === -1 ? null : CHORD_TONE_LABELS[chord.quality][index];
+}
 
 export const CHORD_SUFFIXES: Record<ChordQuality, string> = {
   maj: "",
   min: "m",
   dim: "°",
   aug: "+",
+  sus2: "sus2",
+  sus4: "sus4",
+  "6": "6",
+  m6: "m6",
+  add9: "add9",
   maj7: "maj7",
   "7": "7",
   m7: "m7",
   m7b5: "m7♭5",
+  dim7: "°7",
+  mMaj7: "mMaj7",
+  "7sus4": "7sus4",
+  "9": "9",
+  maj9: "maj9",
+  m9: "m9",
+  "7b9": "7♭9",
+  "7#9": "7♯9",
+  "11": "11",
+  m11: "m11",
+  "13": "13",
+  maj13: "maj13",
+  m13: "m13",
 };
 
 /** Label for a quality on its own, e.g. for the quality picker. */
@@ -58,11 +154,35 @@ export const CHORD_SET_LABELS: Record<ChordSet, string> = {
   all: "Everything",
 };
 
+const TRIADS: ChordQuality[] = ["maj", "min", "dim", "aug"];
+const SEVENTHS: ChordQuality[] = ["maj7", "7", "m7", "m7b5"];
+// Everything else, roughly from simplest to most colourful.
+const EXTENDED: ChordQuality[] = [
+  "sus2",
+  "sus4",
+  "6",
+  "m6",
+  "add9",
+  "7sus4",
+  "dim7",
+  "mMaj7",
+  "9",
+  "maj9",
+  "m9",
+  "7b9",
+  "7#9",
+  "11",
+  "m11",
+  "13",
+  "maj13",
+  "m13",
+];
+
 const CHORD_SET_QUALITIES: Record<ChordSet, ChordQuality[]> = {
   majmin: ["maj", "min"],
-  triads: ["maj", "min", "dim", "aug"],
-  sevenths: ["maj7", "7", "m7", "m7b5"],
-  all: ["maj", "min", "dim", "aug", "maj7", "7", "m7", "m7b5"],
+  triads: TRIADS,
+  sevenths: SEVENTHS,
+  all: [...TRIADS, ...SEVENTHS, ...EXTENDED],
 };
 
 export type ChordShape = "adjacent" | "full";
@@ -72,9 +192,8 @@ export const CHORD_SHAPE_LABELS: Record<ChordShape, string> = {
   full: "Full shapes",
 };
 
-// Qualities of the chords built on each degree of a major key.
-const DIATONIC_TRIADS: ChordQuality[] = ["maj", "min", "min", "maj", "maj", "min", "dim"];
-const DIATONIC_SEVENTHS: ChordQuality[] = ["maj7", "m7", "m7", "maj7", "7", "m7", "m7b5"];
+/** Most answer buttons shown at once: two rows of seven. */
+export const MAX_CHORD_CHOICES = 14;
 
 export function chordQualities(set: ChordSet): ChordQuality[] {
   return CHORD_SET_QUALITIES[set];
@@ -84,7 +203,10 @@ export function chordPitchClasses(chord: Chord): number[] {
   return CHORD_INTERVALS[chord.quality].map((step) => (chord.root + step) % 12);
 }
 
-/** Same notes, so e.g. any root of a (symmetrical) augmented chord counts. */
+/**
+ * Same notes, so equivalent spellings count: any root of a symmetrical chord
+ * (augmented, diminished 7th), or e.g. C6 and Am7.
+ */
 export function sameChord(a: Chord, b: Chord): boolean {
   const pa = new Set(chordPitchClasses(a));
   const pb = chordPitchClasses(b);
@@ -97,7 +219,11 @@ export function chordName(chord: Chord, key: number | null): string {
   return `${root}${CHORD_SUFFIXES[chord.quality]}`;
 }
 
-/** The chords that can be asked: a key's diatonic chords, or every root. */
+/**
+ * The chords that can be asked: with a key, the chords on its degrees whose
+ * notes are all in the key (triads, then sevenths, then the rest, each in
+ * degree order); without one, every root.
+ */
 export function chordsInScope(set: ChordSet, key: number | null): Chord[] {
   const qualities = CHORD_SET_QUALITIES[set];
   if (key == null) {
@@ -105,16 +231,62 @@ export function chordsInScope(set: ChordSet, key: number | null): Chord[] {
       NOTES.map((_, root) => ({ root, quality })),
     );
   }
-  const degrees = keyPitchClasses(key);
+  const scale = keyPitchClasses(key);
   const chords: Chord[] = [];
-  for (const diatonic of [DIATONIC_TRIADS, DIATONIC_SEVENTHS]) {
-    degrees.forEach((root, degree) => {
-      if (qualities.includes(diatonic[degree])) {
-        chords.push({ root, quality: diatonic[degree] });
+  for (const group of [TRIADS, SEVENTHS, EXTENDED]) {
+    for (const root of scale) {
+      for (const quality of group) {
+        if (!qualities.includes(quality)) continue;
+        const chord = { root, quality };
+        if (chordPitchClasses(chord).every((pc) => scale.includes(pc))) {
+          chords.push(chord);
+        }
       }
-    });
+    }
   }
   return chords;
+}
+
+/**
+ * Whether answers are offered as a short multiple choice rather than every
+ * chord in scope: when there are more than fit in two rows (or, without a key,
+ * more qualities than the quality picker holds).
+ */
+export function usesChordChoices(set: ChordSet, key: number | null): boolean {
+  return key == null
+    ? CHORD_SET_QUALITIES[set].length > 4
+    : chordsInScope(set, key).length > MAX_CHORD_CHOICES;
+}
+
+/**
+ * Multiple-choice answers for a question: the asked chord plus look-alikes
+ * (same root, or sharing notes), with a few random ones mixed in, in a stable
+ * root-then-quality order (roots counted from the key's tonic, or from C).
+ */
+export function pickChordChoices(
+  asked: Chord,
+  candidates: Chord[],
+  key: number | null,
+): Chord[] {
+  const askedPcs = chordPitchClasses(asked);
+  const others = candidates.filter((c) => !sameChord(c, asked));
+  const similarity = (c: Chord) =>
+    chordPitchClasses(c).filter((pc) => askedPcs.includes(pc)).length +
+    (c.root === asked.root ? 2 : 0) +
+    Math.random() * 1.5;
+  const ranked = others
+    .map((c) => ({ c, score: similarity(c) }))
+    .sort((a, b) => b.score - a.score)
+    .map((r) => r.c);
+  const lookAlikes = ranked.slice(0, 9);
+  const rest = ranked.slice(9).sort(() => Math.random() - 0.5);
+  const picked = [asked, ...lookAlikes, ...rest].slice(0, MAX_CHORD_CHOICES);
+  const order = CHORD_SET_QUALITIES.all;
+  const rootOrder = (c: Chord) => (c.root - (key ?? 0) + 12) % 12;
+  return picked.sort(
+    (a, b) =>
+      rootOrder(a) - rootOrder(b) || order.indexOf(a.quality) - order.indexOf(b.quality),
+  );
 }
 
 type Pos = { string: number; fret: number };

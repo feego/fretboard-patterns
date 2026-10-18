@@ -675,6 +675,13 @@ export const quizMarker = style({
   transition: "background-color 0.15s ease, border-color 0.15s ease",
 });
 
+// Chord-mode markers respond to hover/tap (the selection layer ignores pointers).
+export const quizMarkerInspectable = style({
+  pointerEvents: "auto",
+  cursor: "help",
+  userSelect: "none",
+});
+
 export const quizMarkerActive = style({
   borderColor: colors.dark.accent,
   borderWidth: "3px",

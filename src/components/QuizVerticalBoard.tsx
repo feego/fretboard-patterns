@@ -1,7 +1,8 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { type NoteQuiz, positionKey } from "../hooks/useNoteQuiz";
+import { chordToneLabel } from "../lib/chords";
 import { quizNoteName } from "../lib/notes";
 import type { OverlayZone } from "../lib/overlayZones";
 import * as styles from "./QuizVerticalBoard.css";
@@ -36,6 +37,8 @@ export default function QuizVerticalBoard({
 }: QuizVerticalBoardProps) {
   const { settings, question } = quiz;
   const scrollerRef = useRef<HTMLDivElement>(null);
+  // Chord mode: the marker ("questionId:index") showing its chord-tone label.
+  const [inspected, setInspected] = useState<string | null>(null);
 
   const frets: number[] = [];
   for (let f = settings.minFret; f <= settings.maxFret; f++) frets.push(f);
@@ -126,17 +129,51 @@ export default function QuizVerticalBoard({
                       : undefined
                   }
                 >
-                  {target && targetIndex != null && (
-                    <span className={markerClass}>
-                      {target.answeredPc != null
-                        ? quizNoteName(target.pc, settings.key)
-                        : question?.chord
-                          ? ""
-                          : isGroup
-                            ? targetIndex + 1
-                            : "?"}
-                    </span>
-                  )}
+                  {target && targetIndex != null && (() => {
+                    // Chords: hover (or tap) a note to see its role in the chord.
+                    const chord = question?.chord;
+                    const inspectKey = `${question?.id}:${targetIndex}`;
+                    const toneLabel =
+                      chord && inspected === inspectKey
+                        ? chordToneLabel(chord, target.pc)
+                        : null;
+                    return (
+                      <span
+                        className={`${markerClass}${chord ? ` ${styles.markerInspectable}` : ""}`}
+                        onPointerEnter={
+                          chord
+                            ? (e) => {
+                                if (e.pointerType === "mouse") setInspected(inspectKey);
+                              }
+                            : undefined
+                        }
+                        onPointerLeave={
+                          chord
+                            ? (e) => {
+                                if (e.pointerType === "mouse") setInspected(null);
+                              }
+                            : undefined
+                        }
+                        onPointerUp={
+                          chord
+                            ? (e) => {
+                                if (e.pointerType === "mouse") return;
+                                setInspected((k) => (k === inspectKey ? null : inspectKey));
+                              }
+                            : undefined
+                        }
+                      >
+                        {toneLabel ??
+                          (target.answeredPc != null
+                            ? quizNoteName(target.pc, settings.key)
+                            : chord
+                              ? ""
+                              : isGroup
+                                ? targetIndex + 1
+                                : "?")}
+                      </span>
+                    );
+                  })()}
                 </div>
               );
             })}

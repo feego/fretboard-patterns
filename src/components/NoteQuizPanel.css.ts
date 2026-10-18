@@ -175,6 +175,23 @@ export const answerButtonChord = style({
   },
 });
 
+// Long names ("Ebm7♭5", "DbmMaj7") step down further on phones.
+export const answerButtonChordLong = style({
+  "@media": {
+    "screen and (max-width: 600px)": {
+      fontSize: "0.6rem",
+    },
+  },
+});
+
+export const answerButtonChordXLong = style({
+  "@media": {
+    "screen and (max-width: 600px)": {
+      fontSize: "0.5rem",
+    },
+  },
+});
+
 export const answerButtonAlt = style({
   fontSize: "0.7rem",
   fontWeight: 600,
