@@ -241,11 +241,20 @@ export default function NoteQuizPanel({
     </select>
   );
 
+  // Without auto-next, the player moves on (or skips) with this.
+  const nextButton = !settings.autoNext && (
+    <button type="button" className={styles.nextButton} onClick={skip}>
+      Next
+    </button>
+  );
+
   return (
     <section
       className={`${styles.panel}${compact ? ` ${styles.panelCompact}` : ""}`}
       aria-label="Note quiz"
     >
+      {compact && nextButton}
+
       {compact && (
         <div className={styles.compactTopRow}>
           {keySelect}
@@ -417,8 +426,19 @@ export default function NoteQuizPanel({
               })}
             </fieldset>
           </div>
+
+          <label className={styles.group}>
+            <input
+              type="checkbox"
+              checked={settings.autoNext}
+              onChange={(e) => setSettings({ autoNext: e.target.checked })}
+            />
+            Auto next
+          </label>
         </div>
       )}
+
+      {!compact && nextButton}
 
       {!compact && (
         <div className={styles.promptRow}>

@@ -28,10 +28,12 @@ export interface QuizSettings {
   chordSet: ChordSet;
   /** Chord mode: how the chords are voiced on the neck. */
   chordShape: ChordShape;
+  /** Move on by itself after an answer (otherwise wait for Next). */
+  autoNext: boolean;
 }
 
-/** The settings that decide which positions get asked. */
-type QuizScope = QuizSettings;
+/** The settings that decide what gets asked (display/flow settings excluded). */
+type QuizScope = Omit<QuizSettings, "autoNext">;
 
 export interface QuizTarget {
   string: number;
@@ -90,6 +92,7 @@ export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
   key: null,
   chordSet: "majmin",
   chordShape: "adjacent",
+  autoNext: true,
 };
 
 const EMPTY_SCORE: QuizScore = {
@@ -290,6 +293,7 @@ function sanitizeSettings(raw: Partial<QuizSettings> | null): QuizSettings {
       ? s.chordSet
       : DEFAULT_QUIZ_SETTINGS.chordSet,
     chordShape: s.chordShape === "full" ? "full" : "adjacent",
+    autoNext: s.autoNext !== false,
   };
 }
 
@@ -383,12 +387,13 @@ export function useNoteQuiz(active: boolean, tuning: string) {
     if (!active) setScore(EMPTY_SCORE);
   }, [active]);
 
-  // Auto-advance after showing feedback.
+  // Auto-advance after showing feedback (unless the player prefers Next).
+  const { autoNext } = settings;
   useEffect(() => {
-    if (!question?.done) return;
+    if (!question?.done || !autoNext) return;
     const timer = window.setTimeout(nextQuestion, feedbackDelayMs(question));
     return () => window.clearTimeout(timer);
-  }, [question, nextQuestion]);
+  }, [question, nextQuestion, autoNext]);
 
   const submit = useCallback(
     (pc: number) => {

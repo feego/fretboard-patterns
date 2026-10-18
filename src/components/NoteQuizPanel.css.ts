@@ -61,6 +61,24 @@ export const segmentButtonActive = style({
   },
 });
 
+// Shown above the prompt row when auto-next is off.
+export const nextButton = style({
+  fontFamily: "inherit",
+  // As wide as the answer grid.
+  width: "min(48rem, 100%)",
+  height: "2.5rem",
+  backgroundColor: colors.dark.accent,
+  color: colors.dark.text,
+  border: "none",
+  borderRadius: borderRadius.md,
+  fontSize: "0.9rem",
+  fontWeight: 700,
+  cursor: "pointer",
+  ":hover": {
+    backgroundColor: colors.dark.accentHover,
+  },
+});
+
 export const fretInput = style({
   fontFamily: "inherit",
   width: "3.25rem",
