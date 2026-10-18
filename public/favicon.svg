@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <title>Circle of Fifths – Fretboard Visualizer</title>
+  <rect width="128" height="128" rx="28" fill="#3C3489"/>
   <!-- Circle of fifths: the 7 notes of a key lit, the other 5 dim -->
   <g stroke="#3C3489" stroke-width="2.5">
   <path d="M 50.02,11.84 A 54 54 0 0 1 77.98,11.84 L 70.21,40.82 A 24 24 0 0 0 57.79,40.82 Z" fill="#CECBF6"/>
